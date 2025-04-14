@@ -44,8 +44,9 @@ export interface LedgerConfig {
      * bootstrap-only: Bootstrapping can still occur
      * read-only: No bootstrapping, no voting
      * read-write: Normal mode (read-write enabled)
+     * no-voting: Normal mode (read-write enabled), but no voting
      */
-    ledgerWriteMode?: 'bootstrap-only' | 'read-only' | 'read-write';
+    ledgerWriteMode?: 'bootstrap-only' | 'read-only' | 'read-write' | 'no-voting';
     /**
      * Logging method
      */
@@ -98,7 +99,7 @@ export interface LedgerStorageAPI {
     /**
      * Begin a transaction
      */
-    beginTransaction: (readOnly?: boolean) => Promise<any>;
+    beginTransaction: (identifier: string, readOnly?: boolean) => Promise<any>;
     /**
      * Commit an active transaction
      */
@@ -216,7 +217,7 @@ export interface LedgerStorageAPI {
     /**
      * Perform Garbage Collection
      */
-    gc: (transaction: any) => Promise<true>;
+    gc: (transaction: any) => Promise<boolean>;
     /**
      * Get the next serial number for a representative
      */
@@ -258,7 +259,7 @@ declare class LedgerAtomicInterface {
     getHistory(account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteStaple[]>;
     getStaplesFromBlockHashes(hashes: BlockHash[]): Promise<VoteStaple[]>;
     getVoteStaplesAfter(moment: Date, limit?: number, options?: GetVotesAfterOptions): Promise<VoteStaple[]>;
-    gc(): Promise<true>;
+    gc(): Promise<boolean>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: any) => Promise<T>): Promise<T>;
 }
 /**
@@ -284,7 +285,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
      */
     run<T>(identifier: string, code: (transaction: LedgerAtomicInterface) => Promise<T>, readOnly?: boolean): Promise<T>;
     runReadOnly<T>(identifier: string, code: (transaction: LedgerAtomicInterface) => Promise<T>): ReturnType<typeof code>;
-    beginTransaction(readOnly?: boolean): Promise<LedgerAtomicInterface>;
+    beginTransaction(identifier: string, readOnly?: boolean): Promise<LedgerAtomicInterface>;
     vote(...args: Parameters<LedgerAtomicInterface['vote']>): ReturnType<LedgerAtomicInterface['vote']>;
     add(...args: Parameters<LedgerAtomicInterface['add']>): ReturnType<LedgerAtomicInterface['add']>;
     listACLsByPrincipal(...args: Parameters<LedgerAtomicInterface['listACLsByPrincipal']>): ReturnType<LedgerAtomicInterface['listACLsByPrincipal']>;

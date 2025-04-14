@@ -11,6 +11,7 @@ import KeetaNetError from '../lib/error';
 import type { AccountInfo, GetAllBalancesResponse, ACLRow, LedgerStatistics } from '../lib/ledger/types';
 import type { LedgerSelector, LedgerStorage } from '../lib/ledger';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
+import { type BlockOperations } from '../lib/block/operations';
 type Vote = InstanceType<typeof KeetaNet['Vote']>;
 type VoteStaple = InstanceType<typeof KeetaNet['Vote']['Staple']>;
 type VoteBlocksHash = Vote['blocksHash'];
@@ -50,6 +51,9 @@ interface UserClientConfig extends UserClientOptions {
     network: bigint;
     networkAlias: Config.Networks;
 }
+type ClientRepresentative = Config.Representative & {
+    weight?: bigint;
+};
 export declare class Client {
     #private;
     static readonly Builder: typeof UserClientBuilder;
@@ -64,13 +68,13 @@ export declare class Client {
     };
     static fromNetwork(network: Config.Networks): Client;
     static isInstance: (obj: any, strict?: boolean) => obj is Client;
-    constructor(reps: Config.Representative[]);
+    constructor(reps: ClientRepresentative[]);
     destroy(): Promise<void>;
     makeBuilder(options: BuilderOptions): UserClientBuilder;
     computeBuilderBlocks(network: bigint, builder: UserClientBuilder): Promise<import("./builder").ComputeBlocksResponse>;
     transmit(blocks: Block[]): ReturnType<Client['transmitStaple']>;
     transmit(blocks: UserClientBuilder, network: bigint): ReturnType<Client['transmitStaple']>;
-    transmitStaple(votesAndBlocks: VoteStaple, reps?: Config.Representative[]): Promise<any>;
+    transmitStaple(votesAndBlocks: VoteStaple, reps?: ClientRepresentative[]): Promise<any>;
     getNodeStats(): Promise<{
         ledger: LedgerStatistics;
         switch: P2PSwitchStatistics;
@@ -87,7 +91,7 @@ export declare class Client {
     getAllBalances(account: GenericAccount | string): Promise<GetAllBalancesResponse>;
     getHeadBlock(account: GenericAccount | string): Promise<Block | null>;
     getBlock(blockhash: BlockHash | string): Promise<Block | null>;
-    getBlock(blockhash: BlockHash | string, side?: LedgerSelector, rep?: Config.Representative | 'ANY'): Promise<Block | null>;
+    getBlock(blockhash: BlockHash | string, side?: LedgerSelector, rep?: ClientRepresentative | 'ANY'): Promise<Block | null>;
     getVoteStaple(blockhash: BlockHash | string): Promise<VoteStaple | null>;
     getVoteStaple(blockhash: BlockHash | string, side?: LedgerStorage): Promise<VoteStaple | null>;
     getChain(account: GenericAccount | string, options?: {
@@ -103,17 +107,17 @@ export declare class Client {
     getSingleRepresentativeInfo(rep?: Account | string): Promise<RepresentativeInfo>;
     getPeers(): Promise<GetPeersAPIResponse>;
     getAllRepresentativeInfo(): Promise<RepresentativeInfo[]>;
-    get representatives(): Config.Representative[];
+    get representatives(): ClientRepresentative[];
     /**
      * Get the network status of all representatives
      *
      * @param timeout Maximum time to wait for a response from a representative in milliseconds
      */
     getNetworkStatus(timeout?: number): Promise<({
-        rep: Config.Representative;
+        rep: ClientRepresentative;
         online: false;
     } | {
-        rep: Config.Representative;
+        rep: ClientRepresentative;
         online: true;
         ledger: {
             moment: string;
@@ -131,7 +135,7 @@ export declare class Client {
             outgoingMessagesPeerFailureUngreeted: number;
         };
     })[]>;
-    updateReps(): Promise<void>;
+    updateReps(addNewReps?: boolean): Promise<void>;
     getVoteStaplesAfter(moment: Date, limit?: number, bloomFilter?: string): Promise<VoteStaple[]>;
     getPendingBlock(account: GenericAccount): Promise<Block | null>;
     /**
@@ -141,12 +145,12 @@ export declare class Client {
      * @param publish Publish the recovered staple to the network (default is true)
      */
     recoverAccount(account: GenericAccount, publish?: boolean): Promise<VoteStaple | null>;
-    getLedgerChecksum(rep?: Config.Representative | 'ANY'): Promise<{
+    getLedgerChecksum(rep?: ClientRepresentative | 'ANY'): Promise<{
         moment: string;
         momentRange: number;
         checksum: string;
     }>;
-    getVersion(rep?: Config.Representative | 'ANY'): Promise<{
+    getVersion(rep?: ClientRepresentative | 'ANY'): Promise<{
         node: string;
     }>;
 }
@@ -163,6 +167,12 @@ export declare class UserClient {
     static getConfigFromNetwork(network: Config.Networks, options?: UserClientOptions): Omit<UserClientConfig, 'signer'>;
     static fromNetwork(network: Config.Networks, signer: Account | null, options?: UserClientOptions): UserClient;
     static isInstance: (obj: any, strict?: boolean) => obj is UserClient;
+    static filterStapleOperations(voteStaples: VoteStaple[], account: GenericAccount): {
+        [stapleHash: string]: {
+            block: Block;
+            filteredOperations: BlockOperations[];
+        }[];
+    };
     constructor(config: UserClientConfig);
     initializeChain(initOpts: {
         addSupplyAmount: bigint;
@@ -186,6 +196,12 @@ export declare class UserClient {
         voteStaple: import("../lib/vote").VoteStaple;
         effects: import("../lib/ledger/effects").ComputedEffectOfBlocks;
     }[]>;
+    filterStapleOperations(voteStaples: VoteStaple[], options?: UserClientOptions): {
+        [stapleHash: string]: {
+            block: Block;
+            filteredOperations: BlockOperations[];
+        }[];
+    };
     state(options?: UserClientOptions): ReturnType<Client['getAccountInfo']>;
     listACLsByPrincipal(entity?: (GenericAccount | string)[], options?: UserClientOptions): ReturnType<Client['listACLsByPrincipal']>;
     listACLsByEntity(options?: UserClientOptions): ReturnType<Client['listACLsByEntity']>;

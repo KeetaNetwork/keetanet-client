@@ -59,7 +59,7 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     }>;
     getVoteStaplesFromBlockHash(transaction: PostgresTransaction, blocks: BlockHash[], onLedger: LedgerSelector): Promise<VoteStaple[]>;
     getVotesAfter(transaction: PostgresTransaction, moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
-    gc(transaction: PostgresTransaction): Promise<true>;
+    protected gcBatch(transaction: PostgresTransaction): Promise<boolean>;
     getNextSerialNumber(): Promise<bigint>;
     stats(): Promise<LedgerStatistics>;
 }

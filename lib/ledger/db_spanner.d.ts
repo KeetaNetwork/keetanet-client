@@ -40,7 +40,7 @@ export declare class SpannerTransaction {
     readonly statsChanges: Parameters<Stats['incr']>[];
     constructor(database: GoogleSpannerDatabase, options?: SpannerTransactionOptions);
     evaluateError(error: any): KeetaNetLedgerError;
-    beginTransaction(strongRead?: boolean): Promise<void>;
+    beginTransaction(identifier: string, strongRead?: boolean): Promise<void>;
     endTransaction(mode: 'COMMIT' | 'ROLLBACK'): Promise<void>;
     insert<T extends TableName, R extends QueryRow<T>>(table: T, query: R): void;
     upsert<T extends TableName, R extends QueryRow<T>>(table: T, query: R): void;
@@ -66,7 +66,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     constructor();
     init(config: LedgerConfig, ledger: Ledger): void;
     destroy(): Promise<void>;
-    beginTransaction(readOnly?: boolean): Promise<SpannerTransaction>;
+    beginTransaction(identifier: string, readOnly?: boolean): Promise<SpannerTransaction>;
     commitTransaction(transaction: SpannerTransaction): Promise<void>;
     abortTransaction(transaction: SpannerTransaction): Promise<void>;
     evaluateError(error: any): Promise<KeetaNetLedgerError>;
@@ -98,8 +98,9 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     listOwners(transaction: SpannerTransaction, entity: IdentifierAddress): Promise<GenericAccount[]>;
     listACLsByEntity(transaction: SpannerTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(transaction: SpannerTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
-    getVotesAfter(transaction: SpannerTransaction, moment: Date, _ignore_startKey?: string, _ignored_options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
-    gc(transaction: SpannerTransaction): Promise<true>;
+    getVoteStaplesFromBlockHash(transaction: SpannerTransaction, blocks: BlockHash[], from: LedgerSelector): Promise<VoteStaple[]>;
+    getVotesAfter(transaction: SpannerTransaction, moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
+    protected gcBatch(transaction: SpannerTransaction): Promise<boolean>;
     getNextSerialNumber(): Promise<bigint>;
     stats(): Promise<LedgerStatistics>;
 }

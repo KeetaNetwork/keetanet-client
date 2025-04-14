@@ -110,6 +110,8 @@ export declare abstract class LedgerStorageBase {
     _validateAccountInfoKeys(account: GenericAccount, info: Partial<AccountInfo>): void;
     getHeadBlock(transaction: any, account: GenericAccount, from: LedgerSelector): Promise<Block | null>;
     getVotesFromPrevious(transaction: any, prevBlock: BlockHash, from: LedgerSelector, issuer?: Account): Promise<Vote[] | null>;
+    protected abstract gcBatch(transaction: any): Promise<boolean>;
+    gc(transaction: any): Promise<boolean>;
 }
 export declare function assertLedgerStorage(value: string): LedgerStorage;
 export {};

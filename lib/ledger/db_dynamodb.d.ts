@@ -57,7 +57,7 @@ declare class DynamoDBTransaction {
     listACLsByEntity(entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
     getVotesAfter(moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
-    gc(): Promise<true>;
+    gcBatch(): Promise<boolean>;
 }
 export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStorageAPI {
     #private;
@@ -97,7 +97,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
     listACLsByEntity(transaction: DynamoDBTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     getVotesAfter(transaction: DynamoDBTransaction, moment: Date, startKey?: string): Promise<PaginatedVotes>;
     getNextSerialNumber(): Promise<bigint>;
-    gc(transaction: DynamoDBTransaction): Promise<true>;
+    gcBatch(transaction: DynamoDBTransaction): Promise<boolean>;
     stats(): Promise<LedgerStatistics>;
 }
 export default DBDynamoDB;

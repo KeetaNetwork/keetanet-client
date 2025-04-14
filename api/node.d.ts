@@ -11,6 +11,7 @@ interface GetPeersAPIResponse {
     kind: NodeKind;
     key?: string;
     endpoint?: string;
+    signature?: string;
 }
 interface GetAccountChainAPIResponse {
     account: string;
@@ -32,6 +33,7 @@ interface AccountStateError {
 }
 interface GetAllRepresentativesAPIResponse {
     representative: string;
+    weight: bigint;
     endpoints: Endpoints;
 }
 interface GetRepresentativeAPIResponse {

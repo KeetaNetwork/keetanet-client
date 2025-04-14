@@ -79838,6 +79838,17 @@ class client_LedgerStorageBase {
         }
         return (null);
     }
+    async gc(transaction) {
+        let lastGCResult = false;
+        for (const startTime = Date.now(); Date.now() - startTime < 280000;) {
+            const gcResult = await this.gcBatch(transaction);
+            lastGCResult = gcResult;
+            if (!gcResult) {
+                return (false);
+            }
+        }
+        return (lastGCResult);
+    }
 }
 client_LedgerStorageBase_instances = new WeakSet(), client_LedgerStorageBase_log = function _LedgerStorageBase_log(...args) {
     if (this.config !== null) {
@@ -80586,7 +80597,7 @@ class client_LedgerAtomicInterface {
     async vote(blocks, otherVotes) {
         client_ledger_classPrivateFieldGet(this, client_LedgerAtomicInterface_instances, "m", client_LedgerAtomicInterface_assertTransaction).call(this);
         if (client_ledger_classPrivateFieldGet(this, client_LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
-            throw (new Error('May not issue votes in read-only mode'));
+            throw (new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(this, client_LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
         }
         if (!client_ledger_classPrivateFieldGet(this, client_LedgerAtomicInterface_privateKey, "f")) {
             throw (new Error('Cannot vote on block, no private key loaded'));
@@ -80798,6 +80809,7 @@ class client_LedgerAtomicInterface {
                 }
                 throw (new Error('Cannot add blocks to a read-only ledger (except for bootstrapping)'));
             case 'read-write':
+            case 'no-voting':
                 break;
             default:
                 throw (new Error(`internal error: invalid ledger write mode: ${client_ledger_classPrivateFieldGet(this, client_LedgerAtomicInterface_ledger, "f").ledgerWriteMode}`));
@@ -81356,6 +81368,7 @@ class client_Ledger {
      * @returns The return value from "code"
      */
     async run(identifier, code, readOnly) {
+        const txnIdentifier = identifier;
         if (this.node !== undefined) {
             identifier = `${identifier}-${this.node.timing.counter()}`;
             this.node.timing.startTime(identifier);
@@ -81365,7 +81378,7 @@ class client_Ledger {
             try {
                 let runError;
                 let threw = false;
-                const transaction = await this.beginTransaction(readOnly);
+                const transaction = await this.beginTransaction(txnIdentifier, readOnly);
                 try {
                     retval = await code(transaction);
                 }
@@ -81414,8 +81427,8 @@ class client_Ledger {
     async runReadOnly(identifier, code) {
         return (await this.run(identifier, code, true));
     }
-    async beginTransaction(readOnly) {
-        const transaction = await client_ledger_classPrivateFieldGet(this, client_Ledger_storage, "f").beginTransaction(readOnly);
+    async beginTransaction(identifier, readOnly) {
+        const transaction = await client_ledger_classPrivateFieldGet(this, client_Ledger_storage, "f").beginTransaction(identifier, readOnly);
         return (new client_LedgerAtomicInterface(transaction, client_ledger_classPrivateFieldGet(this, client_Ledger_storage, "f"), client_ledger_classPrivateFieldGet(this, client_Ledger_config, "f"), this));
     }
     async vote(...args) {
@@ -82747,7 +82760,7 @@ class client_P2PSwitch {
         for (const conn of client_p2p_classPrivateFieldGet(this, client_P2PSwitch_connectedPeersLocal, "f")) {
             closePromises.push(conn.close());
         }
-        await Promise.all(closePromises);
+        await Promise.allSettled(closePromises);
         await this.wait();
     }
     /**
@@ -82758,7 +82771,7 @@ class client_P2PSwitch {
         if (promises.length === 0) {
             return;
         }
-        await Promise.all(promises);
+        await Promise.allSettled(promises);
     }
     async stats() {
         return ({
@@ -83592,7 +83605,7 @@ async function _P2PSwitch_relayActiveState(conn) {
      * Perform peer exchange
      */
     promises.push(client_p2p_classPrivateFieldGet(this, client_P2PSwitch_instances, "m", client_P2PSwitch_relayActiveState).call(this, from));
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     return (true);
 }, client_P2PSwitch_updateConnTimeout = function _P2PSwitch_updateConnTimeout(conn) {
     if (conn.peer) {
@@ -87571,7 +87584,8 @@ var client_client_classPrivateFieldGet = (undefined && undefined.__classPrivateF
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var client_Client_instances, client_Client_reps, client_Client_agent, client_Client_intervals, client_Client_updateRepsPromise, client_Client_apiRaw, client_Client_api, client_Client_requestVotes, client_Client_getVotes, client_Client_getBuilderRenderOptions, client_Client_urlSeparatedAccounts, client_Client_formatAllBalances, client_Client_parseResponsePermissions, client_Client_formatAccountInfo, client_Client_parseAccountInfo, client_Client_parsePermissionEntries, client_Client_parseRepInfo, client_UserClient_instances, client_UserClient_config, client_UserClient_client, client_UserClient_listeners, client_UserClient_intervals, client_UserClient_previousAccountChangeData, client_UserClient_socketPromise, client_UserClient_filteredWebSocket, client_UserClient_changePromise, client_UserClient_reconnectAttempts, client_UserClient_RECONNECT_TIMEOUT, client_UserClient_getAccount, client_UserClient_publishAidURL_get, client_UserClient_publishWithPublishAid, client_UserClient_reconnectWebSocket, client_UserClient_setupFilteredWebSocket, client_UserClient_emit, client_UserClient_emitAccountInfoIfChanged;
+var client_Client_instances, client_Client_reps, client_Client_weightOrderedReps, client_Client_agent, client_Client_intervals, client_Client_updateRepsPromise, client_Client_apiRaw, client_Client_api, client_Client_requestVotes, client_Client_getVotes, client_Client_getBuilderRenderOptions, client_Client_urlSeparatedAccounts, client_Client_formatAllBalances, client_Client_parseResponsePermissions, client_Client_formatAccountInfo, client_Client_parseAccountInfo, client_Client_parsePermissionEntries, client_Client_parseRepInfo, client_UserClient_instances, client_UserClient_config, client_UserClient_client, client_UserClient_listeners, client_UserClient_intervals, client_UserClient_previousAccountChangeData, client_UserClient_socketPromise, client_UserClient_filteredWebSocket, client_UserClient_changePromise, client_UserClient_reconnectAttempts, client_UserClient_RECONNECT_TIMEOUT, client_UserClient_getAccount, client_UserClient_publishAidURL_get, client_UserClient_publishWithPublishAid, client_UserClient_reconnectWebSocket, client_UserClient_setupFilteredWebSocket, client_UserClient_emit, client_UserClient_emitAccountInfoIfChanged;
+
 
 
 
@@ -87628,6 +87642,7 @@ class client_Client {
         client_Client_instances.add(this);
         this.logger = client_Client.DefaultLogger;
         client_Client_reps.set(this, void 0);
+        client_Client_weightOrderedReps.set(this, []);
         client_Client_agent.set(this, void 0);
         client_Client_intervals.set(this, void 0);
         client_Client_updateRepsPromise.set(this, void 0);
@@ -87656,13 +87671,12 @@ class client_Client {
         client_client_classPrivateFieldSet(this, client_Client_updateRepsPromise, undefined, "f");
         client_client_classPrivateFieldSet(this, client_Client_intervals, {}, "f");
         // Update Reps immediately and then every 5 minutes
-        // TODO - Remove this until reps peering is stable
-        // this.#updateRepsPromise = this.updateReps();
-        // if (this.#intervals.updateReps === undefined) {
-        // 	this.#intervals.updateReps = setInterval(() => {
-        // 		this.#updateRepsPromise = this.updateReps();
-        // 	}, 5 * 60 * 1000);
-        // }
+        client_client_classPrivateFieldSet(this, client_Client_updateRepsPromise, this.updateReps(), "f");
+        if (client_client_classPrivateFieldGet(this, client_Client_intervals, "f").updateReps === undefined) {
+            client_client_classPrivateFieldGet(this, client_Client_intervals, "f").updateReps = setInterval(() => {
+                client_client_classPrivateFieldSet(this, client_Client_updateRepsPromise, this.updateReps(), "f");
+            }, 5 * 60 * 1000);
+        }
     }
     async destroy() {
         if (client_client_classPrivateFieldGet(this, client_Client_updateRepsPromise, "f") !== undefined) {
@@ -87695,7 +87709,12 @@ class client_Client {
         const votesAndBlocks = src_client_lib.Vote.Staple.fromVotesAndBlocks(permVotes, blocks);
         return (await this.transmitStaple(votesAndBlocks));
     }
-    async transmitStaple(votesAndBlocks, reps = client_client_classPrivateFieldGet(this, client_Client_reps, "f")) {
+    async transmitStaple(votesAndBlocks, reps) {
+        // If reps are not defined then publish to the highest weight rep
+        if (!reps || reps.length === 0) {
+            await client_client_classPrivateFieldGet(this, client_Client_updateRepsPromise, "f");
+            reps = [client_client_classPrivateFieldGet(this, client_Client_weightOrderedReps, "f")[0]];
+        }
         const publishPromises = [];
         for (const rep of reps) {
             publishPromises.push((async () => {
@@ -88056,8 +88075,9 @@ class client_Client {
         const retval = await Promise.all(repsInfo);
         return (retval);
     }
-    async updateReps() {
+    async updateReps(addNewReps = false) {
         const repsResponse = await client_client_classPrivateFieldGet(this, client_Client_instances, "m", client_Client_api).call(this, 'ANY', 'GET /node/ledger/representatives');
+        const weightedReps = [];
         for (const rep of repsResponse.representatives) {
             const repAccount = src_client_lib.Account.fromPublicKeyString(rep.representative).assertAccount();
             const repIndex = client_client_classPrivateFieldGet(this, client_Client_reps, "f").findIndex(repInfo => {
@@ -88065,15 +88085,31 @@ class client_Client {
             });
             const repInfo = {
                 key: repAccount,
+                weight: BigInt(rep.weight),
                 endpoints: rep.endpoints
             };
             if (repIndex === -1) {
-                client_client_classPrivateFieldGet(this, client_Client_reps, "f").push(repInfo);
+                if (addNewReps) {
+                    // TODO - make addNewReps default true when rep tracking is stable
+                    // If we are adding new reps, also add them to weight sorted reps
+                    client_client_classPrivateFieldGet(this, client_Client_reps, "f").push(repInfo);
+                    weightedReps.push(repInfo);
+                }
             }
             else {
-                client_client_classPrivateFieldGet(this, client_Client_reps, "f")[repIndex] = repInfo;
+                weightedReps.push(repInfo);
             }
         }
+        weightedReps.sort((rep1, rep2) => {
+            if (rep2.weight > rep1.weight) {
+                return (1);
+            }
+            if (rep2.weight < rep1.weight) {
+                return (-1);
+            }
+            return (0);
+        });
+        client_client_classPrivateFieldSet(this, client_Client_weightOrderedReps, weightedReps, "f");
     }
     async getVoteStaplesAfter(moment, limit, bloomFilter) {
         const query = {
@@ -88274,18 +88310,22 @@ class client_Client {
         return (version);
     }
 }
-client_Client_reps = new WeakMap(), client_Client_agent = new WeakMap(), client_Client_intervals = new WeakMap(), client_Client_updateRepsPromise = new WeakMap(), client_Client_instances = new WeakSet(), client_Client_apiRaw = 
+client_Client_reps = new WeakMap(), client_Client_weightOrderedReps = new WeakMap(), client_Client_agent = new WeakMap(), client_Client_intervals = new WeakMap(), client_Client_updateRepsPromise = new WeakMap(), client_Client_instances = new WeakSet(), client_Client_apiRaw = 
 /**
  * API dispatching routine
  */
 async function _Client_apiRaw(rep, api, method, options = {}) {
+    var _a;
     const startTime = Date.now();
     options = Object.assign({ maxRetries: 32 }, options);
     let delay = 1;
     let result, resultThrow;
     for (let retry = 0; retry < Number.MAX_SAFE_INTEGER; retry++) {
         if (rep === 'ANY') {
-            rep = client_client_classPrivateFieldGet(this, client_Client_reps, "f")[0];
+            if (client_client_classPrivateFieldGet(this, client_Client_weightOrderedReps, "f").length === 0) {
+                await client_client_classPrivateFieldGet(this, client_Client_updateRepsPromise, "f");
+            }
+            rep = (_a = client_client_classPrivateFieldGet(this, client_Client_weightOrderedReps, "f")[0]) !== null && _a !== void 0 ? _a : client_client_classPrivateFieldGet(this, client_Client_reps, "f")[0];
         }
         const repURL = rep.endpoints.api;
         let fetchURL = `${repURL}${api}`;
@@ -88357,7 +88397,7 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
                 try {
                     errorMessage = `${errorMessage}: ${await response.text()}`;
                 }
-                catch (_a) {
+                catch (_b) {
                     /* Ignore any errors, we will just have an incomplete error message */
                 }
                 throw (new Error(errorMessage));
@@ -88656,6 +88696,60 @@ class client_UserClient {
         const config = Object.assign(Object.assign({}, client_UserClient.getConfigFromNetwork(network, options)), { signer: signer });
         return (new client_UserClient(config));
     }
+    static filterStapleOperations(voteStaples, account) {
+        const filteredOperations = {};
+        // For each staple
+        for (const staple of voteStaples) {
+            const stapleHash = staple.blocksHash.toString();
+            filteredOperations[stapleHash] = [];
+            // For each block
+            for (const block of staple.blocks) {
+                const blockOperations = [];
+                // If block is produced by the account being filtered, included all operations
+                if (block.account.comparePublicKey(account)) {
+                    blockOperations.push(...block.operations);
+                }
+                else {
+                    // If the block is for another account then filter the operations for the given account
+                    for (const ops in block.operations) {
+                        const operation = block.operations[ops];
+                        const principals = [];
+                        switch (operation.type) {
+                            case client_OperationType.SEND:
+                            case client_OperationType.SET_REP:
+                                principals.push(operation.to);
+                                break;
+                            case client_OperationType.MODIFY_PERMISSIONS:
+                                principals.push(operation.principal);
+                                break;
+                            case client_OperationType.CREATE_IDENTIFIER:
+                                principals.push(operation.identifier);
+                                break;
+                            case client_OperationType.TOKEN_ADMIN_MODIFY_BALANCE:
+                            case client_OperationType.SET_INFO:
+                            case client_OperationType.TOKEN_ADMIN_SUPPLY:
+                                // Do nothing for these, they don't reference an account directly
+                                break;
+                            case client_OperationType.RECEIVE:
+                                principals.push(operation.from);
+                                if (operation.forward) {
+                                    principals.push(operation.forward);
+                                }
+                                break;
+                        }
+                        if (principals.length > 0 && principals.some(principal => principal.comparePublicKey(account))) {
+                            blockOperations.push(operation);
+                        }
+                    }
+                }
+                filteredOperations[stapleHash].push({
+                    block,
+                    filteredOperations: blockOperations
+                });
+            }
+        }
+        return (filteredOperations);
+    }
     constructor(config) {
         client_UserClient_instances.add(this);
         client_UserClient_config.set(this, void 0);
@@ -88805,6 +88899,10 @@ class client_UserClient {
             });
         });
         return (retval);
+    }
+    filterStapleOperations(voteStaples, options = {}) {
+        const account = client_client_classPrivateFieldGet(this, client_UserClient_instances, "m", client_UserClient_getAccount).call(this, options);
+        return (client_UserClient.filterStapleOperations(voteStaples, account));
     }
     state(options = {}) {
         return (client_client_classPrivateFieldGet(this, client_UserClient_client, "f").getAccountInfo(client_client_classPrivateFieldGet(this, client_UserClient_instances, "m", client_UserClient_getAccount).call(this, options)));

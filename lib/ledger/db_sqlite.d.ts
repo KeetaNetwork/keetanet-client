@@ -57,7 +57,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
         [publicKey: string]: Block | null;
     }>;
     getVotesAfter(transaction: DBSqliteTransaction, moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
-    gc(transaction: DBSqliteTransaction): Promise<true>;
+    protected gcBatch(transaction: DBSqliteTransaction): Promise<boolean>;
     getNextSerialNumber(transaction: DBSqliteTransaction): Promise<bigint>;
     stats(): Promise<LedgerStatistics>;
 }

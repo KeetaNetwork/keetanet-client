@@ -377,7 +377,6 @@ declare const schema: {
         readonly type: "INDEX";
         readonly table: "blocks";
         readonly key: readonly [Key];
-        readonly unique: true;
         readonly storing: readonly [Key, Key];
     };
     readonly voteBlocksBlockhash: {

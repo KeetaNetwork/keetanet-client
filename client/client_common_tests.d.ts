@@ -1,8 +1,9 @@
 import * as KeetaNet from '.';
 import type LocalNode from '../lib/node/local';
 import type { Networks } from '../config';
+import { AccountKeyAlgorithm } from '../lib/account';
 import type Account from '../lib/account';
-import type { UserClient } from '.';
+import { UserClient } from '.';
 import { toJSONSerializable } from '../lib/utils/conversion';
 import KeetaError from '../lib/error';
 export type ClientParams = {
@@ -22,9 +23,9 @@ export type NodeCreationOptions = {
     count?: number;
 };
 export declare function setup(options?: NodeCreationOptions): Promise<{
-    trustedKey: Account<import("../lib/account").AccountKeyAlgorithm.ECDSA_SECP256K1>;
-    repKeys: Account<import("../lib/account").AccountKeyAlgorithm.ECDSA_SECP256K1 | import("../lib/account").AccountKeyAlgorithm.ED25519 | import("../lib/account").AccountKeyAlgorithm.ECDSA_SECP256R1>[];
-    accounts: Account<import("../lib/account").AccountKeyAlgorithm.ECDSA_SECP256K1>[];
+    trustedKey: Account<AccountKeyAlgorithm.ECDSA_SECP256K1>;
+    repKeys: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>[];
+    accounts: Account<AccountKeyAlgorithm.ECDSA_SECP256K1>[];
     nodes: LocalNode[];
     trustedClients: KeetaNet.UserClient[];
     userClients: KeetaNet.UserClient[];

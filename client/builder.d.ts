@@ -4,18 +4,41 @@ import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
 import type { AccountInfo } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
-import Permissions from '../lib/permissions';
+import type { UserClient } from '.';
+import { Permissions } from '../lib/permissions';
 type GetPrevFunction = (acct: GenericAccount | string) => Promise<BlockHash | string | null | undefined>;
 interface AccountSignerOptions {
     account: GenericAccount;
     signer: Account;
 }
+/** @expandType GetPrevFunction */
 interface RenderOptions {
     network: bigint;
     getPrevious: GetPrevFunction;
 }
+/** @useDeclaredType */
 type BuilderBlockOptions = Partial<AccountSignerOptions>;
-export type BuilderOptions = Partial<AccountSignerOptions> & Pick<AccountSignerOptions, 'signer'>;
+/**
+ * Either a UserClient or an object with a client and network
+ *
+ * @example
+ * ```typescript
+ * const userClient = UserClient.fromNetwork('test');
+ * const config: UserClientOrClientAndNetwork = userClient;
+ * const alternativeConfig: UserClientOrClientAndNetwork = {
+ *     client: userClient.client,
+ *     network: userClient.network
+ * };
+ * ```
+ */
+type UserClientOrClientAndNetwork = Pick<UserClient, 'client' | 'network'> | Pick<UserClient, 'client' | 'network' | 'head' | 'publishBuilder'>;
+/** @expand */
+export type BuilderOptions = Partial<AccountSignerOptions> & Pick<AccountSignerOptions, 'signer'> & {
+    /**
+     * User Client or object with a client and network
+     */
+    userClient?: UserClientOrClientAndNetwork;
+};
 type PerAccount<T> = {
     [accountPubKey: string]: T;
 };
@@ -89,11 +112,24 @@ export interface AccountSignerOptionsJSON {
     account: string;
     signer: string;
 }
+/**
+ * @expand
+ */
 export interface AllPendingJSON {
+    /**
+     * Blocks which have been rendered
+     */
     renderedBlocks: string[];
+    /**
+     * Blocks which have not been rendered
+     */
     nonRendered: [AccountSignerOptionsJSON, PendingOperationsJSON][];
 }
+/** @expand */
 export interface ComputeBlocksResponse {
+    /**
+     * Blocks which have been computed
+     */
     blocks: Block[];
 }
 export declare class PendingAccount<AccountType extends AccountKeyAlgorithm = AccountKeyAlgorithm> {
@@ -114,6 +150,10 @@ export declare class UserClientBuilder {
     get defaultOptions(): BuilderOptions;
     updateAccounts(accountOptions: Partial<AccountSignerOptions>): void;
     clone(): Promise<UserClientBuilder>;
+    publish(): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
+    publish(client?: UserClientOrClientAndNetwork): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
+    computeBlocks(): Promise<ComputeBlocksResponse>;
+    computeBlocks(client?: UserClientOrClientAndNetwork): Promise<ComputeBlocksResponse>;
     computeBlocks(renderOptions: RenderOptions): Promise<ComputeBlocksResponse>;
     send(recipient: AccountOrPending, amount: bigint, token: TokenOrPending, external?: string, options?: BuilderBlockOptions): void;
     receive(from: AccountOrPending, amount: bigint, token: TokenOrPending, exact?: boolean, forward?: GenericAccount, options?: BuilderBlockOptions): void;

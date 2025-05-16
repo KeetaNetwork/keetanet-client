@@ -1,4 +1,4 @@
-import KeetaNetError from '.';
+import { KeetaNetError } from '.';
 declare const KVErrorType: "KV";
 declare const KVErrorCodes: readonly ["TTL_NOT_SUPPORTED"];
 export type KVErrorCode = `${typeof KVErrorType}_${typeof KVErrorCodes[number]}`;

@@ -189,17 +189,3 @@ export declare class BufferStorageASN1<T extends ASN1AnyJS | Readonly<ASN1AnyJS>
     getASN1(): S extends undefined ? Mutable<T> : Mutable<ValidateASN1.SchemaMap<Exclude<S, undefined>>>;
 }
 export { ASN1toJS, JStoASN1, ASN1IntegerToBigInt, ASN1BigIntToBuffer };
-export declare const _Testing: {
-    native: {
-        ASN1toJS: typeof jsASN1toJS;
-        JStoASN1: typeof jsJStoASN1;
-        ASN1BigIntToBuffer: typeof jsBigIntToBuffer;
-        ASN1IntegerToBigInt: typeof jsIntegerToBigInt;
-    } | undefined;
-    js: {
-        ASN1toJS: typeof jsASN1toJS;
-        JStoASN1: typeof jsJStoASN1;
-        ASN1BigIntToBuffer: typeof jsBigIntToBuffer;
-        ASN1IntegerToBigInt: typeof jsIntegerToBigInt;
-    };
-};

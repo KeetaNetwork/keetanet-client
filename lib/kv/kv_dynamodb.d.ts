@@ -1,7 +1,7 @@
 import type { KVStorageProviderAPI, KVSetOptionsType } from './';
 import { KVStorageProviderBase } from './';
 import type { JSONSerializable } from '../utils/conversion';
-import BufferStorage from '../utils/buffer';
+import { BufferStorage } from '../utils/buffer';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 export declare class KVStorageProviderDynamoDB extends KVStorageProviderBase implements KVStorageProviderAPI {
     #private;

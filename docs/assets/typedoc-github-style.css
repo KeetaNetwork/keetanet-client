@@ -1,0 +1,557 @@
+/* ----------------------------------------------------------------------------------
+   Keeta Docs – Theme System
+   ----------------------------------------------------------------------------------
+   Theme Behavior:
+   - data-theme="light"  → always light
+   - data-theme="dark"   → always dark
+   - data-theme="os"     → follow the OS (prefers‑color‑scheme)
+   - (attribute absent)  → also follow the OS (for very first load)
+
+   Theme Implementation:
+   - :root                     → light palette (default fallback)
+   - :root[data-theme='dark']  → dark palette overrides
+   - @media queries            → handle OS preference for 'os' mode or no mode set
+   -------------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------------------------
+  1. FONTS & TYPOGRAPHY
+  ---------------------------------------------------------------------------------- */
+  @font-face {
+  font-family: 'Surt Normal';
+  src: url('./fonts/Surt-Normal-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Surt Normal';
+  src: url('./fonts/Surt-Normal-Medium.woff2') format('woff2');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Surt Normal';
+  src: url('./fonts/Surt-Normal-Semibold.woff2') format('woff2');
+  font-weight: 600;
+}
+@font-face {
+  font-family: 'Surt Normal';
+  src: url('./fonts/Surt-Normal-Bold.woff2') format('woff2');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Surt Expanded';
+  src: url('./fonts/Surt-Expanded-Regular.woff2') format('woff2');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Surt Expanded';
+  src: url('./fonts/Surt-Expanded-Medium.woff2') format('woff2');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Surt Expanded';
+  src: url('./fonts/Surt-Expanded-Semibold.woff2') format('woff2');
+  font-weight: 600;
+}
+@font-face {
+  font-family: 'Surt Expanded';
+  src: url('./fonts/Surt-Expanded-Bold.woff2') format('woff2');
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------------------------------
+    2. COLOR VARIABLES & THEME TOKENS
+    ---------------------------------------------------------------------------------- */
+:root {
+  /* --- colour palette: LIGHT is the baseline ------------------------ */
+  --color-background:            #F6F6F6;
+  --color-background-secondary:  #F1F1F1;
+  --color-background-navbar:     #F6F6F6;
+  --color-background-overlay:    rgba(255, 255, 255, 0.7);
+  --color-warning-border:        #ffcc00;
+  --color-text:                  #555555;
+  --color-text-aside:            #2C2A2A;
+  --color-text-heading:          #2C2A2A;
+  --color-link:                  #1A56D6;
+  --color-accent:                #E4E4E2;
+  --color-separator:             #E5E5E5;
+  --color-focus-outline:         #555;
+
+  /* fonts */
+  --font-family-text:            'Surt Normal', sans-serif;
+  --font-family-heading:         'Surt Expanded', sans-serif;
+}
+
+/* Dark Theme Variables Override */
+
+:root[data-theme='dark'] {
+  --color-background:            #262A2A;
+  --color-background-secondary:  #323232;
+  --color-background-navbar:     #262A2A;
+  --color-background-overlay:    rgba(0, 0, 0, 0.7);
+  --color-warning-border:        #ffa500;
+  --color-text:                  #C0BFBF;
+  --color-text-aside:            #8A8A8A;
+  --color-text-heading:          #FFFFFF;
+  --color-link:                  #9BCBFF;
+  --color-accent:                #323232;
+  --color-separator:             #444444;
+  --color-focus-outline:         #888;
+}
+
+/* ----------------------------------------------------------------------------------
+    3. OS/SYSTEM PREFERENCE HANDLING
+    ---------------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]),
+  :root[data-theme='os'] {
+    --color-background:            #262A2A;
+    --color-background-secondary:  #323232;
+    --color-background-navbar:     #262A2A;
+    --color-background-overlay:    rgba(0, 0, 0, 0.7);
+    --color-warning-border:        #ffa500;
+    --color-text:                  #C0BFBF;
+    --color-text-aside:            #8A8A8A;
+    --color-text-heading:          #FFFFFF;
+    --color-link:                  #9BCBFF;
+    --color-accent:                #323232;
+    --color-separator:             #444444;
+    --color-focus-outline:         #888;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]),
+  :root[data-theme='os'] {
+    --color-background:            #F6F6F6;
+    --color-background-secondary:  #F1F1F1;
+    --color-background-navbar:     #F6F6F6;
+    --color-background-overlay:    rgba(255, 255, 255, 0.7);
+    --color-warning-border:        #ffcc00;
+    --color-text:                  #555555;
+    --color-text-aside:            #2C2A2A;
+    --color-text-heading:          #2C2A2A;
+    --color-link:                  #1A56D6;
+    --color-accent:                #E4E4E2;
+    --color-separator:             #E5E5E5;
+    --color-focus-outline:         #555;
+  }
+
+  /* white background for "pre" & "code" in light mode */
+  :root:not([data-theme]) pre,
+  :root:not([data-theme]) code,
+  :root[data-theme='os'] pre,
+  :root[data-theme='os'] code,
+  :root[data-theme='light'] pre,
+  :root[data-theme='light'] code {
+    background-color: #ffffff;
+  }
+}
+
+/* ----------------------------------------------------------------------------------
+    4. BASE TYPOGRAPHY 
+    ---------------------------------------------------------------------------------- */
+body {
+  font-family: var(--font-family-text);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 1.5%;
+  background-color: var(--color-background);
+}
+
+h1, h2, h3, h4, h5, h6 { color: var(--color-text-heading) }
+
+h1 {
+  font-family: var(--font-family-heading);
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 32px;
+}
+
+h2 {
+  font-family: var(--font-family-heading);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+h3, h4, h5, h6 {
+  font-family: var(--font-family-text);
+  font-style: normal;
+  font-weight: 600;
+}
+
+h3 { font-size: 18px; line-height: 24px; }
+h4 { font-size: 16px; line-height: 22px; }
+h5 { font-weight: 500; font-size: 14px; line-height: 20px; }
+h6 { font-weight: 500; font-size: 13px; line-height: 18px; }
+
+/* ----------------------------------------------------------------------------------
+    5. LINKS & NAVIGATION
+    ---------------------------------------------------------------------------------- */
+
+/* Highlighted Links & Classes */
+
+.tsd-kind-class,
+.tsd-index-link:hover,
+.tsd-sources a,
+.tsd-page-navigation a:hover {
+  color: var(--color-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tsd-page-toolbar {
+  background-color: inherit;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-accent);
+}
+
+.tsd-page-toolbar a.title img { padding-right: 8px; }
+
+/* ----------------------------------------------------------------------------------
+    6. TABLES
+    ---------------------------------------------------------------------------------- */
+table { margin: 1em 0; }
+
+.tsd-typography th,
+.tsd-typography td {
+  padding: 8px;
+  text-align: left;
+}
+
+.tsd-typography th {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+.tsd-typography tr:nth-child(2n) {
+  background-color: var(--color-background-secondary);
+}
+
+/* ----------------------------------------------------------------------------------
+    7. CODE BLOCKS & SYNTAX
+    ---------------------------------------------------------------------------------- */
+pre, code {
+  background-color: var(--color-background-secondary);
+  color: var(--color-text);
+  border-radius: 6px;
+}
+
+pre {
+  border: 1px solid var(--color-accent);
+  overflow: auto;
+}
+
+code { padding: 0.2em 0.4em; }
+
+code.tsd-tag { background-color: var(--color-accent); }
+
+/* ----------------------------------------------------------------------------------
+    8. UI COMPONENTS
+    ---------------------------------------------------------------------------------- */
+/* Buttons */
+
+button {
+  background-color: var(--color-background-navbar);
+  color: var(--color-text);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background-color: var(--color-accent); }
+
+pre > button {
+  background-color: transparent;
+  border: none;
+  padding: 4px 8px;
+}
+
+/* Form Elements */
+
+select {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+input[type='checkbox'] ~ svg .tsd-checkbox-background { fill: var(--color-accent); }
+
+.tsd-checkbox-background {
+  fill: var(--color-background);
+  stroke: var(--color-accent);
+  stroke-width: 6px;
+}
+
+.tsd-checkbox-checkmark { color: var(--color-text); }
+
+/* Navigation Components */
+
+.tsd-navigation a,
+.tsd-navigation a:hover {
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.tsd-navigation a:hover:not(.current) {
+  background-color: color-mix(in srgb, var(--color-text-aside), #0000 88%);
+}
+
+.tsd-navigation a.current {
+  background-color: color-mix(in srgb, var(--color-text-aside), #0000 92%);
+}
+
+.tsd-index-panel,
+.tsd-member-group {
+  background-color: var(--color-background-secondary);
+  padding: 16px;
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+}
+
+/* Add some visual separation between members */
+.tsd-member {
+  border-bottom: 1em solid var(--color-separator);
+  padding-bottom: 1em;
+}
+
+/* Footer */
+
+footer { border-top: 1px solid var(--color-accent); }
+
+footer p {
+  text-align: center;
+  color: var(--color-text-aside);
+}
+
+/* ----------------------------------------------------------------------------------
+    9. SEARCH & OVERLAY
+    ---------------------------------------------------------------------------------- */
+#tsd-overlay { background: rgba(0, 0, 0, 0.3); }
+
+#tsd-search-input,
+#tsd-search-input:focus-visible {
+  background-color: transparent;
+  border: 1px solid var(--color-focus-outline);
+}
+
+#tsd-search-status:not(:empty) { padding: 1.5rem 0.5rem 0.5rem; }
+
+/* ----------------------------------------------------------------------------------
+    10. UTILITY STYLES & FIXES
+    ---------------------------------------------------------------------------------- */
+/* Scroll Positioning Fix */
+
+:target { scroll-margin-top: clamp(48px, 8vw, 80px); }
+
+/* ----------------------------------------------------------------------------------
+    11. LOGO HANDLING
+    ---------------------------------------------------------------------------------- */
+/* Hide all logos by default */
+.keeta-logo-light,
+.keeta-logo-dark,
+.dark-logo { 
+  display: none; 
+}
+
+/* Show appropriate logos based on theme setting */
+:root[data-theme='light'] .keeta-logo-light,
+:root[data-theme='dark']  .keeta-logo-dark,
+:root[data-theme='os']    .keeta-logo-light,  /* logo also swaps in "os" mode */
+:root:not([data-theme])   .keeta-logo-light { 
+  display: inline; 
+}
+
+/* Handle logo swap in dark OS mode */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='os'] .keeta-logo-light,
+  :root:not([data-theme]) .keeta-logo-light { 
+    display: none; 
+  }
+  
+  :root[data-theme='os'] .keeta-logo-dark,
+  :root:not([data-theme]) .keeta-logo-dark { 
+    display: inline; 
+  }
+}
+
+/* ----------------------------------------------------------------------------------
+    13. SIGNATURES & CODE DOCUMENTATION
+    ---------------------------------------------------------------------------------- */
+.tsd-signature {
+  background-color: var(--color-background-secondary);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* Highlighted classes and links */
+.tsd-kind-class, .tsd-index-link:hover, .tsd-sources a, .tsd-page-navigation a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tsd-page-toolbar {
+  background-color: inherit;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-accent);
+}
+.tsd-page-toolbar a.title img {
+  padding-right: 8px;
+}
+
+/* Table styling */
+table {
+  margin: 1em 0;
+}
+.tsd-typography th,
+.tsd-typography td {
+  padding: 8px;
+  text-align: left;
+}
+.tsd-typography th {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+.tsd-typography tr:nth-child(2n) {
+  background-color: var(--color-background-secondary);
+}
+
+
+code {
+  padding: 0.2em 0.4em;
+}
+code.tsd-tag {
+  background-color: var(--color-accent);
+}
+
+/* Buttons */
+button {
+  background-color: var(--color-background-navbar);
+  color: var(--color-text);
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover {
+  background-color: var(--color-accent);
+}
+pre > button {
+  background-color: transparent;
+  border: none;
+  padding: 4px 8px;
+}
+
+/* Inputs */
+select {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 8px;
+}
+input[type='checkbox'] ~ svg .tsd-checkbox-background {
+  fill: var(--color-accent);
+}
+.tsd-checkbox-background {
+  fill: var(--color-background);
+  stroke: var(--color-accent);
+  stroke-width: 6px;
+}
+.tsd-checkbox-checkmark {
+  color: var(--color-text);
+}
+
+/* Components */
+.tsd-navigation a,
+.tsd-navigation a:hover {
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 6px;
+}
+.tsd-navigation a:hover:not(.current) {
+  background-color: color-mix(in srgb, var(--color-text-aside), #0000 88%);
+}
+.tsd-navigation a.current {
+  background-color: color-mix(in srgb, var(--color-text-aside), #0000 92%);
+}
+
+.tsd-index-panel,
+.tsd-member-group {
+  background-color: var(--color-background-secondary);
+  padding: 16px;
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+}
+
+footer {
+  border-top: 1px solid var(--color-accent);
+}
+footer p {
+  text-align: center;
+  color: var(--color-text-aside);
+}
+
+/* Overlay and search */
+#tsd-overlay {
+  background: rgba(0, 0, 0, 0.3);
+}
+#tsd-search-input,
+#tsd-search-input:focus-visible {
+  background-color: transparent;
+  border: 1px solid var(--color-focus-outline);
+}
+#tsd-search-status:not(:empty) {
+  padding: 1.5rem 0.5rem 0.5rem;
+}
+
+/* Scroll positioning fix */
+:target {
+  scroll-margin-top: clamp(48px, 8vw, 80px);
+}
+
+.tsd-accordion-summary, .tsd-panel.tsd-member, .tsd-panel {
+  margin: 0
+}
+
+.tsd-index-content {
+  margin: 0;
+}
+
+.tsd-index-heading { 
+  font-family: var(--font-family-heading);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+a.tsd-kind-interface,
+a.tsd-kind-type-alias,
+a.tsd-kind-namespace,
+a.tsd-kind-enum-member,
+a.tsd-kind-project,
+a.tsd-kind-module,
+a.tsd-kind-enum,
+a.tsd-kind-variable,
+a.tsd-kind-function,
+a.tsd-kind-class,
+a.tsd-kind-constructor,
+a.tsd-kind-property,
+a.tsd-kind-method,
+a.tsd-kind-reference,
+a.tsd-kind-call-signature,
+a.tsd-kind-index-signature,
+a.tsd-kind-constructor-signature,
+a.tsd-kind-parameter,
+a.tsd-kind-type-parameter,
+a.tsd-kind-accessor,
+a.tsd-kind-get-signature,
+a.tsd-kind-set-signature {
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 0.8px;
+}

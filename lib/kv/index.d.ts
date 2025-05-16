@@ -1,6 +1,5 @@
-import type BufferStorage from '../utils/buffer';
+import type { BufferStorage } from '../utils/buffer';
 import type { JSONSerializable } from '../utils/conversion';
-import type KVStorageProviders from './providers';
 export interface KVSetOptionsType {
     exclusiveCreate?: boolean;
     ttl?: number;
@@ -16,7 +15,7 @@ export interface KVStorageProviderAPI {
     xor(arena: null, key: string, change: BufferStorage): Promise<void>;
     destroy?: () => Promise<void>;
 }
-export type KVStorageProvider = InstanceType<typeof KVStorageProviders[keyof typeof KVStorageProviders]>;
+export type KVStorageProvider = KVStorageProviderAPI;
 export declare class KVStorageProviderBase {
     xor(_ignored_arena: null, key: string, _ignored_change: BufferStorage): Promise<void>;
 }

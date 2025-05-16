@@ -12,18 +12,34 @@ export declare const NetworkIDs: {
  * Endpoints for reaching a Node
  */
 export type Endpoints = {
+    /**
+     * The API endpoint for the node
+     */
     api: string;
+    /**
+     * The P2P endpoint for the node
+     */
     p2p: string;
 };
 /**
  * Definition of a Representative
+ * @expandType Endpoints
  */
 export type Representative = {
+    /**
+     * The public key of the representative
+     */
     key: Account;
+    /**
+     * The endpoints for which the representative can be reached
+     */
     endpoints: Endpoints;
 };
 /**
  * Network Configuration for a Network
+ * @expandType Networks
+ * @expandType Representative
+ * @expandType ValidationConfig
  */
 export type NetworkConfig = {
     networkAlias: Networks;

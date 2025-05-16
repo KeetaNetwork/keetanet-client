@@ -235,7 +235,7 @@ export declare class Certificate {
      */
     protected issuerDN: CertificateSchema[0][3];
     /**
-     * Object type ID for @see Certificate.isCertificate
+     * Object type ID for {@link Certificate.isCertificate}
      */
     private static certificateObjectTypeID;
     /**
@@ -337,4 +337,4 @@ export declare class Certificate {
      */
     toJSON(includeChain?: boolean): any;
 }
-export default Certificate;
+export {};

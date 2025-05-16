@@ -1,5 +1,5 @@
 import type { KVStorageProvider } from './kv';
-import BufferStorage from './utils/buffer';
+import { BufferStorage } from './utils/buffer';
 import type { BlockHash } from './block';
 export interface StatsConfig {
     kv: KVStorageProvider | null;

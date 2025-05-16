@@ -3,7 +3,7 @@ import type { BlockJSON, BlockJSONOutput } from './block';
 import Account from './account';
 import type { ASN1Date } from './utils/asn1';
 import type { JSONSupported, ToJSONSerializableOptions } from './utils/conversion';
-import BufferStorage from './utils/buffer';
+import { BufferStorage } from './utils/buffer';
 /**
  * Representation of the vote
  */

@@ -1,4 +1,4 @@
-import BufferStorage from './utils/buffer';
+import { BufferStorage } from './utils/buffer';
 import { BufferStorageASN1 } from './utils/asn1';
 import { BlockHash } from './block';
 /**
@@ -19,7 +19,7 @@ export declare enum AccountKeyAlgorithm {
     ECDSA_SECP256R1 = 6
 }
 /**
- * Type for ASN.1 encoded public keys -- this is equivalent to @see ValidateASN1.SchemaMap<typeof publicKeyASN1Schema>
+ * Type for ASN.1 encoded public keys -- this is equivalent to {@link ValidateASN1.SchemaMap<typeof publicKeyASN1Schema>}
  * but does not reference a complex type which may exceed TypeScripts limits
  */
 type publicKeyASN1 = [

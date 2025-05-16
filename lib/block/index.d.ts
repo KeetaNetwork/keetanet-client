@@ -1,6 +1,6 @@
 import type { GenericAccount } from '../account';
 import Account from '../account';
-import BufferStorage from '../utils/buffer';
+import { BufferStorage } from '../utils/buffer';
 import * as ASN1 from '../utils/asn1';
 import type { JSONSupported, ToJSONSerializableOptions } from '../utils/conversion';
 import * as Operations from './operations';

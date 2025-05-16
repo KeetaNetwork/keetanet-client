@@ -1,0 +1,14 @@
+{
+	"name": "keetanet-client-examples-basic",
+	"version": "1.0.0",
+	"description": "Basic example of using KeetaNet SDK",
+	"main": "index.js",
+	"scripts": {
+		"demo": "node index.js"
+	},
+	"author": "Keeta Token Genesis LLC",
+	"license": "MIT",
+	"dependencies": {
+		"@keetanetwork/keetanet-client": "0.10.3"
+	}
+}

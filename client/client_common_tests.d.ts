@@ -5,7 +5,7 @@ import { AccountKeyAlgorithm } from '../lib/account';
 import type Account from '../lib/account';
 import { UserClient } from '.';
 import { toJSONSerializable } from '../lib/utils/conversion';
-import KeetaError from '../lib/error';
+import { KeetaNetError as KeetaError } from '../lib/error';
 export type ClientParams = {
     ip?: string;
     port?: number;

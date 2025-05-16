@@ -172,7 +172,7 @@ export interface P2PConnection {
      * If this connection can be serialized to our KV store,
      * return the type.
      *
-     * @see P2PSwitch.RegisterP2PConnectionDeserializer
+     * See {@link P2PSwitch.RegisterP2PConnectionDeserializer}
      * for registering a handler to convert it back
      */
     serialize?: () => SerializedConnection;

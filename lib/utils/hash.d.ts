@@ -14,4 +14,3 @@ export declare namespace Hash {
     var functionName: string;
     var functionLength: number;
 }
-export default Hash;

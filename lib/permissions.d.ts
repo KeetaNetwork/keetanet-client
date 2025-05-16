@@ -97,7 +97,7 @@ export type AcceptedPermissionTypes = Permissions | [string, number[]] | [string
 /**
  * Class to hold a Base and External permission set
  */
-export default class Permissions {
+export declare class Permissions {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is Permissions;
     static BaseSet: typeof BaseSet;

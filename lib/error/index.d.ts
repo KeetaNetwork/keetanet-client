@@ -11,7 +11,7 @@ interface ValidationOptions {
     type: string;
     codes: string[] | Readonly<string[]>;
 }
-export default class KeetaNetError extends Error {
+export declare class KeetaNetError extends Error {
     static isInstance: (obj: any, strict?: boolean) => obj is KeetaNetError;
     type: string;
     code: ErrorCode;

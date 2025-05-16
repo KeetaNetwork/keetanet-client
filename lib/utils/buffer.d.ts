@@ -24,4 +24,3 @@ export declare class BufferStorage {
     compare(compareWith: typeof this | undefined | null): boolean;
     compareHexString(compareWith: BufferStorage | string | undefined | null): boolean;
 }
-export default BufferStorage;

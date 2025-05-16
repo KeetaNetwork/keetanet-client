@@ -4,9 +4,9 @@ import Ledger from './ledger';
 import Node from './node';
 import P2P from './p2p';
 import Stats from './stats';
-import Permissions from './permissions';
+import { Permissions } from './permissions';
 import Vote from './vote';
-import Error from './error';
+import { KeetaNetError as Error } from './error';
 import * as ASN1 from './utils/asn1';
 import * as Bloom from './utils/bloom';
 import * as Buffer from './utils/buffer';
@@ -16,6 +16,10 @@ import * as Initial from './utils/initial';
 import * as Conversion from './utils/conversion';
 import * as Certificate from './utils/certificate';
 declare const _default: {
+    /**
+     * The `Account` module provides functionality for managing key pairs
+     * as well as `identifier` accounts such as tokens.
+     */
     Account: typeof Account;
     Block: typeof Block;
     Error: typeof Error;

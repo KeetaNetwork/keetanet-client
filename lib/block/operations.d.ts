@@ -3,7 +3,7 @@ import type { DeepMutable } from '../utils/helper';
 import type { GenericAccount, IdentifierAddress, TokenAddress, TokenPublicKeyString } from '../account';
 import Account from '../account';
 import type { AcceptedPermissionTypes } from '../permissions';
-import Permissions from '../permissions';
+import { Permissions } from '../permissions';
 import type { JSONSupported } from '../utils/conversion';
 import Block, { AdjustMethod } from '.';
 /**

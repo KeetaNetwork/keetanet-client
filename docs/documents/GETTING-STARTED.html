@@ -1,0 +1,268 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>GETTING-STARTED | @keetanetwork/keetanet-client</title><meta name="description" content="Documentation for @keetanetwork/keetanet-client"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script><link rel="stylesheet" href="../assets/typedoc-github-style.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title"><img src="../assets/logo-keeta-light.svg" alt="Keeta Logo" class="keeta-logo-light" width="50" height="20"/><img src="../assets/logo-keeta-dark.svg" alt="Keeta Logo" class="keeta-logo-dark" width="50" height="20"/>@keetanetwork/keetanet-client</a><div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.9421 17.0578L14.0304 13.1469C15.1642 11.7857 15.7295 10.0398 15.6089 8.27245C15.4882 6.50506 14.6908 4.85223 13.3825 3.65779C12.0743 2.46335 10.3559 1.81926 8.58486 1.85951C6.81382 1.89976 5.12647 2.62125 3.87383 3.87389C2.62118 5.12653 1.89969 6.81388 1.85944 8.58493C1.8192 10.356 2.46328 12.0744 3.65772 13.3826C4.85217 14.6909 6.50499 15.4883 8.27238 15.6089C10.0398 15.7296 11.7856 15.1642 13.1468 14.0305L17.0577 17.9422C17.1158 18.0003 17.1848 18.0463 17.2606 18.0777C17.3365 18.1092 17.4178 18.1253 17.4999 18.1253C17.5821 18.1253 17.6634 18.1092 17.7392 18.0777C17.8151 18.0463 17.8841 18.0003 17.9421 17.9422C18.0002 17.8841 18.0463 17.8152 18.0777 17.7393C18.1091 17.6634 18.1253 17.5821 18.1253 17.5C18.1253 17.4179 18.1091 17.3366 18.0777 17.2607C18.0463 17.1848 18.0002 17.1159 17.9421 17.0578ZM3.12493 8.75C3.12493 7.63748 3.45483 6.54994 4.07292 5.62492C4.691 4.69989 5.56951 3.97892 6.59734 3.55318C7.62517 3.12743 8.75617 3.01604 9.84732 3.23308C10.9385 3.45012 11.9407 3.98585 12.7274 4.77252C13.5141 5.55919 14.0498 6.56147 14.2669 7.65262C14.4839 8.74376 14.3725 9.87476 13.9468 10.9026C13.521 11.9304 12.8 12.8089 11.875 13.427C10.95 14.0451 9.86245 14.375 8.74993 14.375C7.2586 14.3733 5.82882 13.7802 4.77429 12.7256C3.71975 11.6711 3.12659 10.2413 3.12493 8.75Z" fill="var(--color-icon-text)"></path></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1" y="3" width="14" height="2" fill="var(--color-icon-text)"></rect><rect x="1" y="7" width="14" height="2" fill="var(--color-icon-text)"></rect><rect x="1" y="11" width="14" height="2" fill="var(--color-icon-text)"></rect></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">GETTING-STARTED</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="keetanet-client-sdk-getting-started" class="tsd-anchor-link">KeetaNet Client SDK Getting Started<a href="#keetanet-client-sdk-getting-started" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h1><h2 id="installation" class="tsd-anchor-link">Installation<a href="#installation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h2><p>The KeetaNet Client JavaScript/TypeScript SDK can be loaded with:</p>
+<pre><code class="bash"><span class="hl-0">$</span><span class="hl-1"> </span><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@keetanetwork/keetanet-client</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="concepts" class="tsd-anchor-link">Concepts<a href="#concepts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h2><h3 id="accounts" class="tsd-anchor-link">Accounts<a href="#accounts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.Account.html" class="tsd-kind-class">Accounts</a> in the KeetaNet SDK are the way in which key pairs or identifiers are
+represented.</p>
+<p>For key pairs, they securely store the private key (where applicable) and
+provide operations like <a href="../classes/KeetaNetSDK.Referenced.Account.html#sign" class="tsd-kind-method">digital signing</a> and <a href="../classes/KeetaNetSDK.Referenced.Account.html#verify" class="tsd-kind-method">verification</a>,
+<a href="../classes/KeetaNetSDK.Referenced.Account.html#fromseed" class="tsd-kind-method">key derivation from seed</a> and <a href="../classes/KeetaNetSDK.Referenced.Account.html#seedfrompassphrase" class="tsd-kind-method">passphrase</a>, and
+<a href="../classes/KeetaNetSDK.Referenced.Account.html#encrypt" class="tsd-kind-method">encryption</a> and <a href="../classes/KeetaNetSDK.Referenced.Account.html#decrypt" class="tsd-kind-method">decryption</a> using ECIES.</p>
+<p>For identifiers, they are used to represent the identity of a specific kind of
+address, such as a Token, the Network Address, or a Storage account.</p>
+<p>Additionally, for key pair accounts the key may be held internally or
+externally using an external key provider.  No particular external key provider
+interface (e.g. PKCS#11) is specified but users may implement their own
+provider using the <a href="../classes/KeetaNetSDK.Referenced.ExternalKeyPair.html" class="tsd-kind-class">ExternalKeyPair</a> interface.</p>
+<h3 id="blocks" class="tsd-anchor-link">Blocks<a href="#blocks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.Block.html" class="tsd-kind-class">Blocks</a> are used within KeetaNet to represent a collection of operations
+(transactions) by an account.  They contain the <a href="../classes/KeetaNetSDK.Referenced.Block.html#account" class="tsd-kind-property">account identifier</a>, the
+<a href="../classes/KeetaNetSDK.Referenced.Block.html#network" class="tsd-kind-property">network identifier</a>, the <a href="../classes/KeetaNetSDK.Referenced.Block.html#previous" class="tsd-kind-property">previous block identifier</a>, an optional
+<a href="../classes/KeetaNetSDK.Referenced.Block.html#signer" class="tsd-kind-property">signer</a> (if different from the account), a <a href="../classes/KeetaNetSDK.Referenced.Block.html#date" class="tsd-kind-property">timestamp</a>, and a list of
+<a href="../classes/KeetaNetSDK.Referenced.Block.html#operations" class="tsd-kind-property">operations</a>.</p>
+<p>The block is digitally signed by the signer (if present, otherwise the account)
+and the signature is included in the block.  The block is identified by its
+<a href="../classes/KeetaNetSDK.Referenced.Block.html#hash-1" class="tsd-kind-accessor">hash</a> which is the hash of the block
+not including the signature.</p>
+<p>The KeetaNet SDK also provides a block builder method which allows the user to
+create blocks in an incremental fashion.  The block builder is created using the
+<a href="../classes/KeetaNetSDK.Referenced.BlockBuilder.html" class="tsd-kind-class">BlockBuilder</a> class, however in
+most cases a <a href="../classes/KeetaNetSDK.Referenced.UserClientBuilder.html" class="tsd-kind-class">UserClientBuilder</a>
+from a <a href="../classes/KeetaNetSDK.UserClient.html#initbuilder" class="tsd-kind-method">UserClient</a> should be used
+because it will handle things like getting the correct network and previous
+block hash.</p>
+<h3 id="operations" class="tsd-anchor-link">Operations<a href="#operations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.BlockOperation.html" class="tsd-kind-class">Operations</a> describe the actions performed by an account on the ledger.  They
+are fundamentally composed of effects, which are the specific changes or
+constraints performed on the ledger.</p>
+<p>An example operation is a <a href="../classes/KeetaNetSDK.Referenced.BlockOperationSEND.html" class="tsd-kind-class">Send</a>
+operation which has the effects of decrementing the balance of the sender,
+incrementing the balance of the receiver, and validating that the sender's
+balance does not drop below zero.</p>
+<p>The KeetaNet SDK provides <a href="../classes/KeetaNetSDK.Referenced.BlockOperation.html" class="tsd-kind-class">a number of operations</a>
+which are used to perform actions on the ledger.</p>
+<h3 id="votes" class="tsd-anchor-link">Votes<a href="#votes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.Vote.html" class="tsd-kind-class">Votes</a> in KeetaNet are used for consensus forming among &quot;representatives&quot;.
+Each vote is an assertion by a representative that a specific group of blocks
+(identified by their hashes) are valid and conform to the rules of the
+ledger of that representative.</p>
+<p>Votes are used to form a consensus on the state of the ledger and are
+aggregated by the representatives to form a &quot;vote staple&quot;.  A vote staple is
+a collection of votes and the blocks which are referenced by those vote.</p>
+<p>Votes come in two flavors: temporary and permanent.  Temporary votes are
+used to get initial consensus on a set of blocks.  A quorum of temporary votes
+can be &quot;traded in&quot; for permanent votes.</p>
+<p>When a temporary vote is issued by a representative the vote and block are
+stored on the representative's &quot;side ledger&quot;, which is a non-synchronized
+portion of the ledger.  The client can request a copy of the block from the
+representative <a href="../classes/KeetaNetSDK.Client.html#getpendingblock" class="tsd-kind-method">Client.getPendingBlock</a>
+or <a href="../classes/KeetaNetSDK.UserClient.html#pendingblock" class="tsd-kind-method">UserClient.pendingBlock</a> method,
+or the <a href="../classes/KeetaNetSDK.Client.html#getvotestaple" class="tsd-kind-method">Client.getVoteStaple</a> method to
+with the &quot;<code>side</code>&quot; parameter set to <code>side</code> to retrieve the vote staple from the
+representative's side ledger.</p>
+<p>Additionally, the <a href="../classes/KeetaNetSDK.UserClient.html#recover" class="tsd-kind-method">UserClient.recover</a> method
+can be used to query all known representatives for side ledger vote staples
+to complete any partially completed consensus rounds.</p>
+<h3 id="vote-staples" class="tsd-anchor-link">Vote Staples<a href="#vote-staples" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.VoteStaple.html" class="tsd-kind-class">Vote Staples</a>, as discussed above, are a
+collection of votes and the blocks.  Every vote in a vote staple must be for the same
+set of blocks in the same order.</p>
+<p>Vote Staples are the unit of transaction in the KeetaNet network.  The set of
+blocks in a vote staple are applied altogether as a single atomic transaction
+acting on the ledger.</p>
+<h3 id="networks" class="tsd-anchor-link">Networks<a href="#networks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../variables/KeetaNetSDK.Referenced.src_config.networksArray.html" class="tsd-kind-variable">Networks</a> in KeetaNet
+a group of representative nodes and clients which all agree to a common set of
+rules and initial ledger state.  There can be many different networks, such as
+the &quot;test&quot; network, &quot;main&quot; network, and &quot;dev&quot; network.  Each network has its
+own set of representatives and clients.</p>
+<p>The network is identified within each block by the <a href="../classes/KeetaNetSDK.Referenced.Block.html#network" class="tsd-kind-property">network identifier</a>
+property, which is an integer.</p>
+<p>Each network also has a <a href="../classes/KeetaNetSDK.UserClient.html#networkaddress" class="tsd-kind-property">Network Address</a>,
+which is a special kind of account derived from the network identifier.  The
+purpose of the network address is to define permissions which apply to the
+network as a whole, such as the permission to create tokens, or create storage
+accounts.</p>
+<h3 id="tokens" class="tsd-anchor-link">Tokens<a href="#tokens" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../modules/KeetaNetSDK.Referenced.html#token" class="tsd-kind-enum-member">Tokens</a> in KeetaNet are a
+special kind of account which is used to represent a fungible asset.  Tokens can be
+created using the <a href="../classes/KeetaNetSDK.Referenced.BlockOperationCREATE_IDENTIFIER.html" class="tsd-kind-class">Create Identifier</a>
+method though the <a href="../classes/KeetaNetSDK.Referenced.UserClientBuilder.html#generateidentifier" class="tsd-kind-method">UserClientBuilder.generateIdentifier</a>
+method is recommended.</p>
+<p>Each network also has a base token which is used for consensus and other
+management functions.  The base token can be thought of as the native currency
+of the network and is derived from the network identifier.</p>
+<h3 id="ledger" class="tsd-anchor-link">Ledger<a href="#ledger" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p>The ledger within KeetaNet refers to a couple of different things:</p>
+<ul>
+<li>The live state of accounts and their balances of tokens, as well as other attributes</li>
+<li>The record of how that state came to be, represented by vote staples</li>
+</ul>
+<h4 id="the-ledger-state" class="tsd-anchor-link">The ledger state<a href="#the-ledger-state" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h4><p>The ledger state is the current state of all accounts and their balances of tokens,
+it can be thought of like this:</p>
+<table>
+<thead>
+<tr>
+<th>Account</th>
+<th>Base Token</th>
+<th>Token 1</th>
+<th>Token 2</th>
+<th>Token 3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kta1</td>
+<td>1</td>
+<td>100</td>
+<td>200</td>
+<td>300</td>
+</tr>
+<tr>
+<td>kta2</td>
+<td>5</td>
+<td></td>
+<td>0</td>
+<td>3</td>
+</tr>
+<tr>
+<td>kta3</td>
+<td></td>
+<td>90</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Where <code>kta1</code>, <code>kta2</code>, and <code>kta3</code> are the account identifiers, and the columns
+represent the balance of that account for the base token and other tokens.</p>
+<h4 id="the-ledger-history" class="tsd-anchor-link">The ledger history<a href="#the-ledger-history" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h4><p>The ledger history is the record of how the ledger state came to be.  It is
+represented by the set of vote staples which have been applied to the ledger.</p>
+<p>This is expressed in two different ways in the KeetaNet SDK</p>
+<ul>
+<li>The <a href="../classes/KeetaNetSDK.UserClient.html#history" class="tsd-kind-method">UserClient.history</a> method which returns a list of
+<a href="../classes/KeetaNetSDK.Referenced.VoteStaple.html" class="tsd-kind-class">vote staples</a> which have affected
+the given account.</li>
+<li>The <a href="../classes/KeetaNetSDK.UserClient.html#chain" class="tsd-kind-method">UserClient.chain</a> method which returns a list of
+<a href="../classes/KeetaNetSDK.Referenced.Block.html" class="tsd-kind-class">blocks</a> which have been applied for a given
+account.</li>
+</ul>
+<p>These two differ in that the history method returns all vote staples which
+affected an account, even if they were not issued by the account -- for
+example if a transfer was made to the account, the history method would return
+the vote staple which included the transfer, but the chain method would not
+because it was not issued by the account.</p>
+<p>Additionally there is a method to <a href="../classes/KeetaNetSDK.UserClient.html#filterstapleoperations-2" class="tsd-kind-method">filter a list of vote staples</a>
+to a list of operations which are relevant to a specific account.  This is useful
+because the list of operations in a vote staple may include changes that are uninteresting
+from an account perspective.</p>
+<h3 id="permissions" class="tsd-anchor-link">Permissions<a href="#permissions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.Referenced.Permissions.html" class="tsd-kind-class">Permissions</a> in KeetaNet are used
+to allow users and operators to manage access to resources on the network.
+They are used to control who can create tokens, create storage accounts, as well
+as delegate permissions to other accounts.</p>
+<p>There are two kinds of permissions:</p>
+<ul>
+<li><a href="../classes/KeetaNetSDK.Referenced.BaseSet.html" class="tsd-kind-class">Base</a> permissions are the permissions which are
+defined by the network.  These are the permissions which the network representatives
+will look at to grant or deny access</li>
+<li><a href="../classes/KeetaNetSDK.Referenced.ExternalSet.html" class="tsd-kind-class">External</a> permissions are the permissions which
+applications can define.  These are the permissions which are defined by the
+users of KeetaNet and the network representatives will not process them.
+These are useful for applications which want to define their own permissions and in
+the future may be used with Smart Contracts.</li>
+</ul>
+<p>Additionally, permissions may be applied to a specific account or set as
+default permissions on some the following resources:</p>
+<ul>
+<li>Network Account: <code>ACCESS</code>, <code>STORAGE_CREATE</code>, <code>TOKEN_ADMIN_CREATE</code></li>
+<li>Token Accounts: <code>ACCESS</code></li>
+<li>Storage Accounts: <code>ACCESS</code>, <code>STORAGE_CAN_HOLD</code>, <code>STORAGE_DEPOSIT</code></li>
+</ul>
+<p>Setting default permissions is done with the <a href="../classes/KeetaNetSDK.UserClient.html#setinfo" class="tsd-kind-method">UserClient.setInfo</a>
+method.  Setting permission on an account are set with the
+<a href="../classes/KeetaNetSDK.UserClient.html#updatepermissions" class="tsd-kind-method">UserClient.updatePermissions</a> method.</p>
+<h4 id="base-permissions" class="tsd-anchor-link">Base Permissions<a href="#base-permissions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h4><p>The base permissions are defined by the network and are used to control access
+to the network.  Each base permission has a <a href="../enums/KeetaNetSDK.Referenced.BaseFlag.html" class="tsd-kind-enum">flag name</a>
+which can be used to identify the permission.  The base permissions are:</p>
+<ul>
+<li><code>ACCESS</code> - The permission to access the resource it is granted on -- if this
+permission is missing then no access to the resource is granted, this is
+useful as to create deny-list or permit-list resources.</li>
+<li><code>ADMIN</code> - The <code>ADMIN</code> permission allows the <code>principal</code> to perform all actions
+on the resource, excluding deleting the resource and transferring ownership.
+For example, administrators of Token resources can mint and burn tokens and
+set the permissions of the token.</li>
+<li><code>OWNER</code> - The owner permission grants all the privileges of the <code>ADMIN</code>
+permission but also the ability to delete the resource and transfer
+ownership.  All resources have exactly 1 owner.</li>
+<li><code>UPDATE_INFO</code> - The update info permission allows the <code>principal</code> to update the
+information of the resource.  See <a href="../classes/KeetaNetSDK.UserClient.html#setinfo" class="tsd-kind-method">UserClient.setInfo</a>
+for more information on how to set the info.</li>
+<li><code>STORAGE_CREATE</code> - This permission on the network account allows the
+specified account to create storage accounts.  As a default permission it
+allows everyone to create storage accounts.</li>
+<li><code>TOKEN_ADMIN_CREATE</code> - This permission on the network account allows the
+specified account to create token accounts.  As a default permission it
+allows everyone to create token accounts.</li>
+<li><code>TOKEN_ADMIN_SUPPLY</code> - This permission on a token account allows the specified
+specified account to mint and burn tokens.  This is useful for fungible tokens
+where the supply can be changed.</li>
+<li><code>TOKEN_ADMIN_MODIFY_BALANCE</code> - This permission on a token account allows the
+specified specified account to modify the balance of holders of this token's
+balance.</li>
+<li><code>STORAGE_DEPOSIT</code> - This permission on a storage account allows the specified
+specified account to deposit the specified tokens into the storage account.</li>
+<li><code>STORAGE_CAN_HOLD</code> - This permission on a storage account allows the specified
+specified account to hold the specified token in the storage account.</li>
+<li><code>SEND_ON_BEHALF</code> - This permission of an account allows the specified principal
+account to send the specified token on behalf of the account.  This is useful for
+shared accounts where multiple accounts can send on behalf of the account.
+To use this feature see the <a href="../interfaces/KeetaNetSDK.Referenced.UserClientConfig.html#signer" class="tsd-kind-property">signer</a> option
+to specify a different signatory for the transaction from the specified
+<a href="../interfaces/KeetaNetSDK.Referenced.UserClientConfig.html#account" class="tsd-kind-property">account</a>.</li>
+<li><code>PERMISSION_DELEGATE_ADD</code> - This permission grants a subset of the abilities
+of the current account to some other account.  Must be used with
+<a href="../enums/KeetaNetSDK.Referenced.AdjustMethod.html#add" class="tsd-kind-enum-member">AdjustMethod.ADD</a>.</li>
+<li><code>PERMISSION_DELEGATE_REMOVE</code> - This permission revokes a subset of the abilities
+that have been delegated.  Must be used with <a href="../enums/KeetaNetSDK.Referenced.AdjustMethod.html#subtract" class="tsd-kind-enum-member">AdjustMethod.SUBTRACT</a></li>
+</ul>
+<h3 id="clients" class="tsd-anchor-link">Clients<a href="#clients" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">Clients</a> in the KeetaNet SDK are the ways in
+which applications primarily interact with the KeetaNet network.  There are
+two different clients supported:</p>
+<ul>
+<li><a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">UserClient</a> is the main client which is used to
+interact with the network.  It is used to send transactions, query the ledger,
+and perform other operations through the <a href="../classes/KeetaNetSDK.Referenced.UserClientBuilder.html" class="tsd-kind-class">UserClientBuilder</a>.</li>
+<li><a href="../classes/KeetaNetSDK.Client.html" class="tsd-kind-class">Client</a> is a lower level client which is used to
+by the <a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">UserClient</a> to interact with the
+network.</li>
+</ul>
+<h2 id="usage" class="tsd-anchor-link">Usage<a href="#usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h2><p>The KeetaNet SDK is designed to be used in a variety of environments, including
+NodeJS, the browser, and other JavaScript environments.  It has TypeScript
+type definitions.</p>
+<h3 id="nodejs" class="tsd-anchor-link">NodeJS<a href="#nodejs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p>The KeetaNet SDK can be used in NodeJS by importing the package:</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> </span><span class="hl-4">*</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-5">KeetaNet</span><span class="hl-1"> </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@keetanetwork/keetanet-client&#39;</span><span class="hl-1">;</span>
+</code><button type="button">Copy</button></pre>
+
+<p>From there, the SDK can be used to create a <a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">UserClient</a> and
+interact with the KeetaNet network.  See the <a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">UserClient</a>
+documentation for more information on how to use the client.</p>
+<p>Many other functions needed to support usage of the SDK are also in the
+<code>@keetanetwork/keetanet-client</code> package, such as the <a href="../classes/KeetaNetSDK.Referenced.Account.html" class="tsd-kind-class">Account</a>
+class, which is used to represent key pairs and identifiers, and the
+<a href="../classes/KeetaNetSDK.Referenced.Block.html" class="tsd-kind-class">Block</a> class, which is used to represent
+blocks on the ledger -- these are all imported with the <code>KeetaNet</code> import
+and accessed with the <a href="../variables/KeetaNetSDK.lib.html" class="tsd-kind-variable"> KeetaNetSDK.lib</a> namespace.</p>
+<h3 id="browser" class="tsd-anchor-link">Browser<a href="#browser" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p>The KeetaNet SDK can be used in the browser by including the script tag:</p>
+<pre><code class="html"><span class="hl-6">&lt;</span><span class="hl-7">script</span><span class="hl-8"> </span><span class="hl-9">src</span><span class="hl-8">=</span><span class="hl-10">&quot;https://static.test.keeta.com/keetanet-browser.js&quot;</span><span class="hl-6">&gt;&lt;/</span><span class="hl-7">script</span><span class="hl-6">&gt;</span>
+</code><button type="button">Copy</button></pre>
+
+<p>The KeetaNet SDK can then be accessed using the <code>KeetaNet</code> global variable.</p>
+<h2 id="examples" class="tsd-anchor-link">Examples<a href="#examples" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h2><h3 id="basic-usage-nodejs" class="tsd-anchor-link">Basic usage (NodeJS)<a href="#basic-usage-nodejs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p>The <a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class"> KeetaNetSDK.UserClient</a> is the main entry point to interact with
+the KeetaNet network. It is initialized with a network name and an account
+using the <a href="../classes/KeetaNetSDK.UserClient.html#fromnetwork" class="tsd-kind-method"> KeetaNetSDK.UserClient.fromNetwork</a> constructor.</p>
+<pre><code class="javascript"><span class="hl-3">import</span><span class="hl-1"> </span><span class="hl-4">*</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-5">KeetaNet</span><span class="hl-1"> </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@keetanetwork/keetanet-client&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-11">seed</span><span class="hl-1"> = </span><span class="hl-5">KeetaNet</span><span class="hl-1">.</span><span class="hl-5">lib</span><span class="hl-1">.</span><span class="hl-5">Account</span><span class="hl-1">.</span><span class="hl-0">generateRandomSeed</span><span class="hl-1">({ </span><span class="hl-5">asString:</span><span class="hl-1"> </span><span class="hl-4">true</span><span class="hl-1"> });</span><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-11">account</span><span class="hl-1"> = </span><span class="hl-5">KeetaNet</span><span class="hl-1">.</span><span class="hl-5">lib</span><span class="hl-1">.</span><span class="hl-5">Account</span><span class="hl-1">.</span><span class="hl-0">fromSeed</span><span class="hl-1">(</span><span class="hl-5">seed</span><span class="hl-1">, </span><span class="hl-12">0</span><span class="hl-1">);</span><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-11">client</span><span class="hl-1"> = </span><span class="hl-5">KeetaNet</span><span class="hl-1">.</span><span class="hl-5">UserClient</span><span class="hl-1">.</span><span class="hl-0">fromNetwork</span><span class="hl-1">(</span><span class="hl-2">&#39;test&#39;</span><span class="hl-1">, </span><span class="hl-5">account</span><span class="hl-1">);</span><br/><br/><span class="hl-4">async</span><span class="hl-1"> </span><span class="hl-4">function</span><span class="hl-1"> </span><span class="hl-0">main</span><span class="hl-1">() {</span><br/><span class="hl-1">	</span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">debug</span><span class="hl-1">(</span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1">.</span><span class="hl-0">chain</span><span class="hl-1">());</span><br/><span class="hl-1">}</span><br/><br/><span class="hl-0">main</span><span class="hl-1">().</span><span class="hl-0">then</span><span class="hl-1">(</span><span class="hl-4">function</span><span class="hl-1">() {</span><br/><span class="hl-1">	</span><span class="hl-5">process</span><span class="hl-1">.</span><span class="hl-0">exit</span><span class="hl-1">(</span><span class="hl-12">0</span><span class="hl-1">);</span><br/><span class="hl-1">}, </span><span class="hl-4">function</span><span class="hl-1">(</span><span class="hl-5">error</span><span class="hl-1">) {</span><br/><span class="hl-1">	</span><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-5">error</span><span class="hl-1">);</span><br/><span class="hl-1">	</span><span class="hl-5">process</span><span class="hl-1">.</span><span class="hl-0">exit</span><span class="hl-1">(</span><span class="hl-12">1</span><span class="hl-1">);</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="basic-usage-browser" class="tsd-anchor-link">Basic usage (Browser)<a href="#basic-usage-browser" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p>The SDK can be loaded in the browser with a script tag:</p>
+<pre><code class="html"><span class="hl-6">&lt;</span><span class="hl-7">html</span><span class="hl-6">&gt;</span><br/><span class="hl-1">	</span><span class="hl-6">&lt;</span><span class="hl-7">head</span><span class="hl-6">&gt;</span><br/><span class="hl-1">		</span><span class="hl-6">&lt;</span><span class="hl-7">script</span><span class="hl-8"> </span><span class="hl-9">src</span><span class="hl-8">=</span><span class="hl-10">&quot;https://static.test.keeta.com/keetanet-browser.js&quot;</span><span class="hl-6">&gt;&lt;/</span><span class="hl-7">script</span><span class="hl-6">&gt;</span><br/><span class="hl-1">	</span><span class="hl-6">&lt;/</span><span class="hl-7">head</span><span class="hl-6">&gt;</span><br/><span class="hl-1">	</span><span class="hl-6">&lt;</span><span class="hl-7">body</span><span class="hl-6">&gt;</span><br/><span class="hl-1">		</span><span class="hl-6">&lt;</span><span class="hl-7">script</span><span class="hl-6">&gt;</span><br/><span class="hl-8">			</span><span class="hl-4">const</span><span class="hl-8"> </span><span class="hl-11">seed</span><span class="hl-8"> </span><span class="hl-1">=</span><span class="hl-8"> </span><span class="hl-5">KeetaNet</span><span class="hl-8">.</span><span class="hl-5">lib</span><span class="hl-8">.</span><span class="hl-5">Account</span><span class="hl-8">.</span><span class="hl-0">generateRandomSeed</span><span class="hl-8">({ </span><span class="hl-5">asString:</span><span class="hl-8"> </span><span class="hl-4">true</span><span class="hl-8"> });</span><br/><span class="hl-8">			</span><span class="hl-4">const</span><span class="hl-8"> </span><span class="hl-11">account</span><span class="hl-8"> </span><span class="hl-1">=</span><span class="hl-8"> </span><span class="hl-5">KeetaNet</span><span class="hl-8">.</span><span class="hl-5">lib</span><span class="hl-8">.</span><span class="hl-5">Account</span><span class="hl-8">.</span><span class="hl-0">fromSeed</span><span class="hl-8">(</span><span class="hl-5">seed</span><span class="hl-8">, </span><span class="hl-12">0</span><span class="hl-8">);</span><br/><span class="hl-8">			</span><span class="hl-4">const</span><span class="hl-8"> </span><span class="hl-11">client</span><span class="hl-8"> </span><span class="hl-1">=</span><span class="hl-8"> </span><span class="hl-5">KeetaNet</span><span class="hl-8">.</span><span class="hl-5">UserClient</span><span class="hl-8">.</span><span class="hl-0">fromNetwork</span><span class="hl-8">(</span><span class="hl-2">&#39;test&#39;</span><span class="hl-8">, </span><span class="hl-5">account</span><span class="hl-8">);</span><br/><br/><span class="hl-8">			</span><span class="hl-5">client</span><span class="hl-8">.</span><span class="hl-0">chain</span><span class="hl-8">().</span><span class="hl-0">then</span><span class="hl-8">(</span><span class="hl-5">console</span><span class="hl-8">.</span><span class="hl-5">debug</span><span class="hl-8">);</span><br/><span class="hl-8">		</span><span class="hl-6">&lt;/</span><span class="hl-7">script</span><span class="hl-6">&gt;</span><br/><span class="hl-1">	</span><span class="hl-6">&lt;/</span><span class="hl-7">body</span><span class="hl-6">&gt;</span><br/><span class="hl-6">&lt;/</span><span class="hl-7">html</span><span class="hl-6">&gt;</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="full-examples" class="tsd-anchor-link">Full examples<a href="#full-examples" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><ul>
+<li><a href="../media/index.js">Basic Example</a></li>
+<li><a href="../media/index-1.js">Real World Assets with NFT</a></li>
+</ul>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-icon-text)"></path></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-icon-text)"></path></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#keetanet-client-sdk-getting-started"><span>Keeta<wbr/>Net <wbr/>Client <wbr/>SDK <wbr/>Getting <wbr/>Started</span></a><ul><li><a href="#installation"><span>Installation</span></a></li><li><a href="#concepts"><span>Concepts</span></a></li><li><ul><li><a href="#accounts"><span>Accounts</span></a></li><li><a href="#blocks"><span>Blocks</span></a></li><li><a href="#operations"><span>Operations</span></a></li><li><a href="#votes"><span>Votes</span></a></li><li><a href="#vote-staples"><span>Vote <wbr/>Staples</span></a></li><li><a href="#networks"><span>Networks</span></a></li><li><a href="#tokens"><span>Tokens</span></a></li><li><a href="#ledger"><span>Ledger</span></a></li><li><ul><li><a href="#the-ledger-state"><span>The ledger state</span></a></li><li><a href="#the-ledger-history"><span>The ledger history</span></a></li></ul></li><li><a href="#permissions"><span>Permissions</span></a></li><li><ul><li><a href="#base-permissions"><span>Base <wbr/>Permissions</span></a></li></ul></li><li><a href="#clients"><span>Clients</span></a></li></ul></li><li><a href="#usage"><span>Usage</span></a></li><li><ul><li><a href="#nodejs"><span>Node<wbr/>JS</span></a></li><li><a href="#browser"><span>Browser</span></a></li></ul></li><li><a href="#examples"><span>Examples</span></a></li><li><ul><li><a href="#basic-usage-nodejs"><span>Basic usage (<wbr/>Node<wbr/>JS)</span></a></li><li><a href="#basic-usage-browser"><span>Basic usage (<wbr/>Browser)</span></a></li><li><a href="#full-examples"><span>Full examples</span></a></li></ul></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="../modules.html">@keetanetwork/keetanet-client</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">KeetaSDK  Documentation</p></footer><div class="overlay"></div></body></html>

@@ -1,7 +1,7 @@
 import type { Vote, VoteStaple } from '../vote';
 import type Account from '../account';
 import type { Block, BlockHash } from '../block';
-import type Permissions from '../permissions';
+import type { Permissions } from '../permissions';
 export type JSONSerializable = string | number | boolean | null | JSONSerializable[] | {
     [key: string]: JSONSerializable;
 };

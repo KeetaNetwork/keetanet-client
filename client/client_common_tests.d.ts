@@ -4,6 +4,7 @@ import type { Networks } from '../config';
 import { AccountKeyAlgorithm } from '../lib/account';
 import type Account from '../lib/account';
 import { UserClient } from '.';
+import { type CreateTestNodeOptions } from '../lib/utils/helper_testing';
 import { toJSONSerializable } from '../lib/utils/conversion';
 import { KeetaNetError as KeetaError } from '../lib/error';
 export type ClientParams = {
@@ -21,6 +22,7 @@ export type ClientParams = {
 export type NodeCreationOptions = {
     p2pTested?: boolean;
     count?: number;
+    customNodeOptions?: Omit<CreateTestNodeOptions, 'peerNodes' | 'enableP2P' | 'initialTrustedAccount'>[];
 };
 export declare function setup(options?: NodeCreationOptions): Promise<{
     trustedKey: Account<AccountKeyAlgorithm.ECDSA_SECP256K1>;
@@ -38,6 +40,7 @@ declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trust
 declare function runBuilderStorageTests(_ignoreNodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runRecoverAccountTest(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runNonNodeTests(_ignore_nodes: LocalNode[], _ignore_userClient: UserClient, _ignore_trustedClient: UserClient, _ignore_params: ClientParams, expect: any, _ignore_ExpectErrorCode: any): Promise<void>;
+declare function runErrorTests(nodes: LocalNode[], userClientAccount1: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 export declare const clientTests: {
     'Basic Client Tests': {
         test: typeof runBasicTests;
@@ -66,6 +69,30 @@ export declare const clientTests: {
         options: {
             p2pTested: boolean;
             count: number;
+        };
+    };
+    'Client Error Tests': {
+        test: typeof runErrorTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+            customNodeOptions: ({
+                readonly ledger: {
+                    readonly ledgerWriteMode: "no-voting";
+                };
+            } | {
+                readonly ledger: {
+                    readonly ledgerWriteMode: "read-write";
+                };
+            } | {
+                readonly ledger: {
+                    readonly ledgerWriteMode: "bootstrap-only";
+                };
+            } | {
+                readonly ledger: {
+                    readonly ledgerWriteMode: "read-only";
+                };
+            })[];
         };
     };
 };

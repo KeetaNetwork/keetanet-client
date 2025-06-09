@@ -217,6 +217,7 @@ export declare class Client {
      * by the application.
      */
     logger: Pick<Console, "error" | "log" | "warn">;
+    private static updateRepsInterval;
     /**
      * Stats for this instance of the client
      */
@@ -432,10 +433,11 @@ export declare class Client {
      * may have sent tokens to it.
      *
      * @param account The account to get the head block for
+     * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
      * @return The head block for the account or null if the account has
      *         not created any blocks
      */
-    getHeadBlock(account: GenericAccount | string): Promise<Block | null>;
+    getHeadBlock(account: GenericAccount | string, rep?: Config.Representative | 'ANY'): Promise<Block | null>;
     /**
      * Get a block from the specified representative by its block hash.
      *
@@ -477,9 +479,10 @@ export declare class Client {
     /**
      * @param blockhash The block hash to get the vote staple for
      * @param side The side of the ledger to get the vote staple from -- this is generally "main", but it is possible to request "side" ledger blocks
+     * @param rep The representative to get the staple from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
      * @return The vote staple for the given block hash or null if the vote staple does not exist on the given ledger
      */
-    getVoteStaple(blockhash: BlockHash | string, side?: LedgerStorage): Promise<VoteStaple | null>;
+    getVoteStaple(blockhash: BlockHash | string, side?: LedgerStorage, rep?: Config.Representative): Promise<VoteStaple | null>;
     /**
      * Get the chain for a given account.  This is the set of blocks that
      * the account has created.  This will return the blocks in reverse
@@ -643,6 +646,16 @@ export declare class Client {
      *         pending block
      */
     getPendingBlock(account: GenericAccount): Promise<Block | null>;
+    /**
+     * Get the successor block for a given block.  This will return the
+     * block on the representative's ledger that comes after the given block
+     *
+     * @param blockOrHash The block or hash to get the successor for
+     * @param rep The representative account to get the successor block from
+     * @return The successor block for the block or null if there is no
+     *         successor block
+     */
+    getSuccessorBlock(blockOrHash: Block | BlockHash | string, rep?: Config.Representative | 'ANY'): Promise<Block | null>;
     /**
      * Recover any unpublished or half-publish account artifacts
      *
@@ -891,10 +904,10 @@ export declare class UserClient {
      * @param token The token to send
      * @param external The external identifier to use for the transaction
      * @param options The options to use for the request
-     * @param retries The number of times to retry the request if it fails
+     * @param retries The number of times the request has been retried
      * @return The vote staple that was generated and whether it was able to be published
      */
-    send(to: GenericAccount | string, amount: bigint | number, token: TokenAddress | string, external?: string, options?: UserClientOptions, retries?: number): Promise<void>;
+    send(to: GenericAccount | string, amount: bigint | number, token: TokenAddress | string, external?: string, options?: UserClientOptions, retries?: number): Promise<Awaited<ReturnType<typeof this.publishBuilder>>>;
     /**
      * Generate a new identifier for the given type and publish the blocks
      *

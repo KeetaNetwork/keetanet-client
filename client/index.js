@@ -60104,6 +60104,52 @@ if (typeof fetch !== 'function') {
         }
     }
 }
+class HTTPAgentManager {
+    constructor() {
+        this.agentMap = new Map();
+    }
+    getAgent(url) {
+        const now = Date.now();
+        let protocol;
+        if (url.protocol === 'http:') {
+            protocol = 'http';
+        }
+        else {
+            protocol = 'https';
+        }
+        let agentEntry = this.agentMap.get(protocol);
+        if (agentEntry !== undefined) {
+            const agentAge = now - agentEntry.created;
+            let expired = false;
+            if (agentAge > HTTPAgentManager.AGENT_TTL_MS) {
+                expired = true;
+            }
+            if (expired) {
+                this.agentMap.delete(protocol);
+                agentEntry = undefined;
+            }
+        }
+        if (agentEntry === undefined) {
+            let newAgent;
+            if (protocol === 'http') {
+                newAgent = new http_1.default.Agent({ keepAlive: true });
+            }
+            else {
+                newAgent = new https_1.default.Agent({ keepAlive: true });
+            }
+            agentEntry = {
+                created: now,
+                agent: newAgent
+            };
+            this.agentMap.set(protocol, agentEntry);
+        }
+        return (agentEntry.agent);
+    }
+    destroy() {
+        this.agentMap.clear();
+    }
+}
+HTTPAgentManager.AGENT_TTL_MS = 30 * 1000;
 /**
  *   The Client class provides a low-level interface to the KeetaNet network.
  *   It handles sending messages to the KeetaNet representatives and parsing
@@ -60193,24 +60239,19 @@ class Client {
          */
         this._testing_api = __classPrivateFieldGet(this, _Client_instances, "m", _Client_apiRaw).bind(this);
         __classPrivateFieldSet(this, _Client_reps, reps, "f");
-        const httpAgent = new http_1.default.Agent({ keepAlive: true });
-        const httpsAgent = new https_1.default.Agent({ keepAlive: true });
-        __classPrivateFieldSet(this, _Client_agent, function (parsedURL) {
-            if (parsedURL.protocol === 'http:') {
-                return (httpAgent);
-            }
-            else {
-                return (httpsAgent);
-            }
-        }, "f");
+        __classPrivateFieldSet(this, _Client_agent, new HTTPAgentManager(), "f");
         __classPrivateFieldSet(this, _Client_updateRepsPromise, undefined, "f");
         __classPrivateFieldSet(this, _Client_intervals, {}, "f");
         // Update Reps immediately and then every 5 minutes
-        __classPrivateFieldSet(this, _Client_updateRepsPromise, this.updateReps(), "f");
+        __classPrivateFieldSet(this, _Client_updateRepsPromise, this.updateReps().catch(function () {
+            // Ignore any errors
+        }), "f");
         if (__classPrivateFieldGet(this, _Client_intervals, "f").updateReps === undefined) {
             __classPrivateFieldGet(this, _Client_intervals, "f").updateReps = setInterval(() => {
-                __classPrivateFieldSet(this, _Client_updateRepsPromise, this.updateReps(), "f");
-            }, 5 * 60 * 1000);
+                __classPrivateFieldSet(this, _Client_updateRepsPromise, this.updateReps().catch(function () {
+                    // Ignore any errors
+                }), "f");
+            }, Client.updateRepsInterval);
         }
     }
     /**
@@ -60226,6 +60267,7 @@ class Client {
         for (const interval of intervalIds) {
             clearInterval(interval);
         }
+        __classPrivateFieldGet(this, _Client_agent, "f").destroy();
         // Clear Variables
         __classPrivateFieldSet(this, _Client_intervals, {}, "f");
     }
@@ -60510,12 +60552,13 @@ class Client {
      * may have sent tokens to it.
      *
      * @param account The account to get the head block for
+     * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
      * @return The head block for the account or null if the account has
      *         not created any blocks
      */
-    async getHeadBlock(account) {
+    async getHeadBlock(account, rep = 'ANY') {
         account = lib_1.default.Account.toPublicKeyString(account);
-        const result = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, 'ANY', 'GET /node/ledger/account/:account/head', {
+        const result = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'GET /node/ledger/account/:account/head', {
             args: {
                 account
             }
@@ -60553,10 +60596,11 @@ class Client {
     /**
      * @param blockhash The block hash to get the vote staple for
      * @param side The side of the ledger to get the vote staple from -- this is generally "main", but it is possible to request "side" ledger blocks
+     * @param rep The representative to get the staple from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
      * @return The vote staple for the given block hash or null if the vote staple does not exist on the given ledger
      */
-    async getVoteStaple(blockhash, side) {
-        const votes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_getVotes).call(this, blockhash, side);
+    async getVoteStaple(blockhash, side, rep = 'ANY') {
+        const votes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_getVotes).call(this, blockhash, side, rep);
         if (votes === null) {
             return (null);
         }
@@ -60570,7 +60614,7 @@ class Client {
          */
         const blocksPromises = [];
         for (const voteBlockhash of sampleVote.blocks) {
-            blocksPromises.push(this.getBlock(voteBlockhash, side));
+            blocksPromises.push(this.getBlock(voteBlockhash, side, rep));
         }
         /**
          * If there are blocks mentioned that do not exist or
@@ -60974,6 +61018,36 @@ class Client {
         return (successorBlock);
     }
     /**
+     * Get the successor block for a given block.  This will return the
+     * block on the representative's ledger that comes after the given block
+     *
+     * @param blockOrHash The block or hash to get the successor for
+     * @param rep The representative account to get the successor block from
+     * @return The successor block for the block or null if there is no
+     *         successor block
+     */
+    async getSuccessorBlock(blockOrHash, rep = 'ANY') {
+        let blockHash;
+        if (block_1.default.isInstance(blockOrHash)) {
+            blockHash = blockOrHash.hash.toString();
+        }
+        else if (block_1.BlockHash.isInstance(blockOrHash)) {
+            blockHash = blockOrHash.toString();
+        }
+        else {
+            blockHash = blockOrHash;
+        }
+        const successor = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'GET /node/ledger/block/:blockhash/successor', {
+            args: {
+                blockhash: blockHash
+            }
+        });
+        if (successor.successorBlock) {
+            return (new block_1.default(successor.successorBlock));
+        }
+        return (null);
+    }
+    /**
      * Recover any unpublished or half-publish account artifacts
      *
      * @param account Account to recover
@@ -61180,7 +61254,7 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
                  * This is only used for "node-fetch"
                  */
                 // @ts-ignore
-                agent: __classPrivateFieldGet(this, _Client_agent, "f"),
+                agent: __classPrivateFieldGet(this, _Client_agent, "f").getAgent.bind(__classPrivateFieldGet(this, _Client_agent, "f")),
                 body: requestBody
             });
             if (response === undefined) {
@@ -61301,9 +61375,11 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
         }
     }
     let recentVotingError;
+    let recentVotingErrorWeight;
     const votePromises = [];
     for (const rep of reps) {
         votePromises.push((async () => {
+            var _a;
             try {
                 const apiResult = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'POST /vote/_root', {
                     body: request
@@ -61314,7 +61390,11 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
                 if (otherVotes !== undefined) {
                     throw (voteError);
                 }
-                recentVotingError = voteError;
+                const weight = (_a = rep.weight) !== null && _a !== void 0 ? _a : BigInt(0);
+                if (recentVotingErrorWeight === undefined || weight > recentVotingErrorWeight) {
+                    recentVotingError = voteError;
+                    recentVotingErrorWeight = weight;
+                }
             }
             return (undefined);
         })());
@@ -61487,6 +61567,7 @@ Client.Config = Config;
  * by the application.
  */
 Client.DefaultLogger = console;
+Client.updateRepsInterval = 5 * 60 * 1000; // 5 minutes
 /**
  * Check if the given object is an instance of the {@link Client} class.
  * This is preferred to using the `instanceof` operator because it will
@@ -61831,14 +61912,14 @@ class UserClient {
      * @param token The token to send
      * @param external The external identifier to use for the transaction
      * @param options The options to use for the request
-     * @param retries The number of times to retry the request if it fails
+     * @param retries The number of times the request has been retried
      * @return The vote staple that was generated and whether it was able to be published
      */
     async send(to, amount, token, external, options = {}, retries = 0) {
         try {
             const builder = this.initBuilder(options);
             builder.send(account_1.default.toAccount(to), BigInt(amount), account_1.default.toAccount(token), external);
-            await this.publishBuilder(builder);
+            return (await this.publishBuilder(builder));
         }
         catch (transmitError) {
             let error = true;
@@ -61846,7 +61927,7 @@ class UserClient {
                 if (error_1.KeetaNetError.isInstance(transmitError) && transmitError.code === 'LEDGER_SUCCESSOR_VOTE_EXISTS') {
                     const staple = await this.recover(true, options);
                     if (staple) {
-                        await this.send(to, amount, token, external, options, retries + 1);
+                        return (await this.send(to, amount, token, external, options, retries + 1));
                         error = false;
                     }
                 }
@@ -61855,6 +61936,7 @@ class UserClient {
                 throw (transmitError);
             }
         }
+        throw (new Error('Unreachable code reached in UserClient.send'));
     }
     /**
      * Generate a new identifier for the given type and publish the blocks
@@ -76547,7 +76629,7 @@ exports.Testing = { findRDN, blockHashesFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.10.4';
+exports.version = '0.10.5';
 exports["default"] = exports.version;
 
 

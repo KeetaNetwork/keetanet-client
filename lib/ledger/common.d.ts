@@ -53,13 +53,14 @@ interface ComputeLedgerEffectOptions<T extends boolean, P extends boolean, W ext
     getFinalNumericValues?: T;
     computePermissions?: P;
     computeWeights?: W;
-    checkNegative?: boolean;
+    checkRangeConstraints?: boolean;
     baseToken: TokenAddress;
 }
+export declare function validateSupply(amount: bigint, network: bigint): void;
 /**
  * Compute effects on the ledger from block effects
  */
-export declare function computeLedgerEffect<T extends boolean, P extends boolean, W extends boolean>(options: ComputeLedgerEffectOptions<T, P, W>, effects: ComputedEffectOfBlocksByAccount, storageProvider: computeLedgerEffectStorageProvider, transaction?: any): Promise<BalanceSupplyChangeResp<T, P, W>>;
+export declare function computeLedgerEffect<T extends boolean, P extends boolean, W extends boolean>(options: ComputeLedgerEffectOptions<T, P, W>, effects: ComputedEffectOfBlocksByAccount, storageProvider: computeLedgerEffectStorageProvider, network: bigint, transaction?: any): Promise<BalanceSupplyChangeResp<T, P, W>>;
 /**
  * A partial LedgerStorageAPI which just has the methods for "addTimeStatistics"
  */
@@ -94,11 +95,18 @@ export declare abstract class LedgerStorageBase {
     protected config: LedgerConfig | null;
     constructor();
     protected abstract adjustDefer(transaction: any, input: VoteStaple): Promise<void>;
-    abstract getBlockHeight(transaction: any, blockHash: BlockHash, account: GenericAccount): Promise<{
-        blockHeight: string | null;
-    } | null>;
+    abstract getBlockHeight(transaction: any, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
+    getBlockHeights(transaction: any, toFetch: {
+        blockHash: BlockHash;
+        account: GenericAccount;
+    }[]): Promise<{
+        [blockHash: string]: bigint | null;
+    }>;
     abstract getHeadBlocks(transaction: any, accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [account: string]: Block | null;
+    }>;
+    getHeadBlockHashes(transaction: any, accounts: InstanceType<typeof Account.Set>): Promise<{
+        [account: string]: BlockHash | null;
     }>;
     abstract getVotesFromMultiplePrevious(transaction: any, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;

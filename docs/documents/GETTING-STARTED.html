@@ -215,9 +215,12 @@ to specify a different signatory for the transaction from the specified
 <a href="../interfaces/KeetaNetSDK.Referenced.UserClientConfig.html#account" class="tsd-kind-property">account</a>.</li>
 <li><code>PERMISSION_DELEGATE_ADD</code> - This permission grants a subset of the abilities
 of the current account to some other account.  Must be used with
-<a href="../enums/KeetaNetSDK.Referenced.AdjustMethod.html#add" class="tsd-kind-enum-member">AdjustMethod.ADD</a>.</li>
+<a href="../modules/KeetaNetSDK.Referenced.html#add" class="tsd-kind-enum-member">AdjustMethod.ADD</a>.</li>
 <li><code>PERMISSION_DELEGATE_REMOVE</code> - This permission revokes a subset of the abilities
-that have been delegated.  Must be used with <a href="../enums/KeetaNetSDK.Referenced.AdjustMethod.html#subtract" class="tsd-kind-enum-member">AdjustMethod.SUBTRACT</a></li>
+that have been delegated.  Must be used with <a href="../modules/KeetaNetSDK.Referenced.html#subtract" class="tsd-kind-enum-member">AdjustMethod.SUBTRACT</a></li>
+<li><code>MANAGE_CERTIFICATE</code> - This permission allows the specified account to manage
+the certificate of the account.  This is used to set the certificate of the
+account, which is used to verify the identity of the account.</li>
 </ul>
 <h3 id="clients" class="tsd-anchor-link">Clients<a href="#clients" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3><p><a href="../classes/KeetaNetSDK.UserClient.html" class="tsd-kind-class">Clients</a> in the KeetaNet SDK are the ways in
 which applications primarily interact with the KeetaNet network.  There are

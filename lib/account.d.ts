@@ -16,7 +16,8 @@ export declare enum AccountKeyAlgorithm {
     NETWORK = 2,
     TOKEN = 3,
     STORAGE = 4,
-    ECDSA_SECP256R1 = 6
+    ECDSA_SECP256R1 = 6,// NIST P-256
+    MULTISIG = 7
 }
 /**
  * Type for ASN.1 encoded public keys -- this is equivalent to {@link ValidateASN1.SchemaMap<typeof publicKeyASN1Schema>}
@@ -32,7 +33,55 @@ type publicKeyASN1 = [
         value: Buffer;
     }
 ];
-declare const identifierKeyTypes: readonly [AccountKeyAlgorithm.NETWORK, AccountKeyAlgorithm.TOKEN, AccountKeyAlgorithm.STORAGE];
+/**
+ * Key pair types which we can process
+ */
+type KeyPairTypes = ECDSAKeyPair | ECDSASECP256K1KeyPair | ECDSASECP256R1KeyPair | ED25519KeyPair | IdentifierKeyPair | ExternalKeyPair;
+/**
+ * Generic interface to an account.  An account may be backed by a private key
+ * (in which case it can sign data), a seed+index (which is used to generate
+ * a private key), or a public key (which can only verify blocks).
+ */
+type PublicKeyStringPrefixed<X extends string> = `${AccountPrefix}${X}${string}`;
+export type Secp256K1PublicKeyString = PublicKeyStringPrefixed<'aa' | 'ab' | 'ac' | 'ad'>;
+export type Secp256R1PublicKeyString = PublicKeyStringPrefixed<'ay' | 'az' | 'a2' | 'a3'>;
+export type ED25519PublicKeyString = PublicKeyStringPrefixed<'ae' | 'af' | 'ag' | 'ah'>;
+export type NetworkPublicKeyString = PublicKeyStringPrefixed<'ai' | 'aj' | 'ak' | 'al'>;
+export type TokenPublicKeyString = PublicKeyStringPrefixed<'am' | 'an' | 'ao' | 'ap'>;
+export type StoragePublicKeyString = PublicKeyStringPrefixed<'aq' | 'ar' | 'as' | 'at'>;
+export type MultisigPublicKeyString = PublicKeyStringPrefixed<'a4' | 'a5' | 'a6' | 'a7'>;
+export interface PublicKeyStringMapping {
+    [AccountKeyAlgorithm.ECDSA_SECP256K1]: Secp256K1PublicKeyString;
+    [AccountKeyAlgorithm.ECDSA_SECP256R1]: Secp256R1PublicKeyString;
+    [AccountKeyAlgorithm.ED25519]: ED25519PublicKeyString;
+    [AccountKeyAlgorithm.TOKEN]: TokenPublicKeyString;
+    [AccountKeyAlgorithm.NETWORK]: NetworkPublicKeyString;
+    [AccountKeyAlgorithm.STORAGE]: StoragePublicKeyString;
+    [AccountKeyAlgorithm.MULTISIG]: MultisigPublicKeyString;
+}
+export type IdentifierPublicKeyString = PublicKeyStringMapping[IdentifierKeyAlgorithm];
+export type AccountPublicKeyString = Secp256K1PublicKeyString | Secp256R1PublicKeyString | ED25519PublicKeyString;
+type AccountKeyAlgorithmHex = {
+    [AccountKeyAlgorithm.ECDSA_SECP256K1]: '0x00';
+    [AccountKeyAlgorithm.ED25519]: '0x01';
+    [AccountKeyAlgorithm.TOKEN]: '0x02';
+    [AccountKeyAlgorithm.NETWORK]: '0x03';
+    [AccountKeyAlgorithm.STORAGE]: '0x04';
+    [AccountKeyAlgorithm.ECDSA_SECP256R1]: '0x06';
+    [AccountKeyAlgorithm.MULTISIG]: '0x07';
+};
+/**
+ * A hex-encoded public key and type, where the type is the first byte
+ * and the public key is the rest of the string.
+ */
+export type PublicKeyAndTypeStringHex<Algo extends typeof AccountKeyAlgorithm[keyof typeof AccountKeyAlgorithm] = AccountKeyAlgorithm> = `${AccountKeyAlgorithmHex[Algo]}${string}`;
+type AccountKeyAlgorithmHexReverse = {
+    [Hex in AccountKeyAlgorithmHex[keyof AccountKeyAlgorithmHex]]: Extract<keyof AccountKeyAlgorithmHex, {
+        [K in keyof AccountKeyAlgorithmHex]: AccountKeyAlgorithmHex[K] extends Hex ? K : never;
+    }[keyof AccountKeyAlgorithmHex]>;
+};
+type AccountKeyAlgorithmHexToType<T extends PublicKeyAndTypeStringHex> = T extends `0x${infer AlgorithmHex1}${infer AlgorithmHex2}${string}` ? `0x${AlgorithmHex1}${AlgorithmHex2}` extends keyof AccountKeyAlgorithmHexReverse ? AccountKeyAlgorithmHexReverse[`0x${AlgorithmHex1}${AlgorithmHex2}`] : never : never;
+declare const identifierKeyTypes: readonly [AccountKeyAlgorithm.NETWORK, AccountKeyAlgorithm.TOKEN, AccountKeyAlgorithm.STORAGE, AccountKeyAlgorithm.MULTISIG];
 export type IdentifierKeyAlgorithm = typeof identifierKeyTypes[any];
 /**
  * Things we can use to construct a key from
@@ -324,31 +373,11 @@ declare class IdentifierKeyPair extends KeyInterface {
     decrypt(..._ignored_parameters: Parameters<decryptFunctionType>): ReturnType<decryptFunctionType>;
 }
 /**
- * Key pair types which we can process
+ * Account class, which is used to represent a key pair or an identifier
+ * account (which have no private key) such as tokens.
+ *
+ * @template T - The type of the key algorithm used for this account.
  */
-type KeyPairTypes = ECDSAKeyPair | ECDSASECP256K1KeyPair | ECDSASECP256R1KeyPair | ED25519KeyPair | IdentifierKeyPair | ExternalKeyPair;
-/**
- * Generic interface to an account.  An account may be backed by a private key
- * (in which case it can sign data), a seed+index (which is used to generate
- * a private key), or a public key (which can only verify blocks).
- */
-type PublicKeyStringPrefixed<X extends string> = `${AccountPrefix}${X}${string}`;
-export type Secp256K1PublicKeyString = PublicKeyStringPrefixed<'aa' | 'ab' | 'ac' | 'ad'>;
-export type Secp256R1PublicKeyString = PublicKeyStringPrefixed<'ay' | 'az' | 'a2' | 'a3'>;
-export type ED25519PublicKeyString = PublicKeyStringPrefixed<'ae' | 'af' | 'ag' | 'ah'>;
-export type NetworkPublicKeyString = PublicKeyStringPrefixed<'ai' | 'aj' | 'ak' | 'al'>;
-export type TokenPublicKeyString = PublicKeyStringPrefixed<'am' | 'an' | 'ao' | 'ap'>;
-export type StoragePublicKeyString = PublicKeyStringPrefixed<'aq' | 'ar' | 'as' | 'at'>;
-export interface PublicKeyStringMapping {
-    [AccountKeyAlgorithm.ECDSA_SECP256K1]: Secp256K1PublicKeyString;
-    [AccountKeyAlgorithm.ECDSA_SECP256R1]: Secp256R1PublicKeyString;
-    [AccountKeyAlgorithm.ED25519]: ED25519PublicKeyString;
-    [AccountKeyAlgorithm.TOKEN]: TokenPublicKeyString;
-    [AccountKeyAlgorithm.NETWORK]: NetworkPublicKeyString;
-    [AccountKeyAlgorithm.STORAGE]: StoragePublicKeyString;
-}
-export type IdentifierPublicKeyString = PublicKeyStringMapping[IdentifierKeyAlgorithm];
-export type AccountPublicKeyString = Secp256K1PublicKeyString | Secp256R1PublicKeyString | ED25519PublicKeyString;
 export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyAlgorithm, IdentifierKeyAlgorithm>> {
     #private;
     static AccountKeyAlgorithm: typeof AccountKeyAlgorithm;
@@ -360,6 +389,7 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
     static fromPublicKeyString(key: TokenPublicKeyString): Account<AccountKeyAlgorithm.TOKEN>;
     static fromPublicKeyString(key: NetworkPublicKeyString): Account<AccountKeyAlgorithm.NETWORK>;
     static fromPublicKeyString(key: StoragePublicKeyString): Account<AccountKeyAlgorithm.STORAGE>;
+    static fromPublicKeyString(key: MultisigPublicKeyString): Account<AccountKeyAlgorithm.MULTISIG>;
     static fromPublicKeyString(key: Secp256K1PublicKeyString): Account<AccountKeyAlgorithm.ECDSA_SECP256K1>;
     static fromPublicKeyString(key: Secp256R1PublicKeyString): Account<AccountKeyAlgorithm.ECDSA_SECP256R1>;
     static fromPublicKeyString(key: ED25519PublicKeyString): Account<AccountKeyAlgorithm.ED25519>;
@@ -403,6 +433,10 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
      */
     static fromStoragePublicKey(key: InputKeyTypes): Account<AccountKeyAlgorithm.STORAGE>;
     /**
+     * Construct an account from a multisig identifier public key
+     */
+    static fromMultisigPublicKey(key: InputKeyTypes): Account<AccountKeyAlgorithm.MULTISIG>;
+    /**
      * Construct an account from an ED25519 public key.
      */
     static fromED25519PublicKey(key: InputKeyTypes): Account<AccountKeyAlgorithm.ED25519>;
@@ -410,6 +444,8 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
      * Construct an Account from an KeyType and Public Key buffer
      */
     static fromPublicKeyAndType(keyData: Buffer): GenericAccount;
+    static fromPublicKeyAndType<T extends AccountKeyAlgorithm>(keyData: PublicKeyAndTypeStringHex<T>): Account<T>;
+    static fromPublicKeyAndType(keyData: string): GenericAccount;
     /**
      * Construct a new account from a public key encoded in DER-encoded ASN.1
      */
@@ -453,6 +489,7 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
     static toAccount(): undefined;
     static toAccount(acct: null): null;
     static toAccount(acct: undefined): undefined;
+    static toAccount<X extends PublicKeyAndTypeStringHex>(acct: X): Account<AccountKeyAlgorithmHexToType<X>>;
     static toAccount<toAlgo extends AccountKeyAlgorithm>(acct: string | Account<toAlgo>): Account<toAlgo>;
     static toAccount<toAlgo extends AccountKeyAlgorithm>(acct: string | Account<toAlgo> | null): Account<toAlgo> | null;
     static toAccount<toAlgo extends AccountKeyAlgorithm>(acct: string | Account<toAlgo> | undefined): Account<toAlgo> | undefined;
@@ -468,7 +505,7 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
     static toPublicKeyString(acct: string | Account<AccountKeyAlgorithm> | undefined | null): string | undefined | null;
     static comparePublicKeys(acct1: Account<AccountKeyAlgorithm> | string | undefined | null, acct2: Account<AccountKeyAlgorithm> | string | undefined | null): boolean;
     static isInstance: (obj: any, strict?: boolean) => obj is Account<AccountKeyAlgorithm>;
-    static Set: import("./utils/helper").InstanceSetConstructor<Account<AccountKeyAlgorithm>, string>;
+    static Set: import("./utils/helper").InstanceSetConstructor<Account<AccountKeyAlgorithm>, `0x00${string}` | `0x01${string}` | `0x03${string}` | `0x02${string}` | `0x04${string}` | `0x06${string}` | `0x07${string}`>;
     constructor(key: KeyPairTypes | ECDSASECP256K1PrivateKey | ECDSASECP256R1PrivateKey | ED25519PrivateKey | ECDSASECP256K1PublicKey | ECDSASECP256R1PublicKey | ED25519PublicKey | IdentifierKeyPair | IdentifierKey | PublicKeyString | Account<T>, requiredKeyType?: T);
     /**
      * Sign some data and generate a detached signature in SEC format
@@ -507,6 +544,7 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
      */
     get publicKey(): ECDSASECP256K1PublicKey | ECDSASECP256R1PublicKey | ED25519PublicKey;
     get publicKeyAndType(): Buffer;
+    get publicKeyAndTypeString(): PublicKeyAndTypeStringHex<T>;
     /**
      * Determine if this account has a private key associated with it
      */
@@ -529,15 +567,16 @@ export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyA
     isStorage(): this is Account<AccountKeyAlgorithm.STORAGE>;
     isNetwork(): this is Account<AccountKeyAlgorithm.NETWORK>;
     isToken(): this is Account<AccountKeyAlgorithm.TOKEN>;
+    isMultisig(): this is Account<AccountKeyAlgorithm.MULTISIG>;
     assertKeyType<KeyType extends AccountKeyAlgorithm>(keyType: KeyType): Account<KeyType>;
     assertAccount(): Account;
     assertIdentifier(): IdentifierAddress;
-    static toJSONSerializablePrefix: string;
-    static toJSONSerializable(value: GenericAccount): Secp256K1PublicKeyString | ED25519PublicKeyString | NetworkPublicKeyString | TokenPublicKeyString | StoragePublicKeyString | Secp256R1PublicKeyString;
+    toJSON(): PublicKeyStringMapping[T];
 }
 export type TokenAddress = Account<AccountKeyAlgorithm.TOKEN>;
 export type StorageAddress = Account<AccountKeyAlgorithm.STORAGE>;
 export type NetworkAddress = Account<AccountKeyAlgorithm.NETWORK>;
+export type MultisigAddress = Account<AccountKeyAlgorithm.MULTISIG>;
 export type IdentifierAddress = Account<IdentifierKeyAlgorithm>;
 export type NonIdentifierAccount = Account<Exclude<AccountKeyAlgorithm, IdentifierKeyAlgorithm>>;
 export type GenericAccount = Account<AccountKeyAlgorithm>;

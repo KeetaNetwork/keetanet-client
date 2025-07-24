@@ -1,6 +1,7 @@
 import type { KVStorageProvider } from './kv';
 import { BufferStorage } from './utils/buffer';
 import type { BlockHash } from './block';
+import type { RequestTiming } from './node/timing';
 export interface StatsConfig {
     kv: KVStorageProvider | null;
 }
@@ -33,6 +34,9 @@ type TimeStat = {
 export type TimeStats = {
     [duration in DurationBreakdowns]: TimeStat;
 };
+export type DbStats = {
+    retries: number;
+};
 export declare class Stats {
     #private;
     constructor(config: StatsConfig);
@@ -44,6 +48,7 @@ export declare class Stats {
     xor(key: string, change: BlockHash | BufferStorage): void;
     getXor(key: string): Promise<BufferStorage>;
     addTimingPoint(arena: string, category: string, duration: number, returnOnly?: boolean): Parameters<Stats['incr']>;
+    addRequestTiming(arena: string, timing: RequestTiming, returnOnly?: boolean): Parameters<Stats['incr']>[];
     get(arena: string, key: string): Promise<number>;
     getTimingData(arena: string, category: string): Promise<TimeStats>;
     sync(): Promise<void>;

@@ -2,10 +2,12 @@ import type { GenericAccount, IdentifierKeyAlgorithm } from '../lib/account';
 import { Account, AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
+import type { BlockJSONOperations } from '../lib/block/operations';
 import type { AccountInfo } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import type { UserClient } from '.';
 import { Permissions } from '../lib/permissions';
+import { Certificate, CertificateBundle } from '../lib/utils/certificate';
 type GetPrevFunction = (acct: GenericAccount | string) => Promise<BlockHash | string | null | undefined>;
 interface AccountSignerOptions {
     account: GenericAccount;
@@ -48,6 +50,9 @@ interface IdentifierCreateRequest {
 }
 type AccountOrPending<Type extends AccountKeyAlgorithm = AccountKeyAlgorithm> = Account<Type> | PendingAccount<Type>;
 type TokenOrPending = AccountOrPending<AccountKeyAlgorithm.TOKEN>;
+export type ManageCertificateMethod = Extract<BlockJSONOperations, {
+    type: typeof Block['OperationType']['MANAGE_CERTIFICATE'];
+}>['method'];
 export interface PendingOperations {
     receive?: {
         otherParty: AccountOrPending;
@@ -68,6 +73,11 @@ export interface PendingOperations {
         isSet: boolean;
         amount: bigint;
         token: TokenOrPending;
+    }[];
+    modifyCertificates?: {
+        method: ManageCertificateMethod;
+        certificate: Certificate;
+        intermediateCertificates: CertificateBundle | null;
     }[];
     permissionsChanges?: PerAccount<PerAccount<{
         method: AdjustMethod;
@@ -98,6 +108,11 @@ export interface PendingOperationsJSON {
         isSet: boolean;
         amount: string;
         token: string;
+    }[];
+    modifyCertificates?: {
+        method: ManageCertificateMethod;
+        certificate: string;
+        intermediateCertificates: string | null;
     }[];
     permissionsChanges?: PerAccount<PerAccount<{
         method: AdjustMethod;
@@ -138,6 +153,7 @@ export declare class PendingAccount<AccountType extends AccountKeyAlgorithm = Ac
     static GetValue<T extends AccountKeyAlgorithm>(data: AccountOrPending<T>): Account<T>;
     set account(account: Account<AccountType>);
     get account(): Account<AccountType>;
+    toJSON(): Account<AccountType>;
 }
 type AllPending = [AccountSignerOptions, PendingOperations][];
 export declare class UserClientBuilder {
@@ -158,6 +174,7 @@ export declare class UserClientBuilder {
     send(recipient: AccountOrPending, amount: bigint, token: TokenOrPending, external?: string, options?: BuilderBlockOptions): void;
     receive(from: AccountOrPending, amount: bigint, token: TokenOrPending, exact?: boolean, forward?: GenericAccount, options?: BuilderBlockOptions): void;
     updatePermissions(principal: GenericAccount, permissions: AcceptedPermissionTypes, target?: GenericAccount, method?: AdjustMethod, options?: BuilderBlockOptions): void;
+    modifyCertificate(method: ManageCertificateMethod, certificate: Certificate, intermediateCertificates?: CertificateBundle | null, options?: BuilderBlockOptions): void;
     modifyTokenSupply(amount: bigint, options?: BuilderBlockOptions): void;
     modifyTokenBalance(token: TokenOrPending, amount: bigint, isSet?: boolean, options?: BuilderBlockOptions): void;
     setInfo(info: AccountInfo, options?: BuilderBlockOptions): void;

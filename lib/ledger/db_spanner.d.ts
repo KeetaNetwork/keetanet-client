@@ -4,15 +4,16 @@ import { BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions } from '../ledger';
-import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics } from './types';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBase } from '../ledger';
+import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import type { KVStorageProviderAPI } from '../kv';
 import { LedgerStorageBase } from './common';
 import Stats from '../stats';
-import { KeetaNetLedgerError } from '../error/ledger';
 import type { Database as GoogleSpannerDatabase } from '@google-cloud/spanner';
 import type { TableColumn, FilteredResponseRow, IndexName, TableName, QueryRow as HelperQueryRow, QueryRows } from './db_spanner_helper';
 import type { ComputedEffectOfBlocks } from './effects';
+import type Node from '../node';
+import type { CertificateHash } from '../utils/certificate';
 type QueryRow<T extends TableName> = HelperQueryRow<T> | QueryRows<T>;
 type ReadOptions = {
     limit?: number;
@@ -30,16 +31,18 @@ type SpannerReadResponse<T extends TableName, C extends TableColumn<T>[]> = {
     moment: Date;
 };
 interface SpannerTransactionOptions {
-    readOnly?: boolean;
     strongRead?: boolean;
 }
-export declare class SpannerTransaction {
+export declare class SpannerTransaction implements LedgerStorageTransactionBase {
     #private;
+    readonly node: Node | undefined;
     readonly moment: Date;
+    readonly identifier: string;
+    readonly readOnly: boolean;
     readonly options: SpannerTransactionOptions;
     readonly statsChanges: Parameters<Stats['incr']>[];
-    constructor(database: GoogleSpannerDatabase, options?: SpannerTransactionOptions);
-    evaluateError(error: any): KeetaNetLedgerError;
+    constructor(database: GoogleSpannerDatabase, options: SpannerTransactionOptions, transactionBase: LedgerStorageTransactionBase);
+    evaluateError(error: any): any;
     beginTransaction(identifier: string, strongRead?: boolean): Promise<void>;
     endTransaction(mode: 'COMMIT' | 'ROLLBACK'): Promise<void>;
     insert<T extends TableName, R extends QueryRow<T>>(table: T, query: R): void;
@@ -66,11 +69,11 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     constructor();
     init(config: LedgerConfig, ledger: Ledger): void;
     destroy(): Promise<void>;
-    beginTransaction(identifier: string, readOnly?: boolean): Promise<SpannerTransaction>;
+    beginTransaction(transactionBase: LedgerStorageTransactionBase): Promise<SpannerTransaction>;
     commitTransaction(transaction: SpannerTransaction): Promise<void>;
     abortTransaction(transaction: SpannerTransaction): Promise<void>;
-    evaluateError(error: any): Promise<KeetaNetLedgerError>;
-    delegatedWeight(transaction: SpannerTransaction, rep?: Account): Promise<bigint>;
+    evaluateError(error: any): Promise<any>;
+    delegatedWeight(transaction: SpannerTransaction, rep?: Account | InstanceType<typeof Account.Set>): Promise<bigint>;
     getBalance(transaction: SpannerTransaction, account: GenericAccount | string, token: TokenAddress | string): Promise<bigint>;
     getAllBalances(transaction: SpannerTransaction, account: GenericAccount): Promise<GetAllBalancesResponse>;
     addPendingVote(transaction: SpannerTransaction, votesAndBlocks: VoteStaple): Promise<void>;
@@ -79,17 +82,24 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
      * If an adjustment cannot be made right now, defer it for follow-up
      */
     protected adjustDefer(transaction: SpannerTransaction, input: VoteStaple): Promise<void>;
-    adjust(transaction: SpannerTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean): Promise<BlockHash[]>;
+    adjust(transaction: SpannerTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: SpannerTransaction, blockHash: BlockHash, from: LedgerSelector): Promise<Block | null>;
-    getBlockHeight(transaction: SpannerTransaction, blockHash: BlockHash, account: GenericAccount): Promise<{
-        blockHeight: string | null;
-    } | null>;
+    getBlockHeights(transaction: any, toFetch: {
+        blockHash: BlockHash;
+        account: GenericAccount;
+    }[]): Promise<{
+        [blockHash: string]: bigint | null;
+    }>;
+    getBlockHeight(transaction: SpannerTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: SpannerTransaction, blockHash: BlockHash, from: LedgerSelector): Promise<Vote[] | null>;
     getVoteStaples(transaction: SpannerTransaction, stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
     getHistory(transaction: SpannerTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
     getBlockFromPrevious(transaction: SpannerTransaction, prevBlock: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getVotesFromMultiplePrevious(transaction: SpannerTransaction, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;
+    }>;
+    getHeadBlockHashes(transaction: any, accounts: InstanceType<typeof Account.Set>): Promise<{
+        [account: string]: BlockHash | null;
     }>;
     getHeadBlocks(transaction: SpannerTransaction, accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [publicKey: string]: Block | null;
@@ -102,6 +112,8 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     getVotesAfter(transaction: SpannerTransaction, moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
     protected gcBatch(transaction: SpannerTransaction): Promise<boolean>;
     getNextSerialNumber(): Promise<bigint>;
+    getAccountCertificates(transaction: SpannerTransaction, account: GenericAccount): Promise<CertificateWithIntermediates[]>;
+    getAccountCertificateByHash(transaction: SpannerTransaction, account: GenericAccount, certificateHash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     stats(): Promise<LedgerStatistics>;
 }
 export declare const Testing: {

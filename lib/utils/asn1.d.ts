@@ -63,7 +63,7 @@ export declare namespace ValidateASN1 {
         sequenceOf: Schema;
     } | {
         optional: Schema;
-    } | {
+    } | bigint | {
         type: 'context';
         kind: 'implicit' | 'explicit';
         contains: Schema;
@@ -110,7 +110,7 @@ export declare namespace ValidateASN1 {
         sequenceOf: Schema;
     } ? SchemaMap<T['sequenceOf']>[] : T extends {
         optional: Schema;
-    } ? SchemaMap<T['optional']> | undefined : T extends {
+    } ? SchemaMap<T['optional']> | undefined : T extends bigint ? T : T extends {
         type: 'context';
         kind: infer U extends 'implicit' | 'explicit';
         value: number;
@@ -182,7 +182,7 @@ type Mutable<T> = T extends Buffer | ArrayBuffer | Date ? T : T extends object ?
 export declare class BufferStorageASN1<T extends ASN1AnyJS | Readonly<ASN1AnyJS> = Readonly<ASN1AnyJS>, S extends ValidateASN1.Schema | undefined = undefined> {
     #private;
     static readonly Validate: typeof ValidateASN1;
-    static readonly isInstance: (obj: any, strict?: boolean) => obj is BufferStorageASN1<string | number | bigint | boolean | Buffer | ASN1AnyJS[] | Date | ASN1OID | ASN1Set | ASN1ExplicitContextTag | ASN1ImplicitContextTag | ASN1BitString | ASN1Date | ASN1String | readonly ASN1AnyJS[] | Readonly<Buffer> | Readonly<Date> | Readonly<ASN1OID> | Readonly<ASN1Set> | Readonly<ASN1ExplicitContextTag> | Readonly<ASN1ImplicitContextTag> | Readonly<ASN1BitString> | Readonly<ASN1Date> | Readonly<ASN1String> | null | undefined, ValidateASN1.Schema | undefined>;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is BufferStorageASN1<string | number | bigint | boolean | Date | Buffer | ASN1AnyJS[] | ASN1OID | ASN1Set | ASN1ExplicitContextTag | ASN1ImplicitContextTag | ASN1BitString | ASN1Date | ASN1String | readonly ASN1AnyJS[] | Readonly<Date> | Readonly<Buffer> | Readonly<ASN1OID> | Readonly<ASN1Set> | Readonly<ASN1ExplicitContextTag> | Readonly<ASN1ImplicitContextTag> | Readonly<ASN1BitString> | Readonly<ASN1Date> | Readonly<ASN1String> | null | undefined, ValidateASN1.Schema | undefined>;
     constructor(input: T | ArrayBuffer, schema?: S);
     getDER(): ArrayBuffer;
     getDERBuffer(): Buffer;

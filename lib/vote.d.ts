@@ -1,8 +1,8 @@
 import { Block, BlockHash } from './block';
 import type { BlockJSON, BlockJSONOutput } from './block';
-import Account from './account';
+import Account, { AccountKeyAlgorithm } from './account';
 import type { ASN1Date } from './utils/asn1';
-import type { JSONSupported, ToJSONSerializableOptions } from './utils/conversion';
+import type { ToJSONSerializableOptions, ToJSONSerializable } from './utils/conversion';
 import { BufferStorage } from './utils/buffer';
 /**
  * Representation of the vote
@@ -15,11 +15,7 @@ export interface VoteJSON {
     validityTo: string | Date;
     signature: string | ArrayBuffer;
 }
-export interface VoteJSONOutput extends JSONSupported<VoteJSON> {
-    $permanent: boolean;
-    $trusted: boolean;
-    $uid: string;
-}
+type VoteJSONOutput = ToJSONSerializable<ReturnType<Vote['toJSON']>>;
 export interface VoteStapleJSON {
     blocks: BlockJSON[] | BlockJSONOutput[];
     votes: VoteJSON[] | VoteJSONOutput[];
@@ -76,17 +72,13 @@ type CertificateSchema = [
     extensions: CertificateExtensions
 ];
 /**
- * Parse a set of distinguished names
- */
-declare function findRDN(input: any[], findOID: string): any;
-declare function blockHashesFromVote(input: Buffer): BlockHash[];
-/**
  * A map for VoteBlockHashes
  */
 export declare class VoteBlockHashMap<ValueType = unknown> implements Map<VoteBlockHash, ValueType> {
     #private;
     constructor();
-    [Symbol.iterator](): IterableIterator<[VoteBlockHash, ValueType]>;
+    [Symbol.iterator](): MapIterator<[VoteBlockHash, ValueType]>;
+    [Symbol.dispose](): void;
     [Symbol.toStringTag]: string;
     add(key: VoteBlockHash, value: ValueType): this;
     delete(key: VoteBlockHash): boolean;
@@ -95,9 +87,9 @@ export declare class VoteBlockHashMap<ValueType = unknown> implements Map<VoteBl
     has(key: VoteBlockHash): boolean;
     set(key: VoteBlockHash, value: ValueType): this;
     get size(): number;
-    entries(): IterableIterator<[VoteBlockHash, ValueType]>;
-    keys(): IterableIterator<VoteBlockHash>;
-    values(): IterableIterator<ValueType>;
+    entries(): MapIterator<[VoteBlockHash, ValueType]>;
+    keys(): MapIterator<VoteBlockHash>;
+    values(): MapIterator<ValueType>;
     clear(): void;
 }
 /**
@@ -136,6 +128,7 @@ export declare class PossiblyExpiredVote {
     readonly $trusted: boolean;
     readonly $permanent: boolean;
     readonly $uid: string;
+    readonly $id: string;
     protected static allowedSlop: number;
     protected static permanentVoteThreshold: number;
     static Staple: typeof VoteStaple;
@@ -149,7 +142,19 @@ export declare class PossiblyExpiredVote {
     get hash(): VoteHash;
     get blocksHash(): VoteBlockHash;
     toString(): string;
-    toJSON(): VoteJSONOutput;
+    toJSON(options?: ToJSONSerializableOptions): {
+        $binary?: string;
+        issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+        serial: bigint;
+        blocks: BlockHash[];
+        validityFrom: Date;
+        validityTo: Date;
+        signature: ArrayBuffer;
+        $trusted: boolean;
+        $permanent: boolean;
+        $uid: string;
+        $id: string;
+    };
     protected expirationCheckMoment(): number;
     get expired(): boolean;
 }
@@ -161,13 +166,6 @@ export declare class Vote extends PossiblyExpiredVote {
     readonly possiblyExpired = false;
     static isInstance: (obj: any, strict?: boolean) => obj is Vote;
     constructor(vote: Buffer | ArrayBuffer | Vote | PossiblyExpiredVote | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
-    static toJSONSerializablePrefix: string;
-    static toJSONSerializable(value: Vote, opts: ToJSONSerializableOptions): {
-        [x: string]: any;
-        $permanent: boolean;
-        $trusted: boolean;
-        $uid: string;
-    };
 }
 /**
  * A vote staple is a distributable block consisting of one or more blocks
@@ -179,13 +177,25 @@ declare class VoteStapleHash extends BufferStorage {
     get hashFunctionName(): string;
     constructor(stapleHash: ConstructorParameters<typeof BufferStorage>[0]);
 }
-export declare class VoteStaple {
+interface VoteBundleConstructor<T> {
+    new (votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions: VoteOptions): T;
+    fromVotesAndBlocks(votes: Vote[], blocks: Block[], voteOptions?: VoteOptions): T;
+    fromVotesAndBlocksWithFiltering(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2]): T | null;
+    fromVotesAndBlocksToHashMap(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2] & {
+        voteBlockHashes?: VoteBlockHash[];
+    }): VoteBlockHashMap<T | null>;
+    fromJSON(staple: VoteStapleJSON, voteOptions: VoteOptions): T;
+}
+export declare class VoteBlockBundle {
     #private;
+    readonly votes: Vote[];
+    readonly blocks: Block[];
     static readonly VoteBlockHash: typeof VoteBlockHash;
+    static isInstance: (obj: any, strict?: boolean) => obj is VoteBlockBundle;
     /**
-     * Construct a new staple from votes and blocks
+     * Construct a new vote bundle from votes and blocks
      */
-    static fromVotesAndBlocks(votes: Vote[], blocks: Block[], voteOptions?: VoteOptions): VoteStaple;
+    static fromVotesAndBlocks<T extends VoteBlockBundle>(this: VoteBundleConstructor<T>, votes: Vote[], blocks: Block[], voteOptions?: VoteOptions): T;
     /**
      * Convert a list of Votes and Blocks into a VoteStaple
      * This is slightly different from VoteStaple.fromVotesAndBlocks in
@@ -195,13 +205,12 @@ export declare class VoteStaple {
      *
      * Additionally, it will filter out any votes that are expired
      */
-    static fromVotesAndBlocksWithFiltering(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteStaple['fromVotesAndBlocks']>[2]): VoteStaple | null;
-    static fromVotesAndBlocksToHashMap(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteStaple['fromVotesAndBlocks']>[2] & {
+    static fromVotesAndBlocksWithFiltering<T extends VoteBlockBundle>(this: VoteBundleConstructor<T>, votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2]): T | null;
+    static fromVotesAndBlocksToHashMap<T extends VoteBlockBundle>(this: VoteBundleConstructor<T>, votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2] & {
         voteBlockHashes?: VoteBlockHash[];
-    }): VoteBlockHashMap<VoteStaple | null>;
+    }): VoteBlockHashMap<T | null>;
     static isValidJSON(staple: VoteStapleJSON): boolean;
-    static fromJSON(staple: VoteStapleJSON, voteOptions?: VoteOptions): VoteStaple;
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteStaple;
+    static fromJSON<T extends VoteBlockBundle>(this: VoteBundleConstructor<T>, staple: VoteStapleJSON, voteOptions?: VoteOptions): T;
     /**
      * Construct a new staple from a message buffer
      */
@@ -211,13 +220,6 @@ export declare class VoteStaple {
      */
     toBytes(uncompressed?: boolean): ArrayBuffer;
     toString(): string;
-    /**
-     * Get the serialized version as JSON
-     */
-    toJSON(): {
-        votes: VoteJSONOutput[];
-        blocks: BlockJSONOutput[];
-    };
     /**
      * Hash of the Vote Staple -- this is the hash of the data in the
      * canonical form of the staple, which may be different from
@@ -230,14 +232,6 @@ export declare class VoteStaple {
      */
     get blocksHash(): VoteBlockHash;
     /**
-     * Get the votes for this staple
-     */
-    get votes(): Vote[];
-    /**
-     * Get the blocks for this staple
-     */
-    get blocks(): Block[];
-    /**
      * Get the timestamp of the staple
      *
      * This is the average of the timestamps of the votes, unless a
@@ -245,12 +239,40 @@ export declare class VoteStaple {
      * if it issued a vote in the staple.
      */
     timestamp(preferRep?: Account): Date;
-    static toJSONSerializablePrefix: string;
-    static toJSONSerializable(value: VoteStaple, opts: ToJSONSerializableOptions): {
-        votes: VoteJSONOutput[];
-        blocks: BlockJSONOutput[];
+    toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
+        votes: {
+            $binary?: string;
+            issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+            serial: bigint;
+            blocks: BlockHash[];
+            validityFrom: Date;
+            validityTo: Date;
+            signature: ArrayBuffer;
+            $trusted: boolean;
+            $permanent: boolean;
+            $uid: string;
+            $id: string;
+        }[];
+        blocks: {
+            $binary?: string;
+            version: 1;
+            date: Date;
+            previous: BlockHash;
+            account: import("./account").GenericAccount;
+            signer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+            signature: string;
+            network: bigint;
+            subnet: bigint | undefined;
+            operations: import("./block/operations").ExportedJSONOperation[];
+            $hash: BlockHash;
+            $opening: boolean;
+        }[];
     };
+}
+export declare class VoteStaple extends VoteBlockBundle {
+    static isInstance: (obj: any, strict?: boolean) => obj is VoteStaple;
+    constructor(votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions?: VoteOptions);
 }
 export declare class VoteBuilder {
     #private;
@@ -267,7 +289,3 @@ export declare class VoteBuilder {
     seal(serial: bigint, validTo: Date | null, validFrom?: Date, voteOptions?: VoteOptions): Promise<Vote>;
 }
 export default Vote;
-export declare const Testing: {
-    findRDN: typeof findRDN;
-    blockHashesFromVote: typeof blockHashesFromVote;
-};

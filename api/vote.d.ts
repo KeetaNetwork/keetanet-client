@@ -1,18 +1,16 @@
 import type { APIRequest } from '.';
 import KeetaNet from '../lib';
 type Vote = InstanceType<typeof KeetaNet['Vote']>;
-type VoteJSONOutput = ReturnType<Vote['toJSON']> & {
-    '$binary': string;
-};
+type BlockHash = InstanceType<typeof KeetaNet['Block']['Hash']>;
 declare function createNewVote(request: APIRequest, payload: {
     blocks: string[];
     votes?: string[];
 }): Promise<{
-    vote: VoteJSONOutput;
+    vote: Vote;
 }>;
 declare function getVotes(request: APIRequest, blockhash: string): Promise<{
-    blockhash: string;
-    votes: VoteJSONOutput[] | null;
+    blockhash: BlockHash;
+    votes: Vote[] | null;
 }>;
 declare const _default: {
     _root: {

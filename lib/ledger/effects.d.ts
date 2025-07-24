@@ -1,9 +1,10 @@
 import type { GenericAccount, IdentifierAddress, NetworkAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { BlockHash } from '../block';
+import type { AdjustMethod, BlockHash } from '../block';
 import { Block } from '../block';
 import type { AccountInfo, ACLEntry, ACLUpdate } from '../ledger/types';
-import type { InstanceSet } from '../utils/helper';
+import type { Certificate, CertificateBundle } from '../utils/certificate';
+import { CertificateHash } from '../utils/certificate';
 interface NumericValueEntry {
     value: bigint;
 }
@@ -21,6 +22,18 @@ interface ModifyTokenBalanceEntry extends TokenNumericEntry {
     set: boolean;
     receivable: boolean;
 }
+/**
+ * Change of certificate indication
+ */
+export type CertificateUpdate = {
+    method: AdjustMethod.ADD;
+    certificateHash: CertificateHash;
+    certificate: Certificate;
+    intermediateCertificates: CertificateBundle | null;
+} | {
+    method: AdjustMethod.SUBTRACT;
+    certificateHash: CertificateHash;
+};
 type TokenEntry = ModifyTokenBalanceEntry | RequestTokenReceiveEntry;
 interface ComputedBlocksEffectTokenChangesField {
     [tokenPubKey: string]: TokenEntry[];
@@ -45,6 +58,7 @@ interface ComputedBlocksEffectFields {
     permissionRequirements?: ACLEntry[];
     createRequests?: CreateIdentifierRequest[];
     delegation?: DelegationUpdate;
+    certificate?: CertificateUpdate[];
 }
 /**
  * Which accounts and fields are affected by a set of block
@@ -61,7 +75,8 @@ export type ComputedEffectOfBlocksByAccount = {
 };
 export type ComputedEffectOfBlocks = {
     accounts: ComputedEffectOfBlocksByAccount;
-    touched: InstanceSet<GenericAccount>;
+    touched: InstanceType<typeof Account.Set>;
+    possibleNewAccounts: InstanceType<typeof Account.Set>;
     metadata: {
         operationCount: number;
         blockCount: number;
@@ -72,7 +87,7 @@ type LedgerOptions = {
     baseToken: TokenAddress;
     networkAddress: NetworkAddress;
 };
-type OnlyTouchedEffects = Pick<ComputedEffectOfBlocks, 'touched'>;
+type OnlyTouchedEffects = Pick<ComputedEffectOfBlocks, 'touched' | 'possibleNewAccounts'>;
 export declare function computeEffectOfBlocks(blocks: Block[], ledger?: undefined): OnlyTouchedEffects;
 export declare function computeEffectOfBlocks(blocks: Block[], ledger: LedgerOptions): ComputedEffectOfBlocks;
 export {};

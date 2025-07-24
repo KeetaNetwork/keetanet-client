@@ -5,6 +5,7 @@ import Block, { BlockHash } from '../block';
 import Vote, { PossiblyExpiredVote, VoteBlockHash } from '../vote';
 import type { BaseSet, ExternalSet } from '../permissions';
 import type { SpannerTransaction } from './db_spanner';
+import { Certificate, CertificateBundle, CertificateHash } from '../utils/certificate';
 declare const ColumnTypes: {
     readonly LEDGER: {
         readonly dbType: "STRING";
@@ -15,7 +16,7 @@ declare const ColumnTypes: {
     };
     readonly ACCOUNT: {
         readonly fromSpanner: (pubKey: string) => Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
-        readonly toSpanner: (account: Account) => import("../account").Secp256K1PublicKeyString | import("../account").ED25519PublicKeyString | import("../account").Secp256R1PublicKeyString;
+        readonly toSpanner: (account: Account) => import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
         readonly dbType: string;
         readonly dbSize: number;
         readonly toComparable: (account: string | Account) => string;
@@ -42,7 +43,7 @@ declare const ColumnTypes: {
         readonly toComparable: (str: string) => string;
     };
     readonly INFO_METADATA: {
-        readonly dbSize: 750;
+        readonly dbSize: 5464;
         readonly dbType: string;
         readonly fromSpanner: (str: string) => string;
         readonly toSpanner: (str: string) => string;
@@ -84,18 +85,25 @@ declare const ColumnTypes: {
         readonly dbSize: undefined;
     };
     readonly BLOCKHASH: {
-        readonly fromSpanner: (hash: string) => BlockHash;
-        readonly toSpanner: (blockHash: BlockHash) => string;
-        readonly toComparable: (blockHash: BlockHash | string) => string;
-        readonly dbType: string;
-        readonly dbSize: number;
+        fromSpanner: (hash: string) => BlockHash;
+        toSpanner: (constructedInput: BlockHash) => string;
+        toComparable: (input: string | BlockHash) => string;
+        dbType: string;
+        dbSize: number;
+    };
+    readonly CERTIFICATE_HASH: {
+        fromSpanner: (hash: string) => CertificateHash;
+        toSpanner: (constructedInput: CertificateHash) => string;
+        toComparable: (input: string | CertificateHash) => string;
+        dbType: string;
+        dbSize: number;
     };
     readonly VOTEBLOCKHASH: {
-        readonly fromSpanner: (hash: string) => VoteBlockHash;
-        readonly toSpanner: (blockHash: VoteBlockHash) => string;
-        readonly toComparable: (blockHash: VoteBlockHash | string) => string;
-        readonly dbType: string;
-        readonly dbSize: number;
+        fromSpanner: (hash: string) => VoteBlockHash;
+        toSpanner: (constructedInput: VoteBlockHash) => string;
+        toComparable: (input: string | VoteBlockHash) => string;
+        dbType: string;
+        dbSize: number;
     };
     readonly VOTE_UID: {
         readonly dbSize: 150;
@@ -103,6 +111,22 @@ declare const ColumnTypes: {
         readonly fromSpanner: (str: string) => string;
         readonly toSpanner: (str: string) => string;
         readonly toComparable: (str: string) => string;
+    };
+    readonly CERTIFICATE: {
+        readonly fromSpanner: (certificate: Buffer) => Certificate;
+        readonly toSpanner: (certificate: Certificate) => Buffer;
+        readonly toComparable: (input: Certificate | Buffer) => string & {
+            readonly __certificateHash: never;
+        };
+        readonly dbType: string;
+        readonly dbSize: string;
+    };
+    readonly CERTIFICATE_BUNDLE: {
+        readonly fromSpanner: (bundle: Buffer) => CertificateBundle;
+        readonly toSpanner: (bundle: CertificateBundle) => Buffer;
+        readonly toComparable: (input: CertificateBundle | Buffer) => string;
+        readonly dbType: string;
+        readonly dbSize: string;
     };
     readonly BUFFER: {
         dbType: string;
@@ -158,7 +182,7 @@ declare const ColumnTypes: {
         dbSize: number;
         toComparable: (account: string | Account) => string;
         fromSpanner: (pubKey: string) => GenericAccount;
-        toSpanner: (account: GenericAccount) => import("../account").Secp256K1PublicKeyString | import("../account").ED25519PublicKeyString | import("../account").NetworkPublicKeyString | import("../account").TokenPublicKeyString | import("../account").StoragePublicKeyString | import("../account").Secp256R1PublicKeyString;
+        toSpanner: (account: GenericAccount) => import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
     };
     readonly BUFFER_BIGINT: {
         dbType: string;
@@ -171,11 +195,12 @@ declare const ColumnTypes: {
 type ColumnTypeName = keyof typeof ColumnTypes;
 type ColumnOutputTypeArg<T extends ColumnTypeName> = Parameters<typeof ColumnTypes[T]['fromSpanner']>[0];
 type ColumnOutputTypeReturn<T extends ColumnTypeName> = ReturnType<typeof ColumnTypes[T]['fromSpanner']>;
-type ColumnOutputTypeInfer<X> = X extends ColumnInterface<infer TR> ? ColumnOutputTypeReturn<TR> : never;
+type IfNullable<T, I> = I extends false ? T : (T | null);
+type ColumnOutputTypeInfer<X> = X extends ColumnInterface<infer TR, infer Nullable> ? IfNullable<ColumnOutputTypeReturn<TR>, Nullable> : never;
 type ColumnInputTypeArg<T extends ColumnTypeName> = Parameters<typeof ColumnTypes[T]['toSpanner']>[0];
 type ColumnInputTypeReturn<T extends ColumnTypeName> = ReturnType<typeof ColumnTypes[T]['toSpanner']>;
-interface ColumnInterface<T extends ColumnTypeName> {
-    nullable: (nullable: boolean) => ColumnInterface<T>;
+interface ColumnInterface<T extends ColumnTypeName, Nullable extends boolean = boolean> {
+    nullable: <SetNullable extends boolean>(nullable: SetNullable) => ColumnInterface<T, SetNullable>;
     fromSpanner: (value: ColumnOutputTypeArg<T>, transaction: SpannerTransaction) => ColumnOutputTypeReturn<T>;
     toSpanner: (value: ColumnInputTypeArg<T>, transaction: SpannerTransaction) => ColumnInputTypeReturn<T>;
     toComparable: (value: any, transaction: SpannerTransaction) => any;
@@ -201,24 +226,24 @@ declare const schema: {
     readonly accountInfo: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly name: ColumnInterface<"INFO_NAME">;
-            readonly description: ColumnInterface<"INFO_DESCRIPTION">;
-            readonly metadata: ColumnInterface<"INFO_METADATA">;
-            readonly supply: ColumnInterface<"SUPPLY">;
-            readonly defaultBasePermission: ColumnInterface<"BASE_PERMISSION">;
-            readonly defaultExternalPermission: ColumnInterface<"EXTERNAL_PERMISSION">;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly name: ColumnInterface<"INFO_NAME", true>;
+            readonly description: ColumnInterface<"INFO_DESCRIPTION", true>;
+            readonly metadata: ColumnInterface<"INFO_METADATA", true>;
+            readonly supply: ColumnInterface<"SUPPLY", true>;
+            readonly defaultBasePermission: ColumnInterface<"BASE_PERMISSION", true>;
+            readonly defaultExternalPermission: ColumnInterface<"EXTERNAL_PERMISSION", true>;
         };
         readonly key: readonly [Key];
     };
     readonly permissions: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly entity: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly target: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly basePermission: ColumnInterface<"BASE_PERMISSION">;
-            readonly externalPermission: ColumnInterface<"EXTERNAL_PERMISSION">;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly entity: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly target: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly basePermission: ColumnInterface<"BASE_PERMISSION", false>;
+            readonly externalPermission: ColumnInterface<"EXTERNAL_PERMISSION", false>;
         };
         readonly key: readonly [Key, Key, Key];
         readonly interleave: Interleave;
@@ -226,10 +251,10 @@ declare const schema: {
     readonly ledger: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly token: ColumnInterface<"TOKEN_ACCOUNT">;
-            readonly onLedger: ColumnInterface<"LEDGER">;
-            readonly balance: ColumnInterface<"INT_AS_STRING">;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly token: ColumnInterface<"TOKEN_ACCOUNT", false>;
+            readonly onLedger: ColumnInterface<"LEDGER", false>;
+            readonly balance: ColumnInterface<"INT_AS_STRING", false>;
         };
         readonly key: readonly [Key, Key, Key];
         readonly interleave: Interleave;
@@ -237,9 +262,9 @@ declare const schema: {
     readonly chain: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly blockHeight: ColumnInterface<"BIGINT">;
-            readonly blockHash: ColumnInterface<"BLOCKHASH">;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly blockHeight: ColumnInterface<"BIGINT", false>;
+            readonly blockHash: ColumnInterface<"BLOCKHASH", false>;
         };
         readonly key: readonly [Key, Key];
         readonly interleave: Interleave;
@@ -247,9 +272,9 @@ declare const schema: {
     readonly history: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT">;
-            readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH">;
-            readonly orderIndex: ColumnInterface<"BUFFER_BIGINT">;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH", false>;
+            readonly orderIndex: ColumnInterface<"BUFFER_BIGINT", false>;
         };
         readonly key: readonly [Key, Key];
         readonly interleave: Interleave;
@@ -257,8 +282,8 @@ declare const schema: {
     readonly delegation: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"ACCOUNT">;
-            readonly delegatedToRep: ColumnInterface<"ACCOUNT">;
+            readonly account: ColumnInterface<"ACCOUNT", false>;
+            readonly delegatedToRep: ColumnInterface<"ACCOUNT", false>;
         };
         readonly key: readonly [Key];
         readonly interleave: Interleave;
@@ -266,31 +291,31 @@ declare const schema: {
     readonly votes: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly voteUID: ColumnInterface<"VOTE_UID">;
-            readonly onLedger: ColumnInterface<"LEDGER">;
-            readonly vote: ColumnInterface<"VOTE">;
-            readonly timestamp: ColumnInterface<"TIMESTAMP">;
-            readonly expires: ColumnInterface<"TIMESTAMP">;
-            readonly issuer: ColumnInterface<"ACCOUNT">;
-            readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH">;
+            readonly voteUID: ColumnInterface<"VOTE_UID", false>;
+            readonly onLedger: ColumnInterface<"LEDGER", false>;
+            readonly vote: ColumnInterface<"VOTE", false>;
+            readonly timestamp: ColumnInterface<"TIMESTAMP", false>;
+            readonly expires: ColumnInterface<"TIMESTAMP", false>;
+            readonly issuer: ColumnInterface<"ACCOUNT", false>;
+            readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH", false>;
         };
         readonly key: readonly [Key, Key];
     };
     readonly blocks: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly blockHash: ColumnInterface<"BLOCKHASH">;
-            readonly onLedger: ColumnInterface<"LEDGER">;
-            readonly block: ColumnInterface<"BLOCK">;
-            readonly prevBlockHash: ColumnInterface<"BLOCKHASH">;
+            readonly blockHash: ColumnInterface<"BLOCKHASH", false>;
+            readonly onLedger: ColumnInterface<"LEDGER", false>;
+            readonly block: ColumnInterface<"BLOCK", false>;
+            readonly prevBlockHash: ColumnInterface<"BLOCKHASH", false>;
         };
         readonly key: readonly [Key];
     };
     readonly voteBlocks: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly blockHash: ColumnInterface<"BLOCKHASH">;
-            readonly voteUID: ColumnInterface<"VOTE_UID">;
+            readonly blockHash: ColumnInterface<"BLOCKHASH", false>;
+            readonly voteUID: ColumnInterface<"VOTE_UID", false>;
         };
         readonly key: readonly [Key, Key];
         readonly interleave: Interleave;
@@ -298,38 +323,36 @@ declare const schema: {
     readonly weight: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly repAccount: ColumnInterface<"ACCOUNT">;
-            readonly weight: ColumnInterface<"INT_AS_STRING">;
+            readonly repAccount: ColumnInterface<"ACCOUNT", false>;
+            readonly weight: ColumnInterface<"INT_AS_STRING", false>;
         };
         readonly key: readonly [Key];
     };
     readonly heapBlocks: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly prevBlockHash: ColumnInterface<"BLOCKHASH">;
-            readonly storageHash: ColumnInterface<"HASH">;
+            readonly prevBlockHash: ColumnInterface<"BLOCKHASH", false>;
+            readonly storageHash: ColumnInterface<"HASH", false>;
         };
         readonly key: readonly [Key];
     };
     readonly heapStorage: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly storageHash: ColumnInterface<"HASH">;
-            readonly data: ColumnInterface<"BUFFER">;
+            readonly storageHash: ColumnInterface<"HASH", false>;
+            readonly data: ColumnInterface<"BUFFER", false>;
         };
         readonly key: readonly [Key];
     };
-    readonly permissionsAccount: {
-        readonly type: "INDEX";
-        readonly table: "permissions";
-        readonly key: readonly [Key];
-        readonly storing: readonly [Key, Key];
-    };
-    readonly permissionsPrincipalEntity: {
-        readonly type: "INDEX";
-        readonly table: "permissions";
+    readonly accountCertificates: {
+        readonly type: "TABLE";
+        readonly columns: {
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly certificateHash: ColumnInterface<"CERTIFICATE_HASH", false>;
+            readonly certificate: ColumnInterface<"CERTIFICATE", false>;
+            readonly intermediates: ColumnInterface<"CERTIFICATE_BUNDLE", true>;
+        };
         readonly key: readonly [Key, Key];
-        readonly storing: readonly [Key, Key];
     };
     readonly permissionsEntity: {
         readonly type: "INDEX";
@@ -342,29 +365,10 @@ declare const schema: {
         readonly table: "permissions";
         readonly key: readonly [Key, Key];
     };
-    readonly historyAccount: {
-        readonly type: "INDEX";
-        readonly table: "history";
-        readonly key: readonly [Key];
-        readonly storing: readonly [Key];
-    };
     readonly historyVoteBlockHash: {
         readonly type: "INDEX";
         readonly table: "history";
         readonly key: readonly [Key, Key];
-    };
-    readonly historyAccountOrderIndex: {
-        readonly type: "INDEX";
-        readonly table: "history";
-        readonly key: readonly [Key, Key];
-        readonly storing: readonly [Key];
-    };
-    readonly chainAccount: {
-        readonly type: "INDEX";
-        readonly table: "chain";
-        readonly key: readonly [Key];
-        readonly interleave: Interleave;
-        readonly storing: readonly [Key];
     };
     readonly chainAccountHash: {
         readonly type: "INDEX";
@@ -377,13 +381,7 @@ declare const schema: {
         readonly type: "INDEX";
         readonly table: "blocks";
         readonly key: readonly [Key];
-        readonly storing: readonly [Key, Key];
-    };
-    readonly voteBlocksBlockhash: {
-        readonly type: "INDEX";
-        readonly table: "voteBlocks";
-        readonly key: readonly [Key];
-        readonly interleave: Interleave;
+        readonly storing: readonly [Key];
     };
     readonly votesTimestamp: {
         readonly type: "INDEX";
@@ -403,24 +401,11 @@ declare const schema: {
         readonly key: readonly [Key, Key];
         readonly storing: readonly [Key];
     };
-    readonly votesUid: {
-        readonly type: "INDEX";
-        readonly table: "votes";
-        readonly key: readonly [Key];
-        readonly storing: readonly [Key];
-    };
     readonly votesBlockHash: {
         readonly type: "INDEX";
         readonly table: "votes";
         readonly key: readonly [Key];
         readonly storing: readonly [Key];
-    };
-    readonly ledgerBalanceByAccount: {
-        readonly type: "INDEX";
-        readonly table: "ledger";
-        readonly key: readonly [Key];
-        readonly storing: readonly [Key];
-        readonly interleave: Interleave;
     };
 };
 type SchemaEntriesFilter<T extends SchemaType> = keyof {
@@ -458,7 +443,7 @@ export declare class Helper {
     static getPrimaryKeyNames<X extends TableIndexName>(table: X): string[];
     static getNameFromType(filterType: 'INDEX'): IndexName[];
     static getNameFromType(filterType: 'TABLE'): TableName[];
-    static getAllTables(): ("permissions" | "blocks" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "heapBlocks" | "heapStorage" | "delegation" | "voteBlocks")[];
+    static getAllTables(): ("blocks" | "permissions" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "accountCertificates" | "heapBlocks" | "heapStorage" | "delegation" | "voteBlocks")[];
     static IsTable(name: TableIndexName): name is TableName;
     static IsIndex(name: TableIndexName): name is IndexName;
     static getIndexParent(index: IndexName): TableName;

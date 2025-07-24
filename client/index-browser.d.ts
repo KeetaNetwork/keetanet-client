@@ -15,13 +15,15 @@ import type { AdjustMethod } from '../lib/block';
 import Block, { BlockHash } from '../lib/block';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import * as Config from '../config';
-import type { BuilderOptions } from './builder';
+import type { BuilderOptions, ManageCertificateMethod } from './builder';
 import { UserClientBuilder } from './builder';
 import { KeetaNetError } from '../lib/error';
 import type { AccountInfo, GetAllBalancesResponse, ACLRow, LedgerStatistics } from '../lib/ledger/types';
 import type { LedgerSelector, LedgerStorage } from '../lib/ledger';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import { type BlockOperations } from '../lib/block/operations';
+import { Certificate } from '../lib/utils/certificate';
+import { CertificateBundle, type CertificateHash } from '../lib/utils/certificate';
 type Vote = InstanceType<typeof KeetaNet['Vote']>;
 type VoteStaple = InstanceType<typeof KeetaNet['Vote']['Staple']>;
 type VoteBlocksHash = Vote['blocksHash'];
@@ -112,6 +114,10 @@ interface PrincipalACLWithInfoParsed {
      * The balances for the `entity`
      */
     balances: GetAllBalancesResponse;
+}
+interface CertificateWithIntermediatesResponse {
+    certificate: Certificate;
+    intermediates: CertificateBundle | null;
 }
 /**
  */
@@ -217,6 +223,10 @@ export declare class Client {
      * by the application.
      */
     logger: Pick<Console, "error" | "log" | "warn">;
+    /**
+     * Indication of whether or not this client has been destroyed.
+     */
+    destroyed: boolean;
     private static updateRepsInterval;
     /**
      * Stats for this instance of the client
@@ -278,6 +288,14 @@ export declare class Client {
      * any resources used by the instance and stop any background tasks.
      */
     destroy(): Promise<void>;
+    /**
+     * This enables the use of `using` to automatically clean up the
+     * instance of the {@link Client} class when it is no longer needed.
+     *
+     * It calls the {@link destroy}() method to clean up the instance when
+     * it goes out of scope.
+     */
+    [Symbol.asyncDispose](): Promise<void>;
     /**
      * Create a new instance of the {@link UserClientBuilder} class.  This
      * is a convenience method to create a new instance of the builder
@@ -426,6 +444,23 @@ export declare class Client {
      */
     getAllBalances(account: GenericAccount | string): Promise<GetAllBalancesResponse>;
     /**
+     * List all certificates for a given account.  This will return
+     * all certificates that have been added by and issued to the account, including
+     * any intermediate certificates that have been issued.
+     * @param account Account to lookup certificates for
+     * @returns An array of objects containing the certificate and any intermediates associated with the specified account
+     */
+    getAllCertificates(account: GenericAccount | string): Promise<CertificateWithIntermediatesResponse[]>;
+    /**
+     * Get a certificate by its hash for a given account.  This will return
+     * the certificate and any intermediate certificates that have been issued.
+     *
+     * @param account The account to get the certificate for
+     * @param certificateHash The hash of the certificate to get
+     * @return The certificate and any intermediates or null if the certificate was not found
+     */
+    getCertificateByHash(account: GenericAccount | string, certificateHash: string | CertificateHash): Promise<CertificateWithIntermediatesResponse | null>;
+    /**
      * Get the current head block for a given account.  This will return the
      * entire block, or null if the account has not created any blocks.
      *
@@ -504,11 +539,13 @@ export declare class Client {
      * @param account The account to get the chain for
      * @param options The options to use for the request
      * @param options.startBlock The block hash to start from -- this is used to paginate the request
+     * @param options.endBlock The block hash to stop on -- this is used to limit the chain to a specific range of blocks
      * @param options.depth The maximum number of blocks to return -- this is used to limit the number of blocks returned
      * @return The chain of blocks for the given account, in reverse order starting with the most recent block
      */
     getChain(account: GenericAccount | string, options?: {
         startBlock?: BlockHash | string;
+        endBlock?: BlockHash | string;
         depth?: number;
     }): Promise<Block[]>;
     /**
@@ -589,6 +626,7 @@ export declare class Client {
             blockCount: number;
             transactionCount: number;
             representativeCount: number;
+            db: import("../lib/stats").DbStats;
             settlementTimes: import("../lib/stats").TimeStats;
         };
         switch: {
@@ -682,6 +720,11 @@ interface UserClientListenerTypes {
     change: ((data: GetAccountStateAPIResponseFormatted) => void);
 }
 type UserClientEventName = keyof UserClientListenerTypes;
+interface UserClientListenerOptions {
+    change: {
+        fallbackFrequency?: number;
+    };
+}
 /**
  *   The UserClient class provides a high-level interface, user-oriented
  *   interface to the Keeta network.  It is designed to be easy to use and
@@ -717,6 +760,10 @@ export declare class UserClient {
      * The network address for the network this client is connected to.
      */
     readonly networkAddress: NetworkAddress;
+    /**
+     * Indication of whether or not this client has been destroyed.
+     */
+    destroyed: boolean;
     /**
      * Create an instance of the UserClient class from a specific
      * representative.  This will use the given representative to
@@ -893,6 +940,59 @@ export declare class UserClient {
         from: "publish-aid";
     }>;
     /**
+     * Add a certificate for a account
+     *
+     * @param method The method to use for modifying the certificate: `ADD` for this signature
+     * @param certificate The certificate to modify, this should be a {@link Certificate} instance.
+     * @param intermediates The certificate bundle containing the intermediate certificates, or null if there are no intermediates.
+     * @param options The options to use for the request
+     * @returns The vote staple that was generated and whether it was able to be published
+     */
+    modifyCertificate(method: AdjustMethod.ADD, certificate: Certificate, intermediates: CertificateBundle | null, options?: UserClientOptions): Promise<Awaited<ReturnType<typeof this.publishBuilder>>>;
+    /**
+     * Remove a certificate from a account
+     *
+     * @param method The method to use for modifying the certificate, either `ADD` or `REMOVE`
+     * @param certificate The certificate to remove, this should be a {@link Certificate} or a {@link CertificateHash} instance.
+     * @param intermediates Because the `SUBTRACT` method is used to remove a certificate, intermediates are not needed and should not be defined.
+     * @param options The options to use for the request
+     * @returns The vote staple that was generated and whether it was able to be published
+     */
+    modifyCertificate(method: AdjustMethod.SUBTRACT, certificate: Certificate | CertificateHash, intermediates?: undefined, options?: UserClientOptions): Promise<Awaited<ReturnType<typeof this.publishBuilder>>>;
+    /**
+     * Add or remove a certificate for a account
+     *
+     * @param method The method to use for modifying the certificate, either `ADD` or `REMOVE`
+     * @param certificate The certificate to modify, this should be a {@link Certificate} instance.
+     * @param intermediates The certificate bundle containing the intermediate certificates, or null if there are no intermediates.
+     * @param options The options to use for the request
+     * @returns The vote staple that was generated and whether it was able to be published
+     */
+    modifyCertificate(method: ManageCertificateMethod, certificate: Certificate | CertificateHash, intermediates?: CertificateBundle | null, options?: UserClientOptions): Promise<Awaited<ReturnType<typeof this.publishBuilder>>>;
+    /**
+     * Get a single certificate for the account, by the certificate hash.
+     * @param certificateHash The hash of the certificate to get, or a {@link CertificateHash} instance.
+     * @param options The options to use for the request
+     * @return The found certificate, or null if no certificate was found.
+     */
+    getCertificates(certificateHash: string | CertificateHash, options?: UserClientOptions): Promise<CertificateWithIntermediatesResponse | null>;
+    /**
+     * List certificates for a account.
+     * @param options The options to use for the request
+     * @return The found certificates for the account
+     */
+    getCertificates(certificateHash?: undefined, options?: UserClientOptions): Promise<CertificateWithIntermediatesResponse[]>;
+    /**
+     * Get the certificates for the account.  If a certificate hash is provided,
+     * then only that certificate will be returned, otherwise all certificates
+     * for the account will be returned.
+     * @param certificateHash The hash of the certificate to get, or a {@link CertificateHash} instance.
+     * If not provided, all certificates for the account will be returned.
+     * @param options The options to use for the request
+     * @return The certificate or certificates for the account, depending on whether a hash was provided.
+     */
+    getCertificates(certificateHash?: string | CertificateHash | undefined, options?: UserClientOptions): Promise<CertificateWithIntermediatesResponse | (CertificateWithIntermediatesResponse[]) | null>;
+    /**
      * Send some tokens from this account to another account.
      *
      * If an `external` identifier is provided, it will be included in the
@@ -915,7 +1015,7 @@ export declare class UserClient {
      * @param options The options to use for the request
      * @return The identifier that was generated
      */
-    generateIdentifier(type: IdentifierKeyAlgorithm, options?: UserClientOptions): Promise<import("./builder").PendingAccount<AccountKeyAlgorithm.NETWORK | AccountKeyAlgorithm.TOKEN | AccountKeyAlgorithm.STORAGE>>;
+    generateIdentifier(type: IdentifierKeyAlgorithm, options?: UserClientOptions): Promise<import("./builder").PendingAccount<AccountKeyAlgorithm.NETWORK | AccountKeyAlgorithm.TOKEN | AccountKeyAlgorithm.STORAGE | AccountKeyAlgorithm.MULTISIG>>;
     /**
      * Update the permissions for a given account.  This will publish the
      * changes to the network.
@@ -1064,7 +1164,7 @@ export declare class UserClient {
      * Also set up long timeout polling for changes in case the websocket misses a change update
      * Check that parameters of function complies with respective event function
      */
-    on<EventName extends UserClientEventName>(event: EventName, handler: UserClientListenerTypes[EventName]): symbol;
+    on<EventName extends UserClientEventName>(event: EventName, handler: UserClientListenerTypes[EventName], listenerOptions?: UserClientListenerOptions[EventName]): symbol;
     /**
      * Cancel a previously registered callback from {@link on}
      */
@@ -1073,6 +1173,15 @@ export declare class UserClient {
      * Destroy this instance -- this is required to clean up all resources.
      */
     destroy(): Promise<void>;
+    /**
+     * This enables the use of `using` to automatically clean up the
+     * instance of the {@link UserClient} class when it is no longer
+     * needed.
+     *
+     * It calls the {@link destroy}() method to clean up the instance when
+     * it goes out of scope.
+     */
+    [Symbol.asyncDispose](): Promise<void>;
     /**
      * Get the configuration for this UserClient instance.
      */

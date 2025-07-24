@@ -3,16 +3,16 @@ import { Block, BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions } from '../ledger';
-import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics } from './types';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBase } from '../ledger';
+import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
 import type { PoolClient as PostgresPoolClient } from 'pg';
 import { Pool as PostgresPool } from 'pg';
 import type { ComputedEffectOfBlocks } from './effects';
 import LedgerRequestCache from './cache';
-interface PostgresTransaction {
+import type { CertificateHash } from '../utils/certificate';
+interface PostgresTransaction extends LedgerStorageTransactionBase {
     client: PostgresPoolClient;
-    moment: Date;
     cache: LedgerRequestCache;
 }
 interface PostgresSelectOptions {
@@ -24,12 +24,12 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     constructor();
     init(config: LedgerConfig, ledger: Ledger): void;
     destroy(): Promise<void>;
-    beginTransaction(): Promise<PostgresTransaction>;
+    beginTransaction(transactionBase: LedgerStorageTransactionBase): Promise<PostgresTransaction>;
     commitTransaction(transaction: PostgresTransaction): Promise<void>;
     abortTransaction(transaction: PostgresTransaction): Promise<void>;
     cache(transaction: PostgresTransaction): LedgerRequestCache;
     evaluateError(error: any): Promise<any>;
-    delegatedWeight(transaction: PostgresTransaction, rep?: Account, options?: PostgresSelectOptions): Promise<bigint>;
+    delegatedWeight(transaction: PostgresTransaction, rep?: Account | InstanceType<typeof Account.Set>, options?: PostgresSelectOptions): Promise<bigint>;
     getBalance(transaction: PostgresTransaction, account: GenericAccount, token: TokenAddress, options?: PostgresSelectOptions): Promise<bigint>;
     getAllBalances(transaction: PostgresTransaction, account: GenericAccount): Promise<GetAllBalancesResponse>;
     addPendingVote(transaction: PostgresTransaction, votesAndBlocks: VoteStaple): Promise<void>;
@@ -42,11 +42,9 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     listACLsByEntity(transaction: PostgresTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(transaction: PostgresTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
     getAccountInfo(transaction: PostgresTransaction, account: GenericAccount | string): Promise<AccountInfo>;
-    adjust(transaction: PostgresTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean): Promise<BlockHash[]>;
+    adjust(transaction: PostgresTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: PostgresTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;
-    getBlockHeight(transaction: PostgresTransaction, blockHash: BlockHash, account: GenericAccount): Promise<{
-        blockHeight: string | null;
-    } | null>;
+    getBlockHeight(transaction: PostgresTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: PostgresTransaction, block: BlockHash, from: LedgerSelector, issuer?: GenericAccount): Promise<Vote[] | null>;
     getVoteStaples(transaction: PostgresTransaction, stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
     getHistory(transaction: PostgresTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
@@ -59,6 +57,8 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     }>;
     getVoteStaplesFromBlockHash(transaction: PostgresTransaction, blocks: BlockHash[], onLedger: LedgerSelector): Promise<VoteStaple[]>;
     getVotesAfter(transaction: PostgresTransaction, moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
+    getAccountCertificates(transaction: PostgresTransaction, account: GenericAccount): Promise<CertificateWithIntermediates[]>;
+    getAccountCertificateByHash(transaction: PostgresTransaction, account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     protected gcBatch(transaction: PostgresTransaction): Promise<boolean>;
     getNextSerialNumber(): Promise<bigint>;
     stats(): Promise<LedgerStatistics>;

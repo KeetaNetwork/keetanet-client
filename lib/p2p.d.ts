@@ -72,9 +72,12 @@ interface P2PPeerBase {
 interface P2PPeerRepBase extends P2PPeerBase {
     kind: NodeKind.REPRESENTATIVE;
     /**
-     * Endpoint to reach the representative
+     * Endpoints to reach the representative
      */
-    endpoint: string;
+    endpoints: {
+        p2p: string;
+        api: string;
+    };
     /**
      * Public key of the representative (used as the ID)
      */
@@ -224,7 +227,7 @@ export declare class P2PWebSocket implements P2PConnection {
 /**
  * The interfaces from the Node that the P2P switch uses
  */
-type NodeLike = Pick<Node, 'recvMessageFromPeer' | 'config' | 'stats' | 'log'>;
+type NodeLike = Pick<Node, 'recvMessageFromPeer' | 'sendMessage' | 'config' | 'stats' | 'log'>;
 /**
  * Deserializer DB
  */

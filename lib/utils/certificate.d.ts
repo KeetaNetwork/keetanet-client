@@ -1,6 +1,8 @@
 import * as ASN1 from './asn1';
-import Account from '../account';
+import Account, { AccountKeyAlgorithm } from '../account';
 import * as HashLib from './hash';
+import { BufferStorage } from './buffer';
+import type { ToJSONSerializableOptions, ToJSONSerializable } from './conversion';
 /**
  * De-normalized mapped Certificate Schema, for use in type annotations since
  * we do not want to expose such a complex type
@@ -132,7 +134,7 @@ export declare class CertificateBuilder {
      * Create a certificate
      */
     buildDER(params?: Partial<CertificateBuilderParams>): Promise<ArrayBuffer>;
-    build(params?: Partial<CertificateBuilderParams>): Promise<Certificate>;
+    build(params?: Partial<CertificateBuilderParams>, options?: ConstructorParameters<typeof Certificate>[1]): Promise<Certificate>;
 }
 type CertificateOptions = {
     /**
@@ -163,6 +165,22 @@ type CertificateOptions = {
      */
     isTrustedRoot?: boolean;
 };
+type CertificateHashString = string & {
+    readonly __certificateHash: never;
+};
+/**
+ * Certificate hash
+ */
+export declare class CertificateHash extends BufferStorage {
+    static isInstance: (obj: any, strict?: boolean) => obj is CertificateHash;
+    static Set: import("./helper").InstanceSetConstructor<CertificateHash, CertificateHashString>;
+    get hashFunctionName(): string;
+    constructor(certificateHash: ConstructorParameters<typeof BufferStorage>[0]);
+    static fromData(data: Buffer): CertificateHash;
+    toJSON(): CertificateHashString;
+    toString(): CertificateHashString;
+}
+export type CertificateJSONOutput = ToJSONSerializable<ReturnType<Certificate['toJSON']>>;
 export declare class Certificate {
     #private;
     /**
@@ -270,6 +288,11 @@ export declare class Certificate {
      */
     verify(account: Account | Certificate): boolean;
     /**
+     * Asserts provided certificates can construct a valid graph with no loops or orphans, and that all provided certificates can reach the root, or current certificate
+     * @param certificates Additional intermediate certificates to verify
+     */
+    assertCanConstructValidGraph(certificates: Set<Certificate>): true | undefined;
+    /**
      * Verify against a given certificate store
      */
     verifyChain(store: NonNullable<CertificateOptions['store']>, _ignore_seenCerts?: Set<Certificate>): Certificate[] | null;
@@ -331,10 +354,58 @@ export declare class Certificate {
     /**
      * Compute a hash of the certificate
      */
-    hash(): string;
+    hash(): CertificateHash;
     /**
      * Get a JSON representation of the certificate
      */
-    toJSON(includeChain?: boolean): any;
+    toJSON(options?: ToJSONSerializableOptions, includeChain?: boolean): {
+        $binary?: string;
+        $chain?: unknown;
+        serial: bigint;
+        notBefore: Date;
+        notAfter: Date;
+        subject: string;
+        issuer: string;
+        subjectPublicKey: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+        baseExtensions: {
+            /**
+             * Basic Constraints
+             */
+            basicConstraints?: [ca: boolean, pathLenConstraint?: bigint];
+            /**
+             * Subject Key Identifier
+             */
+            subjectKeyIdentifier?: Buffer;
+            /**
+             * Authority Key Identifier
+             */
+            authorityKeyIdentifier?: {
+                type: "context";
+                value: 0;
+                contains: Buffer;
+            };
+        } | undefined;
+        subjectDN: {
+            name: string;
+            value: string;
+        }[];
+        issuerDN: {
+            name: string;
+            value: string;
+        }[];
+        $hash: CertificateHash;
+    };
+}
+export declare class CertificateBundle {
+    #private;
+    static isInstance: (obj: any, strict?: boolean) => obj is CertificateBundle;
+    constructor(input: CertificateBundle | Certificate[] | ArrayBuffer | Buffer | string | (ConstructorParameters<typeof Certificate>[0])[] | Set<Certificate>);
+    get bundleSize(): number;
+    getDER(): ArrayBuffer;
+    getDERBuffer(): Buffer;
+    getCertificates(): Certificate[];
+    toJSON(): {
+        certificates: string[];
+    };
 }
 export {};

@@ -6,8 +6,9 @@ import Account from '../account';
 import type Node from '../node';
 import type { BloomFilter } from '../utils/bloom';
 import type { ComputedEffectOfBlocks } from './effects';
-import type { ACLRow, AccountInfo, GetAllBalancesResponse, LedgerStatistics } from './types';
+import type { ACLRow, AccountInfo, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import LedgerRequestCache from './cache';
+import type { CertificateHash } from '../utils/certificate';
 /**
  * Kind of ledger
  */
@@ -48,6 +49,16 @@ export interface LedgerConfig {
      */
     ledgerWriteMode?: 'bootstrap-only' | 'read-only' | 'read-write' | 'no-voting';
     /**
+     * Timeout for storage operations
+     */
+    transactionRetries?: ({
+        timeout?: number;
+        maxRetries?: never;
+    } | {
+        timeout?: never;
+        maxRetries?: number;
+    });
+    /**
      * Logging method
      */
     log?: (...args: any[]) => any;
@@ -85,6 +96,15 @@ export type GetVotesAfterOptions = {
     timeout?: number;
 };
 /**
+ * Each transaction can contain the node object making the request to access things like timing information
+ */
+export interface LedgerStorageTransactionBase {
+    node?: Node;
+    moment: Date;
+    identifier: string;
+    readOnly: boolean;
+}
+/**
  * Each Ledger Storage backend must implement this interface
  */
 export interface LedgerStorageAPI {
@@ -99,7 +119,7 @@ export interface LedgerStorageAPI {
     /**
      * Begin a transaction
      */
-    beginTransaction: (identifier: string, readOnly?: boolean) => Promise<any>;
+    beginTransaction: (transactionBase: LedgerStorageTransactionBase) => Promise<LedgerStorageTransactionBase>;
     /**
      * Commit an active transaction
      */
@@ -115,9 +135,9 @@ export interface LedgerStorageAPI {
     evaluateError: (error: any) => Promise<any>;
     /**
      * Get the amount of delegated weight for an account,
-     * if "rep" is not supplied get the total delegated weight
+     * if "rep" is not supplied get the total delegated weight, if "rep" is of type Account.Set, return the sum of the weights for the provided account(s)
      */
-    delegatedWeight: (transaction: any, rep?: Account) => Promise<bigint>;
+    delegatedWeight: (transaction: any, rep?: Account | InstanceType<typeof Account.Set>) => Promise<bigint>;
     /**
      * Get the balance of an account or token
      */
@@ -147,7 +167,7 @@ export interface LedgerStorageAPI {
     /**
      * Adjust the ledger by performing a set of changes based on some blocks and votes
      */
-    adjust: (transaction: any, input: VoteStaple, changes: ComputedEffectOfBlocks) => Promise<BlockHash[]>;
+    adjust: (transaction: any, input: VoteStaple, changes: ComputedEffectOfBlocks) => Promise<VoteStaple[]>;
     /**
      * Add a transitional vote (to the side-ledger)
      */
@@ -159,9 +179,16 @@ export interface LedgerStorageAPI {
     /**
      * Get the block height from a given block hash
      */
-    getBlockHeight: (transaction: any, blockHash: BlockHash, account: GenericAccount) => Promise<{
-        blockHeight: string | null;
-    } | null>;
+    getBlockHeight: (transaction: any, blockHash: BlockHash, account: GenericAccount) => Promise<bigint | null>;
+    /**
+     * Get multiple block heights for a given set of block hashes and chains.
+     */
+    getBlockHeights: (transaction: any, toFetch: {
+        blockHash: BlockHash;
+        account: GenericAccount;
+    }[]) => Promise<{
+        [blockHash: string]: bigint | null;
+    }>;
     /**
      * Get the votes for a given block
      */
@@ -189,6 +216,12 @@ export interface LedgerStorageAPI {
      */
     getHeadBlocks: (transaction: any, accounts: GenericAccount[], from: LedgerSelector) => Promise<{
         [account: string]: Block | null;
+    }>;
+    /**
+     * Get multiple head block hashes at the same time for a set of accounts
+     */
+    getHeadBlockHashes: (transaction: any, accounts: InstanceType<typeof Account.Set>) => Promise<{
+        [account: string]: BlockHash | null;
     }>;
     /**
      * Get the HEAD block for an account (implemented by LedgerStorageBase using getHeadBlocks())
@@ -223,6 +256,14 @@ export interface LedgerStorageAPI {
      */
     getNextSerialNumber: (transaction?: any) => Promise<bigint>;
     /**
+     * Get the X.509 Certificates associated with an account
+     */
+    getAccountCertificates: (transaction: any, account: GenericAccount) => Promise<CertificateWithIntermediates[]>;
+    /**
+     * Get the X.509 Certificate associated with an account using the certificate hash
+     */
+    getAccountCertificateByHash: (transaction: any, account: GenericAccount, hash: CertificateHash) => Promise<CertificateWithIntermediates | null>;
+    /**
      * Get ledger statistics
      */
     stats: () => Promise<LedgerStatistics>;
@@ -232,13 +273,15 @@ export interface LedgerStorageAPI {
  */
 declare class LedgerAtomicInterface {
     #private;
-    constructor(transaction: any, storage: LedgerStorageAPI, config: LedgerConfig, ledger: Ledger);
+    constructor(transaction: LedgerStorageTransactionBase, storage: LedgerStorageAPI, config: LedgerConfig, ledger: Ledger);
     commit(): Promise<void>;
     abort(): Promise<void>;
     vote(blocks: Block[], otherVotes?: Vote[]): Promise<Vote>;
-    add(votesAndBlocks: VoteStaple, from?: 'bootstrap' | string): Promise<BlockHash[]>;
+    add(votesAndBlocks: VoteStaple, from?: 'bootstrap' | string): Promise<VoteStaple[]>;
     getBalance(account: GenericAccount, token: TokenAddress): Promise<bigint>;
     getAllBalances(account: GenericAccount): Promise<GetAllBalancesResponse>;
+    getAccountCertificates(account: GenericAccount): Promise<CertificateWithIntermediates[]>;
+    getAccountCertificateByHash(account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     listACLsByPrincipal(principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
     listACLsByEntity(entity: GenericAccount): Promise<ACLRow[]>;
     votingPower(rep?: Account): Promise<bigint>;
@@ -260,7 +303,7 @@ declare class LedgerAtomicInterface {
     getStaplesFromBlockHashes(hashes: BlockHash[]): Promise<VoteStaple[]>;
     getVoteStaplesAfter(moment: Date, limit?: number, options?: GetVotesAfterOptions): Promise<VoteStaple[]>;
     gc(): Promise<boolean>;
-    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: any) => Promise<T>): Promise<T>;
+    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 /**
  * The core Ledger components
@@ -292,6 +335,8 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     listACLsByEntity(...args: Parameters<LedgerAtomicInterface['listACLsByEntity']>): ReturnType<LedgerAtomicInterface['listACLsByEntity']>;
     getBalance(...args: Parameters<LedgerAtomicInterface['getBalance']>): ReturnType<LedgerAtomicInterface['getBalance']>;
     getAllBalances(...args: Parameters<LedgerAtomicInterface['getAllBalances']>): ReturnType<LedgerAtomicInterface['getAllBalances']>;
+    getAccountCertificates(...args: Parameters<LedgerAtomicInterface['getAccountCertificates']>): ReturnType<LedgerAtomicInterface['getAccountCertificates']>;
+    getAccountCertificateByHash(...args: Parameters<LedgerAtomicInterface['getAccountCertificateByHash']>): ReturnType<LedgerAtomicInterface['getAccountCertificateByHash']>;
     votingPower(...args: Parameters<LedgerAtomicInterface['votingPower']>): ReturnType<LedgerAtomicInterface['votingPower']>;
     getVotes(...args: Parameters<LedgerAtomicInterface['getVotes']>): ReturnType<LedgerAtomicInterface['getVotes']>;
     getVotesFromMultiplePrevious(...args: Parameters<LedgerAtomicInterface['getVotesFromMultiplePrevious']>): ReturnType<LedgerAtomicInterface['getVotesFromMultiplePrevious']>;
@@ -308,6 +353,6 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getVoteStaplesAfter(...args: Parameters<LedgerAtomicInterface['getVoteStaplesAfter']>): ReturnType<LedgerAtomicInterface['getVoteStaplesAfter']>;
     gc(...args: Parameters<LedgerAtomicInterface['gc']>): ReturnType<LedgerAtomicInterface['gc']>;
     stats(): Promise<LedgerStatistics>;
-    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: any) => Promise<T>): Promise<T>;
+    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 export default Ledger;

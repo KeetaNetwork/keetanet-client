@@ -7,17 +7,13 @@ declare const rootTree: {
                 blocks: string[];
                 votes?: string[];
             }) => Promise<{
-                vote: import("../lib/vote").VoteJSONOutput & {
-                    $binary: string;
-                };
+                vote: import("../lib/vote").Vote;
             }>;
         };
         ':blockhash': {
             GET: (request: APIRequest, blockhash: string) => Promise<{
-                blockhash: string;
-                votes: (import("../lib/vote").VoteJSONOutput & {
-                    $binary: string;
-                })[] | null;
+                blockhash: import("../lib/block").BlockHash;
+                votes: import("../lib/vote").Vote[] | null;
             }>;
         };
     };
@@ -122,6 +118,26 @@ declare const rootTree: {
                         ':entityList': {
                             GET: (request: APIRequest, principal: string | import("../lib/account").GenericAccount, entityPubKeys: string) => Promise<{
                                 permissions: import("../lib/ledger/types").ACLRow[];
+                            }>;
+                        };
+                    };
+                    certificates: {
+                        GET: (request: APIRequest, account: string) => Promise<{
+                            account: string;
+                            certificates: {
+                                certificate: string;
+                                intermediates: string[] | null;
+                            }[];
+                        }>;
+                        ':certificateHash': {
+                            GET: (request: APIRequest, account: string, certificateHash: string) => Promise<{
+                                certificate: string;
+                                intermediates: string[] | null;
+                                account: string;
+                            } | {
+                                certificate: null;
+                                intermediates: null;
+                                account: string;
                             }>;
                         };
                     };

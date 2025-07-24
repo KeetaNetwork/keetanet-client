@@ -23,6 +23,7 @@ export declare function waitTicks(ticks: number): Promise<void>;
  * Throws if neither are defined
  */
 export declare function env(name: string, defaultValue?: string): string;
+export declare function booleanEnv(name: string, defaultValue?: boolean): boolean;
 /**
  * Generate a random string from length provided (default 32)
  */
@@ -44,6 +45,7 @@ interface IsInstance<T> {
     check(obj: any, strict?: boolean): obj is T;
 }
 export declare function checkableGenerator<P extends Constructor<T>, T = InstanceType<P>>(parent: P, defaultStrict?: boolean): IsInstance<T>['check'];
+export declare function nonNullable<T>(value: T): NonNullable<T>;
 export type DeepMutable<T> = {
     -readonly [P in keyof T]: DeepMutable<T[P]>;
 };
@@ -53,15 +55,24 @@ interface WithIsInstance<Inst> extends Constructor<Inst> {
 type EncodeFunc<Inst, Enc> = (a: Inst) => Enc;
 type DecodeFunc<Inst, Enc> = (a: Enc) => Inst;
 type CanBeArray<T> = T | T[];
-export interface InstanceSet<Instance, Encoded = string> extends Set<Encoded> {
-    add(data: CanBeArray<Instance | Encoded>): this;
-    delete(data: Instance | Encoded): boolean;
-    has(data: Instance | Encoded): boolean;
-    decodedArray: Instance[];
-    encodedArray: Encoded[];
+interface InstanceSet<Instance, Encoded = string> extends Set<Instance> {
+    add(data: CanBeArray<Instance>): this;
+    forEach(callbackfn: (value: Instance, value2: Instance, set: InstanceSet<Instance, Encoded>) => void, thisArg?: any): void;
+    hasInternal(data: Encoded): boolean;
+    addInternal(data: Encoded): this;
+    deleteInternal(data: Encoded): boolean;
+    valuesInternal(): IterableIterator<Encoded>;
+    toArray(): Instance[];
+    toArrayInternal(): Encoded[];
+    isSubsetOf(data: InstanceSet<Instance, Encoded>): boolean;
+    isEqualTo(data: InstanceSet<Instance, Encoded>): boolean;
 }
-export interface InstanceSetConstructor<Instance, Encoded> {
-    new (data?: (Instance | Encoded)[]): InstanceSet<Instance, Encoded>;
+/**
+ * AsyncDisposableStack https://github.com/tc39/proposal-explicit-resource-management
+ */
+export declare const AsyncDisposableStack: AsyncDisposableStackConstructor;
+export interface InstanceSetConstructor<Instance, Encoded = string> {
+    new (data?: (Instance)[]): InstanceSet<Instance, Encoded>;
 }
 export declare function setGenerator<P extends WithIsInstance<Instance>, E extends EncodeFunc<Instance, Encoded>, D extends DecodeFunc<Instance, Encoded>, Instance = InstanceType<P>, Encoded = ReturnType<E>>(parent: P, rawEncode: E, rawDecode: D): InstanceSetConstructor<Instance, Encoded>;
 export {};

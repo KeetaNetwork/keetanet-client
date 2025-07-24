@@ -10,7 +10,10 @@ import type { VoteStaple } from '../lib/vote';
 interface GetPeersAPIResponse {
     kind: NodeKind;
     key?: string;
-    endpoint?: string;
+    endpoints?: {
+        p2p: string;
+        api: string;
+    };
     signature?: string;
 }
 interface GetAccountChainAPIResponse {
@@ -56,7 +59,7 @@ interface PrincipalACLWithInfoResponse {
 }
 interface GetAccountHistoryResponse {
     history: {
-        voteStaple: ReturnType<typeof VoteStaple['toJSONSerializable']>;
+        voteStaple: VoteStaple;
         '$id': string;
         '$timestamp': string;
     }[];
@@ -96,6 +99,22 @@ declare function getAccountBalance(request: APIRequest, account: string | Generi
 declare function getAllBalances(request: APIRequest, account: string | GenericAccount): Promise<{
     account: GenericAccount;
     balances: GetAllBalancesResponse;
+}>;
+declare function getAccountCertificates(request: APIRequest, account: string): Promise<{
+    account: string;
+    certificates: {
+        certificate: string;
+        intermediates: string[] | null;
+    }[];
+}>;
+declare function getCertificateByHash(request: APIRequest, account: string, certificateHash: string): Promise<{
+    certificate: string;
+    intermediates: string[] | null;
+    account: string;
+} | {
+    certificate: null;
+    intermediates: null;
+    account: string;
 }>;
 declare function getAccountState(request: APIRequest, pubKey: string): Promise<AccountState | AccountStateError>;
 declare function getBlockByHash(request: APIRequest, blockhash: string): Promise<{
@@ -190,6 +209,12 @@ declare const _default: {
                     GET: typeof listACLsByPrincipal;
                     ':entityList': {
                         GET: typeof listACLsByPrincipal;
+                    };
+                };
+                certificates: {
+                    GET: typeof getAccountCertificates;
+                    ':certificateHash': {
+                        GET: typeof getCertificateByHash;
                     };
                 };
                 pending: {

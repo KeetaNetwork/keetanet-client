@@ -1,7 +1,8 @@
 import type { GenericAccount, TokenAddress } from '../account';
 import type { AdjustMethod } from '../block';
 import type { Permissions } from '../permissions';
-import type { TimeStats } from '../stats';
+import type { DbStats, TimeStats } from '../stats';
+import type { Certificate, CertificateBundle } from '../utils/certificate';
 /**
  * Account info entry
  */
@@ -97,5 +98,10 @@ export interface LedgerStatistics {
     blockCount: number;
     transactionCount: number;
     representativeCount: number;
+    db: DbStats;
     settlementTimes: TimeStats;
+}
+export interface CertificateWithIntermediates {
+    certificate: Certificate;
+    intermediates: CertificateBundle | null;
 }

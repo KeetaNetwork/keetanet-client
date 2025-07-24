@@ -2,7 +2,7 @@ import Account from '../lib/account';
 /**
  * Known Networks that exist in the configuration database
  */
-export declare const networksArray: readonly ["production", "staging", "beta", "test", "dev"];
+export declare const networksArray: readonly ["production", "staging", "beta", "test", "test2", "dev"];
 export type Networks = typeof networksArray[number];
 export type NetworkOrID = Networks | bigint;
 export declare const NetworkIDs: {
@@ -49,6 +49,10 @@ export type NetworkConfig = {
     validation: ValidationConfig;
     publishAidURL?: string;
 };
+interface NumericValidationRule {
+    maxValue: bigint;
+    minValue: bigint;
+}
 interface TextValidationRule {
     regex: RegExp;
     maxLength: number;
@@ -59,6 +63,7 @@ export interface ValidationConfig {
         name: TextValidationRule;
         description: TextValidationRule;
         metadata: TextValidationRule;
+        supply: Omit<NumericValidationRule, 'minValue'>;
     };
     permissions: {
         maxExternalOffset: number;

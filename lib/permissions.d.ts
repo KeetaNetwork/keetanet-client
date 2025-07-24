@@ -17,7 +17,8 @@ declare enum BaseFlag {
     TOKEN_ADMIN_SUPPLY = 6,/* 0x0040 */
     TOKEN_ADMIN_MODIFY_BALANCE = 7,/* 0x0080 */
     PERMISSION_DELEGATE_ADD = 11,/* 0x0800 */
-    PERMISSION_DELEGATE_REMOVE = 12
+    PERMISSION_DELEGATE_REMOVE = 12,/* 0x1000 */
+    MANAGE_CERTIFICATE = 13
 }
 type ExternalFlagName = `${typeof externalFlagPrefix}${string}`;
 export type BaseFlagName = keyof typeof BaseFlag;
@@ -116,6 +117,5 @@ export declare class Permissions {
     get canUseDelegation(): boolean;
     get base(): BaseSet;
     get external(): ExternalSet;
-    static toJSONSerializablePrefix: string;
-    static toJSONSerializable(value: Permissions): bigint[];
+    toJSON(): [bigint, bigint];
 }

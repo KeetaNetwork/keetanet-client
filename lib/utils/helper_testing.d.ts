@@ -2,7 +2,7 @@ import Account from '../account';
 import LocalNode from '../node/local';
 import { VoteStaple } from '../vote';
 import type { Block } from '../block';
-export declare const testingNetworkId: bigint;
+export declare const testingNetworkId = 0n;
 type NodeConfig = ConstructorParameters<typeof LocalNode>[0];
 export declare function canListenOn(ip: string): Promise<boolean>;
 export declare function findListenableIP(checkIPs: string[]): Promise<string | null>;

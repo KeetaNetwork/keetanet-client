@@ -44,6 +44,7 @@ export interface ASN1String extends ASN1Object {
     kind: 'printable' | 'ia5' | 'utf8';
     value: string;
 }
+export declare function isASN1Object(input: unknown): input is ASN1Object;
 /**
  * Validation function for {@link isValidSequenceSchema}
  */

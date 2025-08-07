@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import zlib from 'zlib';
 /**
  * RFC 4648 Base32 Decoder
@@ -11,6 +12,8 @@ export declare function DecodeBase64(data: string): ArrayBuffer;
 export declare function EncodeBase64(data: ArrayBuffer): string;
 export declare function ZlibInflate(data: ArrayBuffer, options?: zlib.ZlibOptions): ArrayBuffer;
 export declare function ZlibDeflate(data: ArrayBuffer, options?: zlib.ZlibOptions): ArrayBuffer;
+export declare function ZlibInflateAsync(data: ArrayBuffer, options?: zlib.ZlibOptions): Promise<ArrayBuffer>;
+export declare function ZlibDeflateAsync(data: ArrayBuffer, options?: zlib.ZlibOptions): Promise<ArrayBuffer>;
 export declare class BufferStorage {
     #private;
     readonly storageKind: string;
@@ -24,3 +27,4 @@ export declare class BufferStorage {
     compare(compareWith: typeof this | undefined | null): boolean;
     compareHexString(compareWith: BufferStorage | string | undefined | null): boolean;
 }
+export { Buffer };

@@ -64440,11 +64440,11 @@ const VoteErrorCodes = [
     'MALFORMED_VOTE_VALIDITY_INFORMATION',
     'MALFORMED_VOTE_SERIAL',
     'MALFORMED_VOTE_EXTENSIONS',
+    'MALFORMED_VOTE_EXTENSIONS_DATA',
     'MALFORMED_VOTE_EXTENSIONS_VALUE',
     'MALFORMED_VOTE_EXTENSIONS_VALUE_OID',
     'MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL',
     'MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL_TYPE',
-    'MALFORMED_VOTE_EXTENSIONS_VALUE_HASH_DATA',
     'MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER',
     'MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_WRAPPER',
     'MALFORMED_VOTE_SIGNATURE_SCHEME_ECDSA_INVALID_CURVE',
@@ -64473,7 +64473,13 @@ const VoteErrorCodes = [
     'MALFORMED_HASHES_FROM_VOTE_DATA_NOT_TWO_ITEMS',
     'MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_FUNC',
     'MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_TYPE',
-    'MALFORMED_HASHES_FROM_VOTE_DATA_SECOND_MUST_BE_SEQUENCE'
+    'MALFORMED_HASHES_FROM_VOTE_DATA_SECOND_MUST_BE_SEQUENCE',
+    // Errors from the feesFromVote function
+    'MALFORMED_FEES_AMOUNT',
+    'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT',
+    'MALFORMED_FEES_IN_PERMANENT_VOTE',
+    'MALFORMED_FEES_PAY_TO_INVALID',
+    'MALFORMED_FEES_TOKEN_NOT_TOKEN'
 ];
 class KeetaNetVoteError extends _1.KeetaNetError {
     constructor(code, message) {
@@ -70389,6 +70395,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _ValidateASN1_schema, _BufferStorageASN1_data;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports._Testing = exports.ASN1BigIntToBuffer = exports.ASN1IntegerToBigInt = exports.JStoASN1 = exports.ASN1toJS = exports.BufferStorageASN1 = exports.ValidateASN1 = exports.asn1 = void 0;
+exports.isASN1Object = isASN1Object;
 exports.isValidSequenceSchema = isValidSequenceSchema;
 const asn1js = __importStar(__webpack_require__(7813));
 const helper_1 = __webpack_require__(3208);
@@ -70454,20 +70461,29 @@ function jsIntegerToBigInt(value) {
     }
     return (BigInt(valueStr));
 }
+function isASN1Object(input) {
+    if (input === null || input === undefined || typeof input !== 'object') {
+        return (false);
+    }
+    if (!('type' in input) || typeof input.type !== 'string') {
+        return (false);
+    }
+    return (true);
+}
 function isASN1OID(input) {
-    if (typeof input !== 'object') {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (input.type !== 'oid') {
         return (false);
     }
-    if (typeof input.oid !== 'string') {
+    if (!('oid' in input) || typeof input.oid !== 'string') {
         return (false);
     }
     return (true);
 }
 function isASN1String(input) {
-    if (typeof input !== 'object' || input === null) {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (!('type' in input) || input.type !== 'string') {
@@ -70490,13 +70506,16 @@ function isASN1String(input) {
     return (true);
 }
 function isASN1Set(input) {
-    if (typeof input !== 'object') {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (input.type !== 'set') {
         return (false);
     }
-    if (!isASN1OID(input.name)) {
+    if (!('name' in input) || !isASN1OID(input.name)) {
+        return (false);
+    }
+    if (!('value' in input)) {
         return (false);
     }
     if (typeof input.value !== 'string') {
@@ -70507,7 +70526,7 @@ function isASN1Set(input) {
     return (true);
 }
 function isASN1ContextTag(input) {
-    if (typeof input !== 'object' || input === null) {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (!('type' in input) || input.type !== 'context') {
@@ -70522,19 +70541,19 @@ function isASN1ContextTag(input) {
     return (true);
 }
 function isASN1BitString(input) {
-    if (typeof input !== 'object') {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (input.type !== 'bitstring') {
         return (false);
     }
-    if (!(0, helper_1.isBuffer)(input.value)) {
+    if (!('value' in input) || !(0, helper_1.isBuffer)(input.value)) {
         return (false);
     }
     return (true);
 }
 function isASN1Date(input) {
-    if (typeof input !== 'object' || input === null) {
+    if (!isASN1Object(input)) {
         return (false);
     }
     if (!('type' in input) || input.type !== 'date') {
@@ -71397,16 +71416,36 @@ class ValidateASN1 {
                 if (input.length < minLength || input.length > maxLength) {
                     throw (new Error(`Expected Array length between [${minLength}, ${maxLength}], got ${input.length}`));
                 }
-                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                return schema.map(function (item, i) {
-                    /*
-                     * We need to cast to "any" to avoid
-                     * typing errors with TypeScript's
-                     * validation with recursive types
-                     */
+                const output = [];
+                for (let i = 0; i < schema.length; i++) {
+                    // If the schema is optional, we check two paths, if the value is present or not.
+                    // This will break the loop and leave the rest of the validation to the recursive call.
+                    if (typeof schema[i] === 'object' && 'optional' in schema[i]) {
+                        // We only need to take two paths for optional values when we are before the last value, and the value is not undefined
+                        if (i < schema.length - 1 && input[i] !== undefined) {
+                            const remainingSchema = schema.slice(i + 1);
+                            try {
+                                // Try to validate against schema assuming optional is present
+                                // @ts-ignore
+                                output.push(...ValidateASN1.againstSchema(input.slice(i), [schema[i].optional, ...remainingSchema]));
+                            }
+                            catch {
+                                /* ignore error because we are going to try without the optional value */
+                                // @ts-ignore
+                                output.push(undefined, ...ValidateASN1.againstSchema(input.slice(i), remainingSchema));
+                            }
+                            break;
+                        }
+                    }
                     // @ts-ignore
-                    return (ValidateASN1.againstSchema(input[i], item));
-                });
+                    output.push(ValidateASN1.againstSchema(input[i], schema[i]));
+                }
+                // If the end of the output is only optional values, exclude undefined values.
+                while (output.length > 0 && output.at(-1) === undefined) {
+                    output.pop();
+                }
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                return output;
             }
             else {
                 throw (new Error(`Internal error: Unsupported schema type ${JSON.stringify(schema)}`));
@@ -71697,16 +71736,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _BufferStorage_key;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BufferStorage = void 0;
+exports.Buffer = exports.BufferStorage = void 0;
 exports.DecodeBase32 = DecodeBase32;
 exports.EncodeBase32 = EncodeBase32;
 exports.DecodeBase64 = DecodeBase64;
 exports.EncodeBase64 = EncodeBase64;
 exports.ZlibInflate = ZlibInflate;
 exports.ZlibDeflate = ZlibDeflate;
+exports.ZlibInflateAsync = ZlibInflateAsync;
+exports.ZlibDeflateAsync = ZlibDeflateAsync;
 const helper_1 = __webpack_require__(3208);
 const rfc4648_1 = __webpack_require__(9211);
+const buffer_1 = __webpack_require__(181);
+Object.defineProperty(exports, "Buffer", ({ enumerable: true, get: function () { return buffer_1.Buffer; } }));
+const util_1 = __webpack_require__(9023);
 const zlib_1 = __importDefault(__webpack_require__(3106));
+const inflateAsync = (0, util_1.promisify)(zlib_1.default.inflate);
+const deflateAsync = (0, util_1.promisify)(zlib_1.default.deflate);
 /**
  * RFC 4648 Base32 Decoder
  */
@@ -71729,16 +71775,24 @@ function EncodeBase32(data) {
     }).toLowerCase());
 }
 function DecodeBase64(data) {
-    return ((0, helper_1.bufferToArrayBuffer)(Buffer.from(data, 'base64')));
+    return ((0, helper_1.bufferToArrayBuffer)(buffer_1.Buffer.from(data, 'base64')));
 }
 function EncodeBase64(data) {
-    return (Buffer.from(data).toString('base64'));
+    return (buffer_1.Buffer.from(data).toString('base64'));
 }
 function ZlibInflate(data, options) {
-    return ((0, helper_1.bufferToArrayBuffer)(zlib_1.default.inflateSync(Buffer.from(data), options)));
+    return ((0, helper_1.bufferToArrayBuffer)(zlib_1.default.inflateSync(buffer_1.Buffer.from(data), options)));
 }
 function ZlibDeflate(data, options) {
-    return ((0, helper_1.bufferToArrayBuffer)(zlib_1.default.deflateSync(Buffer.from(data), options)));
+    return ((0, helper_1.bufferToArrayBuffer)(zlib_1.default.deflateSync(buffer_1.Buffer.from(data), options)));
+}
+async function ZlibInflateAsync(data, options = {}) {
+    const buffer = await inflateAsync(buffer_1.Buffer.from(data), options);
+    return ((0, helper_1.bufferToArrayBuffer)(buffer));
+}
+async function ZlibDeflateAsync(data, options = {}) {
+    const buffer = await deflateAsync(buffer_1.Buffer.from(data), options);
+    return ((0, helper_1.bufferToArrayBuffer)(buffer));
 }
 class BufferStorage {
     constructor(key, length) {
@@ -71748,7 +71802,7 @@ class BufferStorage {
             /*
              * Convert from a hex-encoded string into a buffer
              */
-            const buffer_key = Buffer.from(key, 'hex');
+            const buffer_key = buffer_1.Buffer.from(key, 'hex');
             if (buffer_key.length !== length) {
                 throw (new Error(`When decoding buffer we got different number of bytes than expected (${buffer_key.length} expected ${length})`));
             }
@@ -71761,11 +71815,11 @@ class BufferStorage {
             }
             value = '0'.repeat(length * 2) + value;
             value = value.slice(length * 2 * -1);
-            __classPrivateFieldSet(this, _BufferStorage_key, Buffer.from(value, 'hex'), "f");
+            __classPrivateFieldSet(this, _BufferStorage_key, buffer_1.Buffer.from(value, 'hex'), "f");
         }
         else {
-            if (Buffer.from(key).length !== length) {
-                throw (new Error(`When storing buffer we got different number of bytes than expected (${Buffer.from(key).length} expected ${length})`));
+            if (buffer_1.Buffer.from(key).length !== length) {
+                throw (new Error(`When storing buffer we got different number of bytes than expected (${buffer_1.Buffer.from(key).length} expected ${length})`));
             }
             __classPrivateFieldSet(this, _BufferStorage_key, key, "f");
         }
@@ -71777,14 +71831,14 @@ class BufferStorage {
         return (__classPrivateFieldGet(this, _BufferStorage_key, "f").byteLength);
     }
     getBuffer() {
-        return (Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")));
+        return (buffer_1.Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")));
     }
     toString(encoding = 'hex') {
         switch (encoding) {
             case 'hex':
-                return (Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")).toString(encoding).toUpperCase());
+                return (buffer_1.Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")).toString(encoding).toUpperCase());
             case 'base64':
-                return (Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")).toString(encoding));
+                return (buffer_1.Buffer.from(__classPrivateFieldGet(this, _BufferStorage_key, "f")).toString(encoding));
             case 'base32':
                 return (EncodeBase32(__classPrivateFieldGet(this, _BufferStorage_key, "f")));
             default:
@@ -71809,11 +71863,11 @@ class BufferStorage {
             return (false);
         }
         if (typeof compareWith === 'string') {
-            const asBuf = Buffer.from(compareWith, 'hex');
+            const asBuf = buffer_1.Buffer.from(compareWith, 'hex');
             if (asBuf.length !== this.length) {
                 return (false);
             }
-            compareWith = new BufferStorage(Buffer.from(compareWith, 'hex'), this.length);
+            compareWith = new BufferStorage(buffer_1.Buffer.from(compareWith, 'hex'), this.length);
         }
         return (this.toString('hex') === compareWith.toString('hex'));
     }
@@ -71867,9 +71921,9 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _CertificateBuilder_params, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued, _CertificateBundle_raw, _CertificateBundle_contents;
+var _CertificateBuilder_params, _CertificateBundle_raw, _CertificateBundle_contents, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CertificateBundle = exports.Certificate = exports.CertificateHash = exports.CertificateBuilder = void 0;
+exports.Certificate = exports.CertificateBundle = exports.CertificateHash = exports.CertificateBuilder = void 0;
 const ASN1 = __importStar(__webpack_require__(6045));
 const account_1 = __importStar(__webpack_require__(9415));
 const never_1 = __webpack_require__(8692);
@@ -72292,6 +72346,84 @@ CertificateHash.Set = (0, helper_1.setGenerator)(CertificateHash, function (valu
 }, function (value) {
     return (new CertificateHash(Buffer.from(value, 'hex')));
 });
+const CertificateBundleSchemaInternal = {
+    sequenceOf: CertificateSchemaInternal
+};
+class CertificateBundle {
+    constructor(input) {
+        _CertificateBundle_raw.set(this, void 0);
+        _CertificateBundle_contents.set(this, void 0);
+        if (CertificateBundle.isInstance(input)) {
+            __classPrivateFieldSet(this, _CertificateBundle_raw, input.getDER(), "f");
+        }
+        else if (Array.isArray(input) || input instanceof Set) {
+            if (input instanceof Set) {
+                input = Array.from(input);
+            }
+            const decodedInput = input.map(function (certificate) {
+                let decoded;
+                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                if (Certificate.isCertificate(certificate)) {
+                    decoded = new ASN1.BufferStorageASN1(certificate.toDER());
+                }
+                else {
+                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                    decoded = new ASN1.BufferStorageASN1(new Certificate(certificate).toDER());
+                }
+                // For some reason the typescript compiler cannot understand this, but we do not care about it being typed because we are validating it right after.
+                // @ts-ignore
+                const output = decoded.getASN1();
+                return (output);
+            });
+            __classPrivateFieldSet(this, _CertificateBundle_raw, new ASN1.BufferStorageASN1(decodedInput, CertificateBundleSchemaInternal).getDER(), "f");
+        }
+        else {
+            if (typeof input === 'string') {
+                input = Buffer.from(input, 'base64');
+            }
+            if (Buffer.isBuffer(input)) {
+                input = (0, helper_1.bufferToArrayBuffer)(input);
+            }
+            __classPrivateFieldSet(this, _CertificateBundle_raw, input, "f");
+        }
+        const decoded = new ASN1.BufferStorageASN1(__classPrivateFieldGet(this, _CertificateBundle_raw, "f"), CertificateBundleSchemaInternal);
+        __classPrivateFieldSet(this, _CertificateBundle_contents, [], "f");
+        const seenHashes = new CertificateHash.Set();
+        for (const item of decoded.getASN1()) {
+            const certificateValue = new ASN1.BufferStorageASN1(item, CertificateSchemaInternal);
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            const certificate = new Certificate(certificateValue.getDER());
+            const hash = certificate.hash();
+            if (seenHashes.has(hash)) {
+                throw (new certificate_1.default('CERTIFICATE_DUPLICATE_INCLUDED', `Duplicate certificate ${hash} within certificate bundle`));
+            }
+            seenHashes.add(hash);
+            __classPrivateFieldGet(this, _CertificateBundle_contents, "f").push(certificate);
+        }
+    }
+    get bundleSize() {
+        return (__classPrivateFieldGet(this, _CertificateBundle_contents, "f").length);
+    }
+    getDER() {
+        return (__classPrivateFieldGet(this, _CertificateBundle_raw, "f"));
+    }
+    getDERBuffer() {
+        return (Buffer.from(this.getDER()));
+    }
+    getCertificates() {
+        return (__classPrivateFieldGet(this, _CertificateBundle_contents, "f"));
+    }
+    toJSON() {
+        return ({
+            certificates: this.getCertificates().map(function (certificate) {
+                return (certificate.toPEM());
+            })
+        });
+    }
+}
+exports.CertificateBundle = CertificateBundle;
+_CertificateBundle_raw = new WeakMap(), _CertificateBundle_contents = new WeakMap();
+CertificateBundle.isInstance = (0, helper_1.checkableGenerator)(CertificateBundle);
 class Certificate {
     /**
      * Is a certificate object?
@@ -72400,8 +72532,10 @@ class Certificate {
         this.notAfter = notAfter.date;
         this.subject = fromDNSequenceToString(subject);
         this.issuer = fromDNSequenceToString(issuer);
-        this.subjectDN = subject;
-        this.issuerDN = issuer;
+        this.subjectDN = fromDNSequence(subject);
+        this.issuerDN = fromDNSequence(issuer);
+        this.subjectDNSet = subject;
+        this.issuerDNSet = issuer;
         /*
          * Compare the signature algorithm in the certificate with
          * the signature algorithm in the signature
@@ -72786,6 +72920,16 @@ class Certificate {
         return (certificatePEM);
     }
     /**
+     * The string representation of the certificate
+     * is a PEM encoded certificate -- this misses
+     * some of the internal details like chain
+     * and verified, but is usually what someone
+     * wants to see when they call toString()
+     */
+    toString() {
+        return (this.toPEM());
+    }
+    /**
      * Compute a hash of the certificate
      */
     hash() {
@@ -72818,8 +72962,8 @@ class Certificate {
             issuer: this.issuer,
             subjectPublicKey: this.subjectPublicKey,
             baseExtensions: this.baseExtensions,
-            subjectDN: fromDNSequence(this.subjectDN),
-            issuerDN: fromDNSequence(this.issuerDN),
+            subjectDN: fromDNSequence(this.subjectDNSet),
+            issuerDN: fromDNSequence(this.issuerDNSet),
             $hash: this.hash(),
             ...additionalFields
         });
@@ -72945,8 +73089,8 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
     /**
      * Compare the issuerDN and the subjectDN byte-for-byte
      */
-    const issuerDN = new ASN1.BufferStorageASN1(issuer.subjectDN);
-    const subjectIssuerDN = new ASN1.BufferStorageASN1(this.issuerDN);
+    const issuerDN = new ASN1.BufferStorageASN1(issuer.subjectDNSet);
+    const subjectIssuerDN = new ASN1.BufferStorageASN1(this.issuerDNSet);
     const issuerDER = issuerDN.getDERBuffer();
     const subjectIssuerDER = subjectIssuerDN.getDERBuffer();
     if (!issuerDER.equals(subjectIssuerDER)) {
@@ -72998,84 +73142,17 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
  */
 Certificate.Builder = CertificateBuilder;
 /**
+ * The certificate bundle
+ */
+Certificate.Bundle = CertificateBundle;
+/**
+ * The certificate hash information
+ */
+Certificate.Hash = CertificateHash;
+/**
  * Object type ID for {@link Certificate.isCertificate}
  */
 Certificate.certificateObjectTypeID = '8d05dca5-5f42-4dc9-8bf9-f534c6570994:CERTIFICATE';
-const CertificateBundleSchemaInternal = {
-    sequenceOf: CertificateSchemaInternal
-};
-class CertificateBundle {
-    constructor(input) {
-        _CertificateBundle_raw.set(this, void 0);
-        _CertificateBundle_contents.set(this, void 0);
-        if (CertificateBundle.isInstance(input)) {
-            __classPrivateFieldSet(this, _CertificateBundle_raw, input.getDER(), "f");
-        }
-        else if (Array.isArray(input) || input instanceof Set) {
-            if (input instanceof Set) {
-                input = Array.from(input);
-            }
-            const decodedInput = input.map(function (certificate) {
-                let decoded;
-                if (Certificate.isCertificate(certificate)) {
-                    decoded = new ASN1.BufferStorageASN1(certificate.toDER());
-                }
-                else {
-                    decoded = new ASN1.BufferStorageASN1(new Certificate(certificate).toDER());
-                }
-                // For some reason the typescript compiler cannot understand this, but we do not care about it being typed because we are validating it right after.
-                // @ts-ignore
-                const output = decoded.getASN1();
-                return (output);
-            });
-            __classPrivateFieldSet(this, _CertificateBundle_raw, new ASN1.BufferStorageASN1(decodedInput, CertificateBundleSchemaInternal).getDER(), "f");
-        }
-        else {
-            if (typeof input === 'string') {
-                input = Buffer.from(input, 'base64');
-            }
-            if (Buffer.isBuffer(input)) {
-                input = (0, helper_1.bufferToArrayBuffer)(input);
-            }
-            __classPrivateFieldSet(this, _CertificateBundle_raw, input, "f");
-        }
-        const decoded = new ASN1.BufferStorageASN1(__classPrivateFieldGet(this, _CertificateBundle_raw, "f"), CertificateBundleSchemaInternal);
-        __classPrivateFieldSet(this, _CertificateBundle_contents, [], "f");
-        const seenHashes = new CertificateHash.Set();
-        for (const item of decoded.getASN1()) {
-            const certificateValue = new ASN1.BufferStorageASN1(item, CertificateSchemaInternal);
-            const certificate = new Certificate(certificateValue.getDER());
-            const hash = certificate.hash();
-            if (seenHashes.has(hash)) {
-                throw (new certificate_1.default('CERTIFICATE_DUPLICATE_INCLUDED', `Duplicate certificate ${hash} within certificate bundle`));
-            }
-            seenHashes.add(hash);
-            __classPrivateFieldGet(this, _CertificateBundle_contents, "f").push(certificate);
-        }
-    }
-    get bundleSize() {
-        return (__classPrivateFieldGet(this, _CertificateBundle_contents, "f").length);
-    }
-    getDER() {
-        return (__classPrivateFieldGet(this, _CertificateBundle_raw, "f"));
-    }
-    getDERBuffer() {
-        return (Buffer.from(this.getDER()));
-    }
-    getCertificates() {
-        return (__classPrivateFieldGet(this, _CertificateBundle_contents, "f"));
-    }
-    toJSON() {
-        return ({
-            certificates: this.getCertificates().map(function (certificate) {
-                return (certificate.toPEM());
-            })
-        });
-    }
-}
-exports.CertificateBundle = CertificateBundle;
-_CertificateBundle_raw = new WeakMap(), _CertificateBundle_contents = new WeakMap();
-CertificateBundle.isInstance = (0, helper_1.checkableGenerator)(CertificateBundle);
 
 
 /***/ }),
@@ -73620,6 +73697,29 @@ Hash.functionLength = exports.HashFunctionLength;
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
@@ -73636,7 +73736,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _AsyncDisposableStackPolyfill_instances, _AsyncDisposableStackPolyfill_toDispose, _AsyncDisposableStackPolyfill_validateNotDisposed, _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.AsyncDisposableStack = void 0;
+exports.crypto = exports.AsyncDisposableStack = void 0;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
 exports.isIntegerOrBigInt = isIntegerOrBigInt;
 exports.isBuffer = isBuffer;
@@ -73657,9 +73757,14 @@ exports.setGenerator = setGenerator;
 const crypto_1 = __importDefault(__webpack_require__(6982));
 const util_1 = __webpack_require__(9023);
 const hash_1 = __webpack_require__(7908);
+const uuid = __importStar(__webpack_require__(5827));
 const loggingLevels = ['debug', 'error'];
 const configuredLoggingLevel = process.env['KEETANET_DEBUG']?.toLowerCase();
 const configuredLoggingFilter = new RegExp(process.env['KEETANET_DEBUG_FILTER'] ?? '', 'i');
+const randomBytes = crypto_1.default.randomBytes.bind(crypto_1.default);
+const randomUUID = crypto_1.default.randomUUID ? crypto_1.default.randomUUID.bind(crypto_1.default) : function () {
+    return (uuid.v4());
+};
 function bufferToArrayBuffer(input) {
     const out = new ArrayBuffer(input.length);
     const view = new Uint8Array(out);
@@ -73741,7 +73846,7 @@ function randomString(requestedLength = 32) {
         bytesToGen = 1;
     }
     // Generate bytes and convert to hex string
-    let generated = crypto_1.default.randomBytes(bytesToGen).toString('hex');
+    let generated = randomBytes(bytesToGen).toString('hex');
     // If you requested an odd length, remove last character
     // This is one byte is 2 characters, so we cannot directly generate odd lengths
     if (requestedLength % 2 === 1) {
@@ -74134,6 +74239,12 @@ function setGenerator(parent, rawEncode, rawDecode) {
         }
     });
 }
+exports.crypto = {
+    randomUUID: randomUUID,
+    randomBytes: randomBytes,
+    createCipheriv: crypto_1.default.createCipheriv.bind(crypto_1.default),
+    createDecipheriv: crypto_1.default.createDecipheriv.bind(crypto_1.default)
+};
 
 
 /***/ }),
@@ -74343,7 +74454,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _PossiblyExpiredVote_vote, _PossiblyExpiredVote_options, _PossiblyExpiredVote__hash, _PossiblyExpiredVote__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBuilder_account, _VoteBuilder_blocks;
+var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _PossiblyExpiredVote_vote, _PossiblyExpiredVote_options, _PossiblyExpiredVote__hash, _PossiblyExpiredVote__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBuilder_account, _VoteBuilder_blocks, _VoteBuilder_fee;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Testing = exports.VoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
 const block_1 = __webpack_require__(6158);
@@ -74362,6 +74473,16 @@ class VoteHash extends buffer_1.BufferStorage {
     }
 }
 VoteHash.isInstance = (0, helper_1.checkableGenerator)(VoteHash);
+const feeExtensionSchema = {
+    type: 'context',
+    value: 0,
+    kind: 'explicit',
+    contains: [
+        asn1_1.ValidateASN1.IsInteger,
+        { optional: { type: 'context', value: 0, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } },
+        { optional: { type: 'context', value: 1, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } }
+    ]
+};
 /**
  * Parse a set of distinguished names
  */
@@ -74402,14 +74523,8 @@ function findRDN(input, findOID) {
 }
 function blockHashesFromVote(input) {
     const blockHashInformation = (0, asn1_1.ASN1toJS)(input.buffer);
-    if (blockHashInformation === undefined || blockHashInformation === null) {
-        throw (new vote_1.default('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extension contains Null or unknown tag'));
-    }
-    if (typeof blockHashInformation === 'bigint' || typeof blockHashInformation !== 'object') {
-        throw (new vote_1.default('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extension contains bigint or non object value'));
-    }
-    if (Buffer.isBuffer(blockHashInformation) || util_1.types.isDate(blockHashInformation) || Array.isArray(blockHashInformation)) {
-        throw (new vote_1.default('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extension contains incorrect data type'));
+    if (!(0, asn1_1.isASN1Object)(blockHashInformation)) {
+        throw (new vote_1.default('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extensions is not valid asn1 object'));
     }
     if (blockHashInformation.type !== 'context') {
         throw (new vote_1.default('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_TYPE', 'internal error: hashData extension does not contain a context-specific tag'));
@@ -74446,6 +74561,48 @@ function blockHashesFromVote(input) {
         output.push(new block_1.BlockHash(block));
     }
     return (output);
+}
+function feeFromVote(input) {
+    const feeInformationAnyJS = (0, asn1_1.ASN1toJS)(input.buffer);
+    const feeSchemaChecker = new asn1_1.ValidateASN1(feeExtensionSchema);
+    const feeInformation = (function () {
+        try {
+            return (feeSchemaChecker.validate(feeInformationAnyJS));
+        }
+        catch (asn1ValidateError) {
+            let message = 'internal error: fee asn1 schema is not the right format';
+            if (asn1ValidateError instanceof Error) {
+                message = `${message}: ${asn1ValidateError.message}`;
+            }
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', message));
+        }
+    })();
+    const feeData = feeInformation.contains;
+    const retval = { amount: feeData[0] };
+    const payToAsn1 = feeData[1];
+    if (payToAsn1 !== undefined) {
+        const payTo = account_1.default.fromPublicKeyAndType(Buffer.from(payToAsn1.contains));
+        if (payTo.isStorage()) {
+            retval.payTo = payTo;
+        }
+        else {
+            try {
+                retval.payTo = payTo.assertAccount();
+            }
+            catch {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address'));
+            }
+        }
+    }
+    const tokenAsn1 = feeData[2];
+    if (tokenAsn1 !== undefined) {
+        const token = account_1.default.fromPublicKeyAndType(Buffer.from(tokenAsn1.contains));
+        if (!token.isToken()) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token'));
+        }
+        retval.token = token;
+    }
+    return (retval);
 }
 /**
  * Convert an ASN1Date to a Date
@@ -74584,6 +74741,21 @@ class PossiblyExpiredVote {
                 return (false);
             }
         }
+        if ('fee' in voteJSON) {
+            const fee = voteJSON['fee'];
+            if (fee === undefined) {
+                return (false);
+            }
+            if (fee['amount'] === undefined) {
+                return (false);
+            }
+            if ('payTo' in fee && fee['payTo'] === undefined) {
+                return (false);
+            }
+            if ('token' in fee && fee['token'] === undefined) {
+                return (false);
+            }
+        }
         return (true);
     }
     static fromJSON(voteJSON, options = {}) {
@@ -74606,6 +74778,9 @@ class PossiblyExpiredVote {
         const validTo = new Date(voteJSON.validityTo);
         const validFrom = new Date(voteJSON.validityFrom);
         const signatureStorage = new buffer_1.BufferStorage(signature, signature.byteLength);
+        if (voteJSON.fee !== undefined) {
+            voteBuilder.addFee(voteJSON.fee);
+        }
         const { voteData, tbsCertificate, signatureInfo } = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom);
         const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage, options);
         return (vote);
@@ -74625,6 +74800,7 @@ class PossiblyExpiredVote {
             this.validityFrom = vote.validityFrom;
             this.validityTo = vote.validityTo;
             this.signature = vote.signature;
+            this.fee = vote.fee;
             this.$trusted = vote.$trusted;
             this.$permanent = vote.$permanent;
             this.$uid = vote.$uid;
@@ -74825,6 +75001,7 @@ class PossiblyExpiredVote {
             throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to be a Sequence'));
         }
         let blocks;
+        let fee;
         for (const extensionInfo of extensions) {
             if (!Array.isArray(extensionInfo)) {
                 throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Expected each extension to be a Sequence'));
@@ -74848,12 +75025,16 @@ class PossiblyExpiredVote {
                 critical = criticalCheck;
             }
             const extensionData = extensionInfo.shift();
+            if (!(Buffer.isBuffer(extensionData))) {
+                throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS_DATA', `internal error: ${extensionOID.oid} extensions are always Octet String`));
+            }
             switch (extensionOID.oid) {
                 case 'hashData':
-                    if (!(Buffer.isBuffer(extensionData))) {
-                        throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_HASH_DATA', 'internal error: hashData extensions are always Octet String'));
-                    }
                     blocks = blockHashesFromVote(extensionData);
+                    break;
+                case '1.3.6.1.4.1.62675.0.1.0':
+                case 'fees': // replace with fees 1.3.6.1.4.1.62675.0.1.0
+                    fee = feeFromVote(extensionData);
                     break;
                 default:
                     if (critical) {
@@ -74868,6 +75049,12 @@ class PossiblyExpiredVote {
             throw (new vote_1.default('VOTE_MALFORMED_VOTE_NO_BLOCKS_FOUND', 'No block hashes found within vote'));
         }
         this.blocks = blocks;
+        if (fee !== undefined) {
+            if (this.$permanent) {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'Permanent Vote cannot have fees'));
+            }
+            this.fee = fee;
+        }
         /**
          * Get the signature data
          */
@@ -74975,6 +75162,9 @@ class PossiblyExpiredVote {
         const additionalFields = {};
         if (options?.addBinary) {
             additionalFields['$binary'] = Buffer.from(this.toBytes()).toString('base64');
+        }
+        if (this.fee !== undefined) {
+            additionalFields['fee'] = this.fee;
         }
         return ({
             issuer: this.issuer,
@@ -75459,14 +75649,16 @@ class VoteStaple extends VoteBlockBundle {
 exports.VoteStaple = VoteStaple;
 VoteStaple.isInstance = (0, helper_1.checkableGenerator)(VoteStaple);
 class VoteBuilder {
-    constructor(account, blocks = []) {
+    constructor(account, blocks = [], options) {
         _VoteBuilder_account.set(this, void 0);
         _VoteBuilder_blocks.set(this, void 0);
+        _VoteBuilder_fee.set(this, undefined);
         if (!account_1.default.isInstance(account)) {
             throw (new vote_1.default('VOTE_BUILDER_INVALID_CONSTRUCTION', 'internal error: account must be an Account'));
         }
         __classPrivateFieldSet(this, _VoteBuilder_account, account, "f");
         __classPrivateFieldSet(this, _VoteBuilder_blocks, [], "f");
+        __classPrivateFieldSet(this, _VoteBuilder_fee, options?.fee, "f");
         this.addBlocks(blocks);
     }
     addBlocks(blocks) {
@@ -75487,6 +75679,26 @@ class VoteBuilder {
     }
     addBlock(block) {
         this.addBlocks([block]);
+    }
+    addFee(feeInput) {
+        const fee = { amount: BigInt(feeInput.amount) };
+        const payTo = account_1.default.toAccount(feeInput.payTo);
+        if (payTo !== undefined) {
+            if (payTo.isStorage()) {
+                fee.payTo = payTo;
+            }
+            else {
+                fee.payTo = payTo.assertAccount();
+            }
+        }
+        const token = account_1.default.toAccount(fee.token);
+        if (token !== undefined) {
+            if (token.isToken()) {
+                fee.token = token;
+            }
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN'));
+        }
+        __classPrivateFieldSet(this, _VoteBuilder_fee, fee, "f");
     }
     generateVoteData(serial, validTo, validFrom) {
         /**
@@ -75525,6 +75737,31 @@ class VoteBuilder {
         const signatureInfo = [
             { type: 'oid', oid: signatureInfoOID }
         ];
+        let feeExtension = undefined;
+        if (__classPrivateFieldGet(this, _VoteBuilder_fee, "f") !== undefined) {
+            /** Amount for this vote */
+            const feeData = [__classPrivateFieldGet(this, _VoteBuilder_fee, "f").amount];
+            /** Account to pay the fee too */
+            const payToPublicKey = __classPrivateFieldGet(this, _VoteBuilder_fee, "f").payTo?.publicKeyAndType;
+            if (payToPublicKey !== undefined) {
+                feeData.push({ type: 'context', value: 0, kind: 'implicit', contains: payToPublicKey });
+            }
+            /** Token in which to pay the fee */
+            const tokenPublicKey = __classPrivateFieldGet(this, _VoteBuilder_fee, "f").token?.publicKeyAndType;
+            if (tokenPublicKey !== undefined) {
+                feeData.push({ type: 'context', value: 1, kind: 'implicit', contains: tokenPublicKey });
+            }
+            feeExtension = [
+                { type: 'oid', oid: '1.3.6.1.4.1.62675.0.1.0' }, // replace with 'fees' - 1.3.6.1.4.1.62675.0.1.0
+                true,
+                Buffer.from((0, asn1_1.JStoASN1)({
+                    type: 'context',
+                    value: 0,
+                    kind: 'explicit',
+                    contains: feeData
+                }).toBER(false))
+            ];
+        }
         /*
          * Certificate to be signed
          */
@@ -75602,7 +75839,8 @@ class VoteBuilder {
                                 })
                             ]
                         }).toBER(false))
-                    ]
+                    ],
+                    ...(feeExtension ? [feeExtension] : [])
                 ]
             }
         ];
@@ -75652,6 +75890,9 @@ class VoteBuilder {
         if (typeof serial !== 'bigint') {
             throw (new vote_1.default('VOTE_BUILDER_INVALID_SERIAL', `internal error: serial must be a bigint, instead got ${serial}`));
         }
+        if (validTo === null && __classPrivateFieldGet(this, _VoteBuilder_fee, "f") !== undefined) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'internal error: permanent votes should not have fees'));
+        }
         if (validTo === null) {
             /**
              * Issue a permanent vote
@@ -75673,13 +75914,13 @@ class VoteBuilder {
     }
 }
 exports.VoteBuilder = VoteBuilder;
-_VoteBuilder_account = new WeakMap(), _VoteBuilder_blocks = new WeakMap();
+_VoteBuilder_account = new WeakMap(), _VoteBuilder_blocks = new WeakMap(), _VoteBuilder_fee = new WeakMap();
 VoteBuilder.isInstance = (0, helper_1.checkableGenerator)(VoteBuilder);
 PossiblyExpiredVote.Staple = VoteStaple;
 PossiblyExpiredVote.Builder = VoteBuilder;
 exports["default"] = Vote;
 /** @internal */
-exports.Testing = { findRDN, blockHashesFromVote };
+exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 
 /***/ }),
@@ -75691,7 +75932,7 @@ exports.Testing = { findRDN, blockHashesFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.12.0+g0baa5ce2aac600e17a0fe832eadebcacebe23bf1';
+exports.version = '0.12.2+g77a8a16ada9dfab5604b605cbe69d373a414d204';
 exports["default"] = exports.version;
 
 

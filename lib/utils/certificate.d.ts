@@ -180,6 +180,18 @@ export declare class CertificateHash extends BufferStorage {
     toJSON(): CertificateHashString;
     toString(): CertificateHashString;
 }
+export declare class CertificateBundle {
+    #private;
+    static isInstance: (obj: any, strict?: boolean) => obj is CertificateBundle;
+    constructor(input: CertificateBundle | Certificate[] | ArrayBuffer | Buffer | string | (ConstructorParameters<typeof Certificate>[0])[] | Set<Certificate>);
+    get bundleSize(): number;
+    getDER(): ArrayBuffer;
+    getDERBuffer(): Buffer;
+    getCertificates(): Certificate[];
+    toJSON(): {
+        certificates: string[];
+    };
+}
 export type CertificateJSONOutput = ToJSONSerializable<ReturnType<Certificate['toJSON']>>;
 export declare class Certificate {
     #private;
@@ -187,6 +199,14 @@ export declare class Certificate {
      * The Certificate Builder
      */
     static readonly Builder: typeof CertificateBuilder;
+    /**
+     * The certificate bundle
+     */
+    static readonly Bundle: typeof CertificateBundle;
+    /**
+     * The certificate hash information
+     */
+    static readonly Hash: typeof CertificateHash;
     /**
      * The serial number of the certificate
      */
@@ -204,9 +224,23 @@ export declare class Certificate {
      */
     readonly subject: string;
     /**
+     * The Subject DN of the certificate --- for informational purposes only
+     */
+    readonly subjectDN: ({
+        name: string;
+        value: string;
+    })[];
+    /**
      * The Issuer DN of the certificate as a string --- for informational purposes only
      */
     readonly issuer: string;
+    /**
+     * The Issuer DN of the certificate --- for informational purposes only
+     */
+    readonly issuerDN: ({
+        name: string;
+        value: string;
+    })[];
     /**
      * The Subject of the certificate as a KeetaNet Account, derived from the
      * public key in the certificate
@@ -247,11 +281,11 @@ export declare class Certificate {
     /**
      * The complete SubjectDN
      */
-    protected subjectDN: CertificateSchema[0][5];
+    protected subjectDNSet: CertificateSchema[0][5];
     /**
      * The complete IssuerDN
      */
-    protected issuerDN: CertificateSchema[0][3];
+    protected issuerDNSet: CertificateSchema[0][3];
     /**
      * Object type ID for {@link Certificate.isCertificate}
      */
@@ -352,6 +386,14 @@ export declare class Certificate {
      */
     toPEM(): string;
     /**
+     * The string representation of the certificate
+     * is a PEM encoded certificate -- this misses
+     * some of the internal details like chain
+     * and verified, but is usually what someone
+     * wants to see when they call toString()
+     */
+    toString(): string;
+    /**
      * Compute a hash of the certificate
      */
     hash(): CertificateHash;
@@ -394,18 +436,6 @@ export declare class Certificate {
             value: string;
         }[];
         $hash: CertificateHash;
-    };
-}
-export declare class CertificateBundle {
-    #private;
-    static isInstance: (obj: any, strict?: boolean) => obj is CertificateBundle;
-    constructor(input: CertificateBundle | Certificate[] | ArrayBuffer | Buffer | string | (ConstructorParameters<typeof Certificate>[0])[] | Set<Certificate>);
-    get bundleSize(): number;
-    getDER(): ArrayBuffer;
-    getDERBuffer(): Buffer;
-    getCertificates(): Certificate[];
-    toJSON(): {
-        certificates: string[];
     };
 }
 export {};

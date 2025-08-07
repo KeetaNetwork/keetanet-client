@@ -1,3 +1,4 @@
+import _crypto from 'crypto';
 import type { JSONSerializable } from './conversion';
 export type DistributiveOmit<T, P extends PropertyKey> = T extends T ? Omit<T, P> : never;
 export declare function bufferToArrayBuffer(input: Buffer): ArrayBuffer;
@@ -75,4 +76,10 @@ export interface InstanceSetConstructor<Instance, Encoded = string> {
     new (data?: (Instance)[]): InstanceSet<Instance, Encoded>;
 }
 export declare function setGenerator<P extends WithIsInstance<Instance>, E extends EncodeFunc<Instance, Encoded>, D extends DecodeFunc<Instance, Encoded>, Instance = InstanceType<P>, Encoded = ReturnType<E>>(parent: P, rawEncode: E, rawDecode: D): InstanceSetConstructor<Instance, Encoded>;
+export declare const crypto: {
+    randomUUID: typeof _crypto.randomUUID | (() => string);
+    randomBytes: typeof _crypto.randomBytes;
+    createCipheriv: typeof _crypto.createCipheriv;
+    createDecipheriv: typeof _crypto.createDecipheriv;
+};
 export {};

@@ -1,9 +1,22 @@
 import { Block, BlockHash } from './block';
 import type { BlockJSON, BlockJSONOutput } from './block';
-import Account, { AccountKeyAlgorithm } from './account';
+import Account, { AccountKeyAlgorithm, type StorageAddress, type TokenAddress } from './account';
 import type { ASN1Date } from './utils/asn1';
-import type { ToJSONSerializableOptions, ToJSONSerializable } from './utils/conversion';
+import { type ToJSONSerializableOptions, type ToJSONSerializable } from './utils/conversion';
 import { BufferStorage } from './utils/buffer';
+/**
+ * Representation of the expected fee for this vote
+ */
+export interface FeeAmountAndToken {
+    amount: bigint;
+    payTo?: Account | StorageAddress;
+    token?: TokenAddress;
+}
+interface FeeAmountAndTokenJSON {
+    amount: string | bigint;
+    payTo?: string | Account | StorageAddress;
+    token?: string | TokenAddress;
+}
 /**
  * Representation of the vote
  */
@@ -14,6 +27,7 @@ export interface VoteJSON {
     validityFrom: string | Date;
     validityTo: string | Date;
     signature: string | ArrayBuffer;
+    fee?: FeeAmountAndTokenJSON;
 }
 type VoteJSONOutput = ToJSONSerializable<ReturnType<Vote['toJSON']>>;
 export interface VoteStapleJSON {
@@ -49,17 +63,31 @@ type CertificatePublicKeyInfo = [CertificateOID[], {
     type: 'bitstring';
     value: Buffer;
 }];
+export type CertificateExtensionFeeEntry = [
+    amount: bigint,
+    payTo?: {
+        type: 'context';
+        value: 0;
+        kind: 'implicit';
+        contains: Buffer;
+    },
+    token?: {
+        type: 'context';
+        value: 1;
+        kind: 'implicit';
+        contains: Buffer;
+    }
+];
+type CertificateExtensionData = [
+    CertificateOID,
+    boolean,
+    Buffer
+];
 type CertificateExtensions = {
     type: 'context';
     value: number;
     kind: 'explicit';
-    contains: [
-        [
-            CertificateOID,
-            boolean,
-            Buffer
-        ]
-    ];
+    contains: CertificateExtensionData[];
 };
 type CertificateSchema = [
     version: CertificateVersionInfo,
@@ -117,6 +145,15 @@ type VoteOptions = {
      */
     now?: Date;
 };
+/**
+ * Options for Vote Builder
+ */
+type VoteBuilderOptions = {
+    /**
+     * Fee amount to add to the vote
+     */
+    fee?: FeeAmountAndToken;
+};
 export declare class PossiblyExpiredVote {
     #private;
     readonly issuer: Account;
@@ -125,6 +162,7 @@ export declare class PossiblyExpiredVote {
     readonly validityFrom: Date;
     readonly validityTo: Date;
     readonly signature: ArrayBuffer;
+    readonly fee: FeeAmountAndToken | undefined;
     readonly $trusted: boolean;
     readonly $permanent: boolean;
     readonly $uid: string;
@@ -144,6 +182,7 @@ export declare class PossiblyExpiredVote {
     toString(): string;
     toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
+        fee?: FeeAmountAndTokenJSON;
         issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
         serial: bigint;
         blocks: BlockHash[];
@@ -243,6 +282,7 @@ export declare class VoteBlockBundle {
         $binary?: string;
         votes: {
             $binary?: string;
+            fee?: FeeAmountAndTokenJSON;
             issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
             serial: bigint;
             blocks: BlockHash[];
@@ -277,9 +317,10 @@ export declare class VoteStaple extends VoteBlockBundle {
 export declare class VoteBuilder {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is VoteBuilder;
-    constructor(account: Account, blocks?: (Block | BlockHash)[]);
+    constructor(account: Account, blocks?: (Block | BlockHash)[], options?: VoteBuilderOptions);
     addBlocks(blocks: (Block | BlockHash | string)[]): void;
     addBlock(block: Block | BlockHash | string): void;
+    addFee(feeInput: FeeAmountAndTokenJSON): void;
     generateVoteData(serial: bigint, validTo: Date, validFrom: Date): {
         voteData: ArrayBuffer;
         tbsCertificate: CertificateSchema;

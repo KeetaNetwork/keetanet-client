@@ -59,7 +59,7 @@ declare function jsASN1toJS(input: ArrayBuffer): ASN1AnyJS;
 declare const ASN1toJS: typeof jsASN1toJS, JStoASN1: typeof jsJStoASN1, ASN1IntegerToBigInt: typeof jsIntegerToBigInt, ASN1BigIntToBuffer: typeof jsBigIntToBuffer;
 export declare namespace ValidateASN1 {
     export type Schema = keyof BasicSchemaMap | {
-        choice: Schema[];
+        choice: Schema[] | readonly Schema[];
     } | {
         sequenceOf: Schema;
     } | {
@@ -87,7 +87,7 @@ export declare namespace ValidateASN1 {
     } | {
         type: 'date';
         kind: 'general';
-    } | readonly [Schema, ...Schema[]];
+    } | readonly [Schema, ...Schema[]] | (() => Schema);
     type BasicSchemaMap = {
         [ValidateASN1.IsAny]: ASN1AnyJS;
         [ValidateASN1.IsUnknown]: unknown;
@@ -103,7 +103,7 @@ export declare namespace ValidateASN1 {
         [ValidateASN1.IsSet]: ASN1Set;
         [ValidateASN1.IsNull]: null;
     };
-    export type SchemaMap<T extends Schema> = T extends keyof BasicSchemaMap ? BasicSchemaMap[T] : T extends {
+    export type SchemaMap<T extends Schema> = T extends () => infer U ? U extends Schema ? SchemaMap<U> : never : T extends keyof BasicSchemaMap ? BasicSchemaMap[T] : T extends {
         choice: Schema[];
     } ? SchemaMap<T['choice'][number]> : T extends {
         choice: readonly Schema[];
@@ -163,7 +163,7 @@ export declare class ValidateASN1<T extends ValidateASN1.Schema> {
      * Given a schema, validate the ASN.1 object against it and return the
      * object as the validated type
      */
-    static againstSchema<T extends ValidateASN1.Schema>(input: ASN1AnyJS, schema: T): ValidateASN1.SchemaMap<T>;
+    static againstSchema<T extends ValidateASN1.Schema>(input: ASN1AnyJS, schemaIn: T): ValidateASN1.SchemaMap<T>;
     constructor(schema: T);
     validate(input: ASN1AnyJS): ValidateASN1.SchemaMap<T>;
 }

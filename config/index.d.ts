@@ -64,6 +64,8 @@ export interface ValidationConfig {
         description: TextValidationRule;
         metadata: TextValidationRule;
         supply: Omit<NumericValidationRule, 'minValue'>;
+        blockSignerCount: Omit<NumericValidationRule, 'minValue'>;
+        blockSignerDepth: Omit<NumericValidationRule, 'minValue'>;
     };
     permissions: {
         maxExternalOffset: number;

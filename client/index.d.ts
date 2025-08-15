@@ -24,8 +24,8 @@ import type { AcceptedPermissionTypes } from '../lib/permissions';
 import { type BlockOperations } from '../lib/block/operations';
 import { Certificate } from '../lib/utils/certificate';
 import { CertificateBundle, type CertificateHash } from '../lib/utils/certificate';
+import { VoteStaple, type VoteQuote } from '../lib/vote';
 type Vote = InstanceType<typeof KeetaNet['Vote']>;
-type VoteStaple = InstanceType<typeof KeetaNet['Vote']['Staple']>;
 type VoteBlocksHash = Vote['blocksHash'];
 /**
  * Account information
@@ -119,6 +119,16 @@ interface CertificateWithIntermediatesResponse {
     certificate: Certificate;
     intermediates: CertificateBundle | null;
 }
+export interface PublishOptions {
+    /**
+     * Client provided function to compute the fee block associated with any transactions
+     */
+    generateFeeBlock?: (staple: VoteStaple) => Promise<Block>;
+    /**
+     * Quotes if provided will be sent to the representative
+     */
+    quotes?: VoteQuote[];
+}
 /**
  */
 interface UserClientOptions {
@@ -146,6 +156,10 @@ interface UserClientOptions {
      * be no account and some operations may not be available.
      */
     account?: GenericAccount;
+    /**
+     * Client provided function to compute the fee block associated with any transactions
+     */
+    generateFeeBlock?: PublishOptions['generateFeeBlock'];
 }
 /**
  * The set of options that are applicable to read-only operations
@@ -324,22 +338,28 @@ export declare class Client {
      * votes and permanent votes for the blocks and then publish them to
      * the network.
      *
-     * @param blocks The blocks or UserClientBuilder to transmit
-     * @return The result of the publish operation
-     */
-    transmit(blocks: Block[]): ReturnType<Client['transmitStaple']>;
-    /**
-     * Transmit a set of blocks to the network.  This will request short
-     * votes and permanent votes for the blocks and then publish them to
-     * the network.
-     *
      * The `blocks` builder will be computed using {@link computeBuilderBlocks} and then transmitted.
      *
-     * @param blocks The UserClientBuilder to compute and transmit transmit
+     * @param builder The UserClientBuilder to compute and transmit transmit
      * @param network The network to use for the builder (if using a builder)
      * @return The result of the publish operation
      */
-    transmit(blocks: UserClientBuilder, network: bigint): ReturnType<Client['transmitStaple']>;
+    transmitBuilder(builder: UserClientBuilder, network: bigint, options?: PublishOptions): ReturnType<Client['transmit']>;
+    /**
+     * Transmit a set of blocks to the network.  This will request short
+     * votes and permanent votes for the blocks and then publish them to
+     * the network.  Optionally it will generate a fee block from a user
+     * provided function if fees are required.
+     *
+     * @param blocks The blocks to transmit
+     * @param options User provided options {@link PublishOptions }
+     * @return The result of the publish operation
+     */
+    transmit(blocks: Block[], options?: PublishOptions): Promise<{
+        voteStaple: VoteStaple;
+        publish: boolean;
+        from: "direct";
+    }>;
     /**
      * Publish a Vote Staple to the network.  This will publish the votes
      * and blocks to the network.
@@ -570,13 +590,13 @@ export declare class Client {
      * that it will always return at least 1 vote staple if there are any
      * vote staples available.
      *
-     * @param account The account to get the history for
+     * @param account The account to get the history for -- if null then the history for all accounts will be returned
      * @param options The options to use for the request
      * @param options.startBlocksHash The block hash to start from -- this is used to paginate the request
      * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned
      * @return The history of vote staples for the given account, in reverse order starting with the most recent vote staple
      */
-    getHistory(account: GenericAccount | string, options?: {
+    getHistory(account: GenericAccount | string | null, options?: {
         startBlocksHash?: VoteBlocksHash | string;
         depth?: number;
     }): Promise<{
@@ -701,6 +721,7 @@ export declare class Client {
      * @param publish Publish the recovered staple to the network (default is true)
      */
     recoverAccount(account: GenericAccount, publish?: boolean): Promise<VoteStaple | null>;
+    getVoteQuotes(blocks: Block[]): Promise<VoteQuote[]>;
     /** Work in progress */
     getLedgerChecksum(rep?: ClientRepresentative | 'ANY'): Promise<{
         moment: string;
@@ -911,9 +932,10 @@ export declare class UserClient {
      * instead of this one.
      *
      * @param builder The builder to publish
+     * @param options options for publishing {@link PublishOptions }
      * @return The vote staple that was generated and whether it was able to be published
      */
-    publishBuilder(builder: UserClientBuilder): Promise<{
+    publishBuilder(builder: UserClientBuilder, options?: PublishOptions): Promise<{
         voteStaple: VoteStaple;
         publish: boolean;
         from: "direct";
@@ -1009,6 +1031,12 @@ export declare class UserClient {
      */
     send(to: GenericAccount | string, amount: bigint | number, token: TokenAddress | string, external?: string, options?: UserClientOptions, retries?: number): Promise<Awaited<ReturnType<typeof this.publishBuilder>>>;
     /**
+     * Gets a quote for the cost for a given set of blocks from each representative
+     * @param blocks
+     * @returns A list of quotes from representatives the client knows about
+     */
+    getQuotes(blocks: Block[]): Promise<VoteQuote[]>;
+    /**
      * Generate a new identifier for the given type and publish the blocks
      *
      * @param type The type of identifier to generate
@@ -1089,7 +1117,7 @@ export declare class UserClient {
      * @return The history for the account, paginated
      */
     history(query?: Parameters<Client['getHistory']>[1], options?: UserClientOptionsReadOnly): Promise<{
-        voteStaple: import("../lib/vote").VoteStaple;
+        voteStaple: VoteStaple;
         effects: import("../lib/ledger/effects").ComputedEffectOfBlocks;
     }[]>;
     /**
@@ -1214,7 +1242,7 @@ export declare class UserClient {
     get readonly(): boolean;
 }
 /** @hidden */
-export declare function blockGenerator(seed: string, index: number, transactionCount: number, network?: bigint): Promise<import("../lib/vote").VoteStaple>;
+export declare function blockGenerator(seed: string, index: number, transactionCount: number, network?: bigint): Promise<VoteStaple>;
 /** @hidden */
 export declare function emitBlocks(client: Client, blocks: number, seed: string, index: number, transactionCount: number, network?: bigint): Promise<void>;
 /**

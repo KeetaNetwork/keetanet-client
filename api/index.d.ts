@@ -6,6 +6,7 @@ declare const rootTree: {
             POST: (request: APIRequest, payload: {
                 blocks: string[];
                 votes?: string[];
+                quote?: string;
             }) => Promise<{
                 vote: import("../lib/vote").Vote;
             }>;
@@ -14,6 +15,13 @@ declare const rootTree: {
             GET: (request: APIRequest, blockhash: string) => Promise<{
                 blockhash: import("../lib/block").BlockHash;
                 votes: import("../lib/vote").Vote[] | null;
+            }>;
+        };
+        quote: {
+            POST: (request: APIRequest, payload: {
+                blocks: string[];
+            }) => Promise<{
+                quote: import("../lib/vote").VoteQuote;
             }>;
         };
     };
@@ -67,6 +75,9 @@ declare const rootTree: {
                     representatives: import("./node").NodeAPIGetAllRepresentativesResponse[];
                 }>;
             };
+            history: {
+                GET: (request: APIRequest, account?: string | unknown, startFromURL?: unknown) => Promise<import("./node").NodeAPIGetAccountHistoryResponse>;
+            };
             account: {
                 ':account': {
                     GET: (request: APIRequest, pubKey: string) => Promise<import("./node").NodeAPIAccountState | import("./node").NodeAPIAccountStateError>;
@@ -80,10 +91,10 @@ declare const rootTree: {
                         GET: (request: APIRequest, account: string) => Promise<import("./node").NodeAPIGetAccountChainResponse>;
                     };
                     history: {
-                        GET: (request: APIRequest, account: string, start?: unknown) => Promise<import("./node").NodeAPIGetAccountHistoryResponse>;
+                        GET: (request: APIRequest, account?: string | unknown, startFromURL?: unknown) => Promise<import("./node").NodeAPIGetAccountHistoryResponse>;
                         start: {
                             ':block': {
-                                GET: (request: APIRequest, account: string, start?: unknown) => Promise<import("./node").NodeAPIGetAccountHistoryResponse>;
+                                GET: (request: APIRequest, account?: string | unknown, startFromURL?: unknown) => Promise<import("./node").NodeAPIGetAccountHistoryResponse>;
                             };
                         };
                     };
@@ -168,6 +179,16 @@ declare const rootTree: {
         version: {
             GET: () => Promise<{
                 node: string;
+            }>;
+        };
+    };
+    p2p: {
+        message: {
+            POST: (request: APIRequest, payload: {
+                message: string;
+                greeting: object;
+            }) => Promise<{
+                success: boolean;
             }>;
         };
     };

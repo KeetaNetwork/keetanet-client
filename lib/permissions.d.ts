@@ -18,7 +18,8 @@ declare enum BaseFlag {
     TOKEN_ADMIN_MODIFY_BALANCE = 7,/* 0x0080 */
     PERMISSION_DELEGATE_ADD = 11,/* 0x0800 */
     PERMISSION_DELEGATE_REMOVE = 12,/* 0x1000 */
-    MANAGE_CERTIFICATE = 13
+    MANAGE_CERTIFICATE = 13,/* 0x2000 */
+    MULTISIG_SIGNER = 14
 }
 type ExternalFlagName = `${typeof externalFlagPrefix}${string}`;
 export type BaseFlagName = keyof typeof BaseFlag;
@@ -42,7 +43,9 @@ declare enum BasePermissionGroup {
     NONIDENTIFIER = 2,
     NETWORK = 3,
     TOKEN = 4,
-    STORAGE = 5
+    STORAGE = 5,
+    NONIDENTIFIER_OR_MULTISIG = 6,
+    MULTISIG = 7
 }
 interface BaseFlagRule {
     canBeDefault: boolean;

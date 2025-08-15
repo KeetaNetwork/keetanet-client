@@ -57,6 +57,8 @@ interface ComputeLedgerEffectOptions<T extends boolean, P extends boolean, W ext
     baseToken: TokenAddress;
 }
 export declare function validateSupply(amount: bigint, network: bigint): void;
+export declare function validateBlockSignerCount(amount: bigint, network: bigint): void;
+export declare function validateBlockSignerDepth(depth: bigint, network: bigint): void;
 /**
  * Compute effects on the ledger from block effects
  */
@@ -87,6 +89,7 @@ type AccountInfoUnparsedRow = {
     description?: string;
     metadata?: string;
     supply?: bigint | string;
+    multisigQuorum?: bigint | string;
     defaultBasePermission?: string | bigint | BaseSet;
     defaultExternalPermission?: string | bigint | ExternalSet;
 };
@@ -116,10 +119,20 @@ export declare abstract class LedgerStorageBase {
     }>;
     _formatAccountInfoFromRow(account: GenericAccount, row?: AccountInfoUnparsedRow | undefined): AccountInfo;
     _validateAccountInfoKeys(account: GenericAccount, info: Partial<AccountInfo>): void;
+    /**
+     * @param moment - The date to use as the base for the timestamp.
+     * @param momentBits - The number of bits to use for the timestamp
+     * @param totalLength - The total length of the generated number in bits
+     * @param randomData - A hexadecimal string to use as the random data.
+     * @param timestampFuzzMS - The number of milliseconds to fuzz the timestamp by, defaults to 1n (precise).
+     * @param optimistic - If true, the timestamp will be incremented by 1 quanta, defaults to false.
+     * @returns A bigint representing the noisy timestamp.
+     */
+    _generateNoisyTimestamp(moment: Date, momentBits: bigint, totalLength: bigint, randomData: Buffer, timestampFuzzMS?: number | bigint, optimistic?: boolean): bigint;
     getHeadBlock(transaction: any, account: GenericAccount, from: LedgerSelector): Promise<Block | null>;
     getVotesFromPrevious(transaction: any, prevBlock: BlockHash, from: LedgerSelector, issuer?: Account): Promise<Vote[] | null>;
     protected abstract gcBatch(transaction: any): Promise<boolean>;
-    gc(transaction: any): Promise<boolean>;
+    gc(transaction: any, timeLimitMS?: number): Promise<boolean>;
 }
 export declare function assertLedgerStorage(value: string): LedgerStorage;
 export {};

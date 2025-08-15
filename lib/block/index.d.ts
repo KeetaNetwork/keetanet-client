@@ -1,15 +1,19 @@
-import type { GenericAccount } from '../account';
-import Account from '../account';
+import type { GenericAccount, MultisigAddress } from '../account';
+import Account, { AccountKeyAlgorithm } from '../account';
 import { BufferStorage } from '../utils/buffer';
 import * as ASN1 from '../utils/asn1';
 import type { ToJSONSerializable, ToJSONSerializableOptions } from '../utils/conversion';
 import * as Operations from './operations';
+export declare enum BlockPurpose {
+    GENERIC = 0,
+    FEE = 1
+}
 export declare enum AdjustMethod {
     ADD = 0,
     SUBTRACT = 1,
     SET = 2
 }
-export declare function assertAdjustMethod(value: any, bigintOkay?: boolean): AdjustMethod;
+export declare function toAdjustMethod(value: unknown): AdjustMethod;
 type BlockHashString = string & {
     readonly __blockhash: never;
 };
@@ -41,8 +45,9 @@ type BlockSignature = Buffer;
 /**
  * Representation of the block
  */
-export interface BlockJSON {
+export interface BlockV1JSON {
     version: 1;
+    purpose?: BlockPurpose.GENERIC;
     date: string | Date;
     previous: string | BlockHash;
     network: string | NetworkID;
@@ -52,16 +57,37 @@ export interface BlockJSON {
     signature: string | BlockSignature;
     operations: Operations.BlockJSONOperations[] | Operations.BlockOperations[];
 }
-export type BlockJSONIncomplete = Partial<BlockJSON>;
+export type BlockV1JSONIncomplete = Partial<BlockV1JSON>;
 /**
  * Output of block suitable to JSON serialization
  */
-export type BlockJSONOutput = ToJSONSerializable<ReturnType<Block['toJSON']>>;
-export type BlockJSONOutputIncomplete = Partial<BlockJSONOutput>;
+/**
+ * Representation of the block V2
+ */
+export interface BlockV2JSON {
+    version: 2;
+    purpose: BlockPurpose;
+    date: string | Date;
+    previous: string | BlockHash;
+    network: string | NetworkID;
+    subnet?: string | SubnetID;
+    account: string | GenericAccount;
+    signer: BlockSignerFieldJSON;
+    signatures: (string | BlockSignature)[];
+    operations: (Operations.BlockJSONOperations | Operations.BlockOperations)[];
+}
+export type BlockV2JSONIncomplete = Partial<BlockV2JSON>;
+export type BlockJSONOutput = ReturnType<Block['toJSON']>;
+export type BlockJSONOutputSerialized = ToJSONSerializable<BlockJSONOutput>;
+export type BlockJSONOutputIncomplete = Partial<BlockJSONOutputSerialized>;
+export type BlockJSON = (Omit<BlockV1JSON, 'version'> | Omit<BlockV2JSON, 'version'>) & {
+    version: number;
+};
+export type BlockJSONIncomplete = Partial<BlockJSON>;
 /**
  * Map input to our values
  */
-interface BlockUnsignedCanonical {
+interface BlockV1UnsignedCanonical {
     version: 1;
     date: Date;
     previous: BlockHash;
@@ -70,17 +96,45 @@ interface BlockUnsignedCanonical {
     operations: Operations.BlockOperations[];
     network: NetworkID;
     subnet: SubnetID | undefined;
-    signature: never;
+    signature?: never;
 }
-interface BlockCanonical extends Omit<BlockUnsignedCanonical, 'signature'> {
+interface BlockV1Canonical extends Omit<BlockV1UnsignedCanonical, 'signature'> {
     signature: BlockSignature;
 }
-type BlockASN1WithoutSignature = ASN1.ValidateASN1.SchemaMap<[typeof BlockASN1Schema[0], typeof BlockASN1Schema[1], typeof BlockASN1Schema[2], typeof BlockASN1Schema[3], typeof BlockASN1Schema[4], typeof BlockASN1Schema[5], typeof BlockASN1Schema[6], typeof BlockASN1Schema[7]]>;
+interface BlockV2UnsignedCanonical {
+    version: 2;
+    date: Date;
+    purpose: BlockPurpose;
+    previous: BlockHash;
+    account: GenericAccount;
+    signer: BlockSignerField;
+    operations: Operations.BlockOperations[];
+    network: NetworkID;
+    subnet: SubnetID | undefined;
+    signatures?: never;
+}
+interface BlockV2Canonical extends Omit<BlockV2UnsignedCanonical, 'signatures'> {
+    signatures: BlockSignature[];
+}
+type OmitLastArrayValue<T> = Required<T> extends [...infer Head, any] ? Head : never;
+type BlockV1ASN1WithoutSignature = ASN1.ValidateASN1.SchemaMap<OmitLastArrayValue<typeof BlockV1ASN1Schema>>;
+type BlockV2ASN1WithoutSignature = ASN1.ValidateASN1.SchemaMap<OmitLastArrayValue<typeof BlockV2ASN1Schema.contains>>;
+type MultisigSignerFieldJSON = [MultisigAddress | string, (MultisigSignerField | Account | string)[]];
+type BlockSignerFieldJSON = Account | string | MultisigSignerFieldJSON;
+type BlockASN1SchemaWithoutSignature = BlockV1ASN1WithoutSignature | {
+    type: 'context';
+    kind: 'explicit';
+    value: 1;
+    contains: BlockV2ASN1WithoutSignature;
+};
+type MultisigSignerField = [MultisigAddress, (MultisigSignerField | Account)[]];
+type BlockSignerField = Account | [MultisigAddress, BlockSignerField[]];
+type BlockSignatureField = [BlockSignature, ...BlockSignature[]];
 /**
  * Block:  An item which contains a number of operations (transactions) which
  * originated from an account at a particular instant
  */
-export declare class Block implements BlockCanonical {
+export declare class Block implements Omit<BlockV2Canonical, 'version'> {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is Block;
     static Hash: typeof BlockHash;
@@ -98,32 +152,41 @@ export declare class Block implements BlockCanonical {
     };
     static NO_PREVIOUS: string;
     static AdjustMethod: typeof AdjustMethod;
+    static Purpose: typeof BlockPurpose;
     static Builder: typeof BlockBuilder;
-    readonly version: 1;
+    readonly version: 1 | 2;
+    readonly purpose: BlockPurpose;
     readonly date: Date;
     readonly previous: BlockHash;
     readonly account: GenericAccount;
-    readonly signer: Account;
-    readonly operations: BlockCanonical['operations'];
+    readonly operations: BlockV2Canonical['operations'];
     readonly network: NetworkID;
     readonly subnet: SubnetID | undefined;
-    readonly signature: BlockSignature;
-    readonly $signatureValid: boolean;
+    readonly signer: BlockSignerField;
+    readonly signatures: BlockSignatureField;
+    get principal(): Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1> | MultisigAddress;
     readonly $opening: boolean;
-    static fromUnsignedJSON(input: BlockUnsignedCanonical): Promise<Block>;
-    static isValidJSON(block: BlockJSON | BlockJSONOutput | BlockJSONIncomplete): block is BlockJSON;
-    constructor(input: Buffer | ArrayBuffer | BlockJSON | BlockJSONOutput | Block | string);
+    static fromUnsignedJSON(input: BlockV1UnsignedCanonical | BlockV2UnsignedCanonical): Promise<Block>;
+    static isValidJSON<Version extends 1 | 2>(block: unknown, version?: Version): block is ({
+        1: BlockV1JSON;
+        2: BlockV2JSON;
+    }[Version]);
+    constructor(input: Buffer | ArrayBuffer | BlockJSON | BlockJSONOutput | BlockJSONOutputSerialized | Block | string);
     static getAccountOpeningHash(account: GenericAccount): BlockHash;
-    toBytes(includeSignature?: boolean): ArrayBuffer;
-    protected static getASN1ContainerWithoutSignature(input: BlockUnsignedCanonical | BlockCanonical): BlockASN1WithoutSignature;
+    toBytes(includeSignatures?: boolean): ArrayBuffer;
+    protected static getV1ASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical): BlockV1ASN1WithoutSignature;
+    protected static getV2ASN1ContainerWithoutSignature(input: BlockV2UnsignedCanonical | BlockV2Canonical): BlockV2ASN1WithoutSignature;
+    protected static getASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical | BlockV2UnsignedCanonical | BlockV2Canonical): BlockASN1SchemaWithoutSignature;
     toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
-        version: 1;
+        signature?: string;
+        signatures?: string[];
+        version: 1 | 2;
         date: Date;
         previous: BlockHash;
         account: GenericAccount;
-        signer: Account<import("../account").AccountKeyAlgorithm.ECDSA_SECP256K1 | import("../account").AccountKeyAlgorithm.ED25519 | import("../account").AccountKeyAlgorithm.ECDSA_SECP256R1>;
-        signature: string;
+        purpose: BlockPurpose;
+        signer: Account | [MultisigAddress, any[]];
         network: bigint;
         subnet: bigint | undefined;
         operations: Operations.ExportedJSONOperation[];
@@ -140,7 +203,7 @@ export declare class Block implements BlockCanonical {
      */
     get hash(): BlockHash;
 }
-export declare class BlockBuilder implements BlockJSONIncomplete {
+export declare class BlockBuilder {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is BlockBuilder;
     static OperationType: typeof Operations.OperationType;
@@ -157,32 +220,35 @@ export declare class BlockBuilder implements BlockJSONIncomplete {
         MANAGE_CERTIFICATE: typeof Operations.BlockOperationMANAGE_CERTIFICATE;
     };
     static NO_PREVIOUS: string;
-    constructor(block?: BlockJSONIncomplete | BlockJSON | Block | ArrayBuffer | string);
+    constructor(block?: BlockJSON | BlockJSONIncomplete | BlockJSONOutputSerialized | ReturnType<Block['toJSON']> | Block | ArrayBuffer | string);
     protected get currentBlock(): Block | BlockJSONIncomplete;
     protected get currentWIP(): BlockJSONIncomplete;
     protected get currentBlockSealed(): Block;
     toJSON(opts?: ToJSONSerializableOptions): {
         $binary?: string;
-        version: 1;
+        signature?: string;
+        signatures?: string[];
+        version: 1 | 2;
         date: Date;
         previous: BlockHash;
         account: GenericAccount;
-        signer: Account<import("../account").AccountKeyAlgorithm.ECDSA_SECP256K1 | import("../account").AccountKeyAlgorithm.ED25519 | import("../account").AccountKeyAlgorithm.ECDSA_SECP256R1>;
-        signature: string;
+        purpose: BlockPurpose;
+        signer: Account | [MultisigAddress, any[]];
         network: bigint;
         subnet: bigint | undefined;
         operations: Operations.ExportedJSONOperation[];
         $hash: BlockHash;
         $opening: boolean;
     } | {
-        version: 1 | undefined;
+        version: number | undefined;
         date: Date | undefined;
         previous: BlockHash | undefined;
         account: GenericAccount | undefined;
-        signer: Account<import("../account").AccountKeyAlgorithm.ECDSA_SECP256K1 | import("../account").AccountKeyAlgorithm.ED25519 | import("../account").AccountKeyAlgorithm.ECDSA_SECP256R1> | undefined;
+        signer: BlockSignerFieldJSON | undefined;
         network: bigint | undefined;
         subnet: bigint | undefined;
         operations: Operations.BlockOperations[] | undefined;
+        purpose: BlockPurpose;
         $opening: boolean | undefined;
     };
     seal(): Promise<Block>;
@@ -190,8 +256,8 @@ export declare class BlockBuilder implements BlockJSONIncomplete {
     get sealed(): boolean;
     get block(): Block | undefined;
     get hash(): BlockHash | undefined;
-    set signer(signer: string | Account | undefined);
-    get signer(): Account | undefined;
+    set signer(signer: BlockV2JSONIncomplete['signer'] | BlockV2JSON['signer']);
+    get signer(): BlockV2JSON['signer'] | undefined;
     set account(account: string | GenericAccount | undefined);
     get account(): GenericAccount | undefined;
     set previous(blockhash: string | BlockHash | undefined);
@@ -199,8 +265,10 @@ export declare class BlockBuilder implements BlockJSONIncomplete {
     get $opening(): boolean | undefined;
     set date(date: Date | string | undefined);
     get date(): Date | undefined;
-    set version(version: 1 | undefined);
-    get version(): 1 | undefined;
+    set version(version: number | undefined);
+    get version(): number | undefined;
+    set purpose(purpose: BlockPurpose | undefined);
+    get purpose(): BlockPurpose;
     set network(network: NetworkID | string | undefined);
     get network(): NetworkID | undefined;
     set subnet(subnet: SubnetID | string | undefined);

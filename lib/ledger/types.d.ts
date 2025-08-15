@@ -1,8 +1,12 @@
-import type { GenericAccount, TokenAddress } from '../account';
+import type { Account, GenericAccount, MultisigAddress, TokenAddress } from '../account';
 import type { AdjustMethod } from '../block';
 import type { Permissions } from '../permissions';
 import type { DbStats, TimeStats } from '../stats';
 import type { Certificate, CertificateBundle } from '../utils/certificate';
+export interface MultisigConfig {
+    signers: (Account | MultisigAddress)[];
+    quorum: bigint;
+}
 /**
  * Account info entry
  */
@@ -27,7 +31,12 @@ export interface AccountInfo {
      * The default permissions for the account
      */
     defaultPermission?: Permissions;
+    /**
+     * If this is a multisig account, the number of signers required
+     */
+    multisigQuorum?: bigint;
 }
+export type UserEditableAccountInfo = Omit<AccountInfo, 'supply'>;
 /**
  * Permissions types
  */

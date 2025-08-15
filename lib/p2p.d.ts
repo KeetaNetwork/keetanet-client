@@ -48,6 +48,10 @@ export interface P2PConfig {
      * Forget about seen message ids after this many milliseconds
      */
     seenMessageTTL?: number;
+    /**
+     * Whether to republish over http or p2p websockets
+     */
+    useHTTPRepublish?: boolean;
 }
 /**
  * Shape of statistics
@@ -66,6 +70,7 @@ export interface P2PSwitchStatistics {
 interface P2PPeerBase {
     kind: NodeKind;
 }
+export type P2PUpdateOptions = 'http' | 'websocket';
 /**
  * Peering information for a Representative (Basic, unsigned information)
  */
@@ -82,6 +87,10 @@ interface P2PPeerRepBase extends P2PPeerBase {
      * Public key of the representative (used as the ID)
      */
     key: Account;
+    /**
+     * Prefer to receive updates over http or websocket
+     */
+    preferUpdates: P2PUpdateOptions;
 }
 /**
  * Peering information for a Representative
@@ -200,6 +209,23 @@ type JSONMessage = {
 };
 export declare function randomizeReps(reps: Representative[]): Representative[];
 export declare function formatRepEndpoints(peers: P2PPeer[]): Representative[];
+export declare class P2PHttpConnection implements P2PConnection {
+    #private;
+    abort: boolean;
+    peer: P2PPeer;
+    validatedPeer: P2PPeer | null;
+    timeout: number;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is P2PHttpConnection;
+    /**
+     * Initiate an outbound http connection and attach it to the specified switch
+     */
+    static initiate(peer: P2PPeer, p2pSwitch: P2PSwitch): Promise<P2PHttpConnection | null>;
+    constructor(peer: P2PPeer, p2pSwitch: P2PSwitch);
+    get connString(): string;
+    get peerString(): string | null;
+    send(messageBuffer: Buffer): Promise<boolean>;
+    close(): Promise<void>;
+}
 /**
  * A P2PConnection using the "ws" package
  */
@@ -275,6 +301,7 @@ export declare class P2PSwitch {
      * Our own peer information
      */
     selfPeer(): Promise<P2PPeer | null>;
+    getOutgoingGreetingInfo(): Promise<JSONSerializableObject>;
     /**
      * Receive a message from a connection
      *
@@ -299,5 +326,10 @@ export declare class P2PSwitch {
      * @returns If the message could be delivered to at least one peer
      */
     sendMessage(to: P2PConnection | Account | P2PPeer | null, id: string, type: string, data: any, ttl?: number, exclude?: (string | P2PConnection)[], skipConnectToPeers?: boolean): Promise<boolean>;
+    /**
+     * TODO - make this private after refactoring websockets to handle higher load
+     * https://github.com/KeetaNetwork/node/issues/785
+     */
+    haveAnyFilter(data: any): Promise<boolean>;
 }
 export default P2PSwitch;

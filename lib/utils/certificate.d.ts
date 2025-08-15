@@ -44,6 +44,7 @@ type CertificateSchema = [
     signatureAlgorithm: ASN1.ASN1OID[],
     signature: ASN1.ASN1BitString
 ];
+type HashNames = 'sha256' | 'sha3-256';
 type CertificateBuilderParams = {
     /**
      * Subject for the certificate, to store as the public key within the certificate
@@ -93,15 +94,45 @@ type CertificateBuilderParams = {
     includeCommonExts?: boolean;
     /**
      * Hashing library to use
+     *
+     * Because several different things are hashed this is
+     * @deprecated Use `hashParams` instead
      */
-    hashLib: {
+    hashLib?: {
         hash: (...args: Parameters<typeof HashLib.Hash>) => ReturnType<typeof HashLib.Hash>;
         name: string;
+    };
+    /**
+     * This option lets you control the hashing method used for the
+     * certificate signature as well as provide alternative implementations
+     */
+    hashParams: {
+        functions?: {
+            [name in HashNames]?: (...args: Parameters<typeof HashLib.Hash>) => ReturnType<typeof HashLib.Hash>;
+        };
+        defaults?: {
+            /**
+             * Default hashing function to use for the certificate signature
+             */
+            signature?: HashNames;
+            /**
+             * Default hashing function to use for the Subject Key Identifier
+             */
+            ski?: HashNames;
+            /**
+             * Default hashing function to use for the Authority Key Identifier
+             * (must match the issuer certificate's Subject Key Identifier
+             * hashing function)
+             */
+            aki?: HashNames;
+        };
     };
 };
 export declare class CertificateBuilder {
     #private;
     constructor(params?: Partial<CertificateBuilderParams>);
+    private static hashName;
+    private static hash;
     /**
      * Construct an extension
      */
@@ -367,6 +398,12 @@ export declare class Certificate {
      * Get the issuer account
      */
     getIssuerAccount(): Account | null;
+    /**
+     * Get the extensions present in the certificate -- this is the raw
+     * extensions as they were parsed from the certificate, and may
+     * contain extensions that are not processed by this class.
+     */
+    getExtensions(): NonNullable<CertificateSchema[0][7]>['contains'] | undefined;
     private assertConstructed;
     /**
      * Compare the certificate with another certificate and return true if they

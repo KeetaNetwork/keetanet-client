@@ -1,7 +1,7 @@
 import { VoteStaple, Vote, VoteBlockHashMap } from '../vote';
 import { Block, BlockHash } from '../block';
-import type { VoteBlockHash } from '../vote';
-import type { GenericAccount, IdentifierAddress, NetworkAddress, TokenAddress } from '../account';
+import type { FeeAmountAndToken, VoteBlockHash, VoteQuote } from '../vote';
+import type { GenericAccount, IdentifierAddress, NetworkAddress, StorageAddress, TokenAddress } from '../account';
 import Account from '../account';
 import type Node from '../node';
 import type { BloomFilter } from '../utils/bloom';
@@ -31,6 +31,10 @@ export interface LedgerConfig {
      * Private key for the ledger if it is acting as a representative
      */
     privateKey?: Account;
+    /**
+     * Provided function to compute fees for a given set of Blocks and computed effects
+     */
+    computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => FeeAmountAndToken | null;
     /**
      * Storage mechanism
      */
@@ -208,9 +212,9 @@ export interface LedgerStorageAPI {
      */
     getVoteStaples: (transaction: any, voteBlockHashes: VoteBlockHash[], from: LedgerSelector) => Promise<VoteBlockHashMap<VoteStaple | null>>;
     /**
-     * Get the history for a specific account
+     * Get the history for a specific account or all accounts if account is null
      */
-    getHistory: (transaction: any, account: GenericAccount, start: VoteBlockHash | null, limit?: number) => Promise<VoteBlockHash[]>;
+    getHistory: (transaction: any, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number) => Promise<VoteBlockHash[]>;
     /**
      * Get multiple head blocks at the same time for a set of accounts
      */
@@ -250,7 +254,7 @@ export interface LedgerStorageAPI {
     /**
      * Perform Garbage Collection
      */
-    gc: (transaction: any) => Promise<boolean>;
+    gc: (transaction: any, timeLimitMS?: number) => Promise<boolean>;
     /**
      * Get the next serial number for a representative
      */
@@ -276,7 +280,8 @@ declare class LedgerAtomicInterface {
     constructor(transaction: LedgerStorageTransactionBase, storage: LedgerStorageAPI, config: LedgerConfig, ledger: Ledger);
     commit(): Promise<void>;
     abort(): Promise<void>;
-    vote(blocks: Block[], otherVotes?: Vote[]): Promise<Vote>;
+    vote(blocks: Block[], otherVotes?: Vote[], quote?: VoteQuote): Promise<Vote>;
+    quote(blocks: Block[]): Promise<VoteQuote>;
     add(votesAndBlocks: VoteStaple, from?: 'bootstrap' | string): Promise<VoteStaple[]>;
     getBalance(account: GenericAccount, token: TokenAddress): Promise<bigint>;
     getAllBalances(account: GenericAccount): Promise<GetAllBalancesResponse>;
@@ -299,10 +304,11 @@ declare class LedgerAtomicInterface {
     getBlock(blockhash: BlockHash, from?: LedgerSelector): Promise<Block | null>;
     getVoteStaple(stapleBlockHash: VoteBlockHash, from?: LedgerSelector): Promise<VoteStaple | null>;
     getVoteStaples(stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteStaple[]>;
+    getHistory(account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteStaple[]>;
     getStaplesFromBlockHashes(hashes: BlockHash[]): Promise<VoteStaple[]>;
     getVoteStaplesAfter(moment: Date, limit?: number, options?: GetVotesAfterOptions): Promise<VoteStaple[]>;
-    gc(): Promise<boolean>;
+    gc(timeLimitMS?: number): Promise<boolean>;
+    getFee(blocks: Block[], effectsInput?: ComputedEffectOfBlocks): Promise<FeeAmountAndToken | null>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 /**
@@ -319,6 +325,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     constructor(config: LedgerConfig, node?: Node, existingStorage?: LedgerStorageAPI);
     get ledgerWriteMode(): NonNullable<LedgerConfig['ledgerWriteMode']>;
     copy(newNode: Node): Ledger;
+    getFeePayToAndToken(accounts?: (Account | StorageAddress)[], token?: TokenAddress): Partial<FeeAmountAndToken>;
     /**
      * Execute some code with a transaction held, if the code fails the
      * transaction is aborted, otherwise it is committed
@@ -330,6 +337,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     runReadOnly<T>(identifier: string, code: (transaction: LedgerAtomicInterface) => Promise<T>): ReturnType<typeof code>;
     beginTransaction(identifier: string, readOnly?: boolean): Promise<LedgerAtomicInterface>;
     vote(...args: Parameters<LedgerAtomicInterface['vote']>): ReturnType<LedgerAtomicInterface['vote']>;
+    quote(...args: Parameters<LedgerAtomicInterface['quote']>): ReturnType<LedgerAtomicInterface['quote']>;
     add(...args: Parameters<LedgerAtomicInterface['add']>): ReturnType<LedgerAtomicInterface['add']>;
     listACLsByPrincipal(...args: Parameters<LedgerAtomicInterface['listACLsByPrincipal']>): ReturnType<LedgerAtomicInterface['listACLsByPrincipal']>;
     listACLsByEntity(...args: Parameters<LedgerAtomicInterface['listACLsByEntity']>): ReturnType<LedgerAtomicInterface['listACLsByEntity']>;
@@ -352,6 +360,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getStaplesFromBlockHashes(...args: Parameters<LedgerAtomicInterface['getStaplesFromBlockHashes']>): ReturnType<LedgerAtomicInterface['getStaplesFromBlockHashes']>;
     getVoteStaplesAfter(...args: Parameters<LedgerAtomicInterface['getVoteStaplesAfter']>): ReturnType<LedgerAtomicInterface['getVoteStaplesAfter']>;
     gc(...args: Parameters<LedgerAtomicInterface['gc']>): ReturnType<LedgerAtomicInterface['gc']>;
+    getFee(...args: Parameters<LedgerAtomicInterface['getFee']>): ReturnType<LedgerAtomicInterface['getFee']>;
     stats(): Promise<LedgerStatistics>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }

@@ -93,7 +93,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     getBlockHeight(transaction: SpannerTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: SpannerTransaction, blockHash: BlockHash, from: LedgerSelector): Promise<Vote[] | null>;
     getVoteStaples(transaction: SpannerTransaction, stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(transaction: SpannerTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
+    getHistory(transaction: SpannerTransaction, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
     getBlockFromPrevious(transaction: SpannerTransaction, prevBlock: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getVotesFromMultiplePrevious(transaction: SpannerTransaction, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;

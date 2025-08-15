@@ -7,6 +7,9 @@ import { UserClient } from '.';
 import { type CreateTestNodeOptions } from '../lib/utils/helper_testing';
 import { toJSONSerializable } from '../lib/utils/conversion';
 import { KeetaNetError as KeetaError } from '../lib/error';
+import { type Block } from '../lib/block';
+import type { Ledger } from '../lib/ledger';
+import type { ComputedEffectOfBlocks } from '../lib/ledger/effects';
 export type ClientParams = {
     ip?: string;
     port?: number;
@@ -37,6 +40,7 @@ export declare function setup(options?: NodeCreationOptions): Promise<{
     cleanupFunctions: (() => Promise<void>)[];
 }>;
 declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, _ignoreExpectErrorCode: any): Promise<void>;
+declare function runFeeBlockTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runBuilderStorageTests(_ignoreNodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runRecoverAccountTest(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runNonNodeTests(_ignore_nodes: LocalNode[], _ignore_userClient: UserClient, _ignore_trustedClient: UserClient, _ignore_params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
@@ -55,6 +59,20 @@ export declare const clientTests: {
             p2pTested: boolean;
             count: number;
             timeout: number;
+        };
+    };
+    'Fee Block Tests': {
+        test: typeof runFeeBlockTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+            customNodeOptions: {
+                ledger: {
+                    computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => {
+                        amount: bigint;
+                    };
+                };
+            }[];
         };
     };
     'Builder/Storage Test': {

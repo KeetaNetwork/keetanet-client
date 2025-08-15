@@ -1,8 +1,9 @@
 import type { GenericAccount, IdentifierAddress, NetworkAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { AdjustMethod, BlockHash } from '../block';
+import type { AdjustMethod } from '../block';
 import { Block } from '../block';
-import type { AccountInfo, ACLEntry, ACLUpdate } from '../ledger/types';
+import type * as Operations from '../block/operations';
+import type { UserEditableAccountInfo, ACLEntry, ACLUpdate } from '../ledger/types';
 import type { Certificate, CertificateBundle } from '../utils/certificate';
 import { CertificateHash } from '../utils/certificate';
 interface NumericValueEntry {
@@ -41,24 +42,23 @@ interface ComputedBlocksEffectTokenChangesField {
 /**
  * Which fields may be affected by blocks
  */
-type CreateIdentifierRequest = {
-    previousBlockHash: BlockHash;
-    requestedIdentifier: IdentifierAddress;
-    operationIndex: number;
-    account: GenericAccount;
-};
+interface CreateIdentifierRequest {
+    createdIdentifier: IdentifierAddress;
+    createArguments?: Operations.IdentifierCreateArguments;
+}
 type DelegationUpdate = {
     delegateTo: Account;
 };
 interface ComputedBlocksEffectFields {
     balance?: ComputedBlocksEffectTokenChangesField;
     supply?: NumericValueEntry[];
-    info?: AccountInfo;
+    info?: Partial<UserEditableAccountInfo>;
     permissions?: ACLUpdate[];
     permissionRequirements?: ACLEntry[];
     createRequests?: CreateIdentifierRequest[];
     delegation?: DelegationUpdate;
     certificate?: CertificateUpdate[];
+    minSignerSetLength?: bigint;
 }
 /**
  * Which accounts and fields are affected by a set of block
@@ -80,6 +80,7 @@ export type ComputedEffectOfBlocks = {
     metadata: {
         operationCount: number;
         blockCount: number;
+        feeUnits: bigint;
     };
 };
 type LedgerOptions = {

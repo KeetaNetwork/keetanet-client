@@ -1,12 +1,13 @@
 import { ValidateASN1 } from '../utils/asn1';
 import type { DeepMutable } from '../utils/helper';
-import type { GenericAccount, IdentifierAddress, TokenAddress, TokenPublicKeyString } from '../account';
-import Account from '../account';
+import type { GenericAccount, IdentifierAddress, IdentifierKeyAlgorithm, TokenAddress, TokenPublicKeyString } from '../account';
+import Account, { AccountKeyAlgorithm } from '../account';
 import type { AcceptedPermissionTypes } from '../permissions';
 import { Permissions } from '../permissions';
 import type { ToJSONSerializable } from '../utils/conversion';
 import Block, { AdjustMethod } from '.';
 import { Certificate, CertificateBundle, CertificateHash } from '../utils/certificate';
+import type { MultisigConfig } from '../ledger/types';
 /**
  * All supported operations
  */
@@ -110,6 +111,20 @@ declare const BlockOperationASN1SchemaBase: {
     readonly CREATE_IDENTIFIER: [{
         readonly name: "identifier";
         readonly schema: typeof ValidateASN1.IsOctetString;
+    }, {
+        readonly name: "createArguments";
+        readonly schema: {
+            readonly optional: {
+                readonly choice: [{
+                    readonly type: "context";
+                    readonly kind: "explicit";
+                    readonly value: 7;
+                    readonly contains: readonly [{
+                        readonly sequenceOf: typeof ValidateASN1.IsOctetString;
+                    }, typeof ValidateASN1.IsInteger];
+                }];
+            };
+        };
     }];
     readonly TOKEN_ADMIN_SUPPLY: [{
         readonly name: "amount";
@@ -264,9 +279,16 @@ declare class BlockOperationSET_REP extends BlockOperation implements BlockJSONO
 /**
  * TokenCreate Operation
  */
+interface BaseIdentifierCreateArguments<KeyType extends IdentifierKeyAlgorithm> {
+    type: KeyType;
+}
+interface MultiSigIdentifierCreateArguments extends BaseIdentifierCreateArguments<AccountKeyAlgorithm.MULTISIG>, MultisigConfig {
+}
+export type IdentifierCreateArguments = MultiSigIdentifierCreateArguments;
 export interface BlockJSONOperationCREATE_IDENTIFIER extends BlockJSONOperation {
     type: OperationType.CREATE_IDENTIFIER;
     identifier: IdentifierAddress | string;
+    createArguments?: ToJSONSerializable<IdentifierCreateArguments> | IdentifierCreateArguments;
 }
 declare class BlockOperationCREATE_IDENTIFIER extends BlockOperation implements BlockJSONOperationCREATE_IDENTIFIER {
     #private;
@@ -275,6 +297,8 @@ declare class BlockOperationCREATE_IDENTIFIER extends BlockOperation implements 
     constructor(input: BlockJSONOperationCREATE_IDENTIFIER);
     set identifier(identifier: string | IdentifierAddress);
     get identifier(): IdentifierAddress;
+    set createArguments(input: IdentifierCreateArguments | ToJSONSerializable<IdentifierCreateArguments> | undefined);
+    get createArguments(): IdentifierCreateArguments | undefined;
     validate(context: BlockOperationValidateContext): void;
     toJSON(): BlockJSONOperationCREATE_IDENTIFIER;
 }
@@ -441,7 +465,11 @@ export declare function ExportBlockOperations(operations: BlockOperations[]): ((
     value: OperationType.MODIFY_PERMISSIONS;
     kind: "explicit";
 }) | (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {
-    contains: [Buffer];
+    contains: [Buffer, (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {
+        contains: [Buffer[], bigint];
+        value: 7;
+        kind: "explicit";
+    }) | undefined];
     value: OperationType.CREATE_IDENTIFIER;
     kind: "explicit";
 }) | (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {

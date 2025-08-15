@@ -47,7 +47,7 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     getBlockHeight(transaction: PostgresTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: PostgresTransaction, block: BlockHash, from: LedgerSelector, issuer?: GenericAccount): Promise<Vote[] | null>;
     getVoteStaples(transaction: PostgresTransaction, stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(transaction: PostgresTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
+    getHistory(transaction: PostgresTransaction, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
     getBlockFromPrevious(transaction: PostgresTransaction, prevBlock: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getVotesFromMultiplePrevious(transaction: PostgresTransaction, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;

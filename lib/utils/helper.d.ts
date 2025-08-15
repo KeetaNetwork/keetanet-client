@@ -2,6 +2,7 @@ import _crypto from 'crypto';
 import type { JSONSerializable } from './conversion';
 export type DistributiveOmit<T, P extends PropertyKey> = T extends T ? Omit<T, P> : never;
 export declare function bufferToArrayBuffer(input: Buffer): ArrayBuffer;
+export declare function bufferToBigInt(buffer: Buffer): bigint;
 /**
  * Check if a value is an integer or a bigint.
  */
@@ -73,7 +74,7 @@ interface InstanceSet<Instance, Encoded = string> extends Set<Instance> {
  */
 export declare const AsyncDisposableStack: AsyncDisposableStackConstructor;
 export interface InstanceSetConstructor<Instance, Encoded = string> {
-    new (data?: (Instance)[]): InstanceSet<Instance, Encoded>;
+    new (data?: Iterable<(Instance)>): InstanceSet<Instance, Encoded>;
 }
 export declare function setGenerator<P extends WithIsInstance<Instance>, E extends EncodeFunc<Instance, Encoded>, D extends DecodeFunc<Instance, Encoded>, Instance = InstanceType<P>, Encoded = ReturnType<E>>(parent: P, rawEncode: E, rawDecode: D): InstanceSetConstructor<Instance, Encoded>;
 export declare const crypto: {

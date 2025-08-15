@@ -2,12 +2,13 @@ import type { GenericAccount, IdentifierKeyAlgorithm } from '../lib/account';
 import { Account, AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
-import type { BlockJSONOperations } from '../lib/block/operations';
+import { type BlockJSONOperations } from '../lib/block/operations';
 import type { AccountInfo } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
-import type { UserClient } from '.';
+import type { UserClient, PublishOptions } from '.';
 import { Permissions } from '../lib/permissions';
 import { Certificate, CertificateBundle } from '../lib/utils/certificate';
+import type { VoteStaple } from '../lib/vote';
 type GetPrevFunction = (acct: GenericAccount | string) => Promise<BlockHash | string | null | undefined>;
 interface AccountSignerOptions {
     account: GenericAccount;
@@ -166,8 +167,9 @@ export declare class UserClientBuilder {
     get defaultOptions(): BuilderOptions;
     updateAccounts(accountOptions: Partial<AccountSignerOptions>): void;
     clone(): Promise<UserClientBuilder>;
-    publish(): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
-    publish(client?: UserClientOrClientAndNetwork): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
+    publish(options?: PublishOptions): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
+    publish(options?: PublishOptions, client?: UserClientOrClientAndNetwork): Promise<Awaited<ReturnType<UserClient['publishBuilder']>>>;
+    computeFeeBlock(staple: VoteStaple, options?: BuilderBlockOptions, renderOptions?: RenderOptions | UserClientOrClientAndNetwork): Promise<Block>;
     computeBlocks(): Promise<ComputeBlocksResponse>;
     computeBlocks(client?: UserClientOrClientAndNetwork): Promise<ComputeBlocksResponse>;
     computeBlocks(renderOptions: RenderOptions): Promise<ComputeBlocksResponse>;

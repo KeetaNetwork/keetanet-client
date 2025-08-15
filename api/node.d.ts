@@ -1,3 +1,4 @@
+import KeetaNet from '../lib';
 import type { AccountInfo, GetAllBalancesResponse, LedgerStatistics, ACLRow } from '../lib/ledger/types';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import { NodeKind } from '../lib/node';
@@ -14,6 +15,7 @@ interface GetPeersAPIResponse {
         p2p: string;
         api: string;
     };
+    preferUpdates?: string;
     signature?: string;
 }
 interface GetAccountChainAPIResponse {
@@ -63,6 +65,7 @@ interface GetAccountHistoryResponse {
         '$id': string;
         '$timestamp': string;
     }[];
+    nextKey: InstanceType<typeof KeetaNet.Vote.VoteBlocksHash> | null;
 }
 declare function getPeers(request: APIRequest): Promise<{
     peers: GetPeersAPIResponse[];
@@ -130,7 +133,7 @@ declare function listACLsByPrincipal(request: APIRequest, principal: string | Ge
 }>;
 declare function listACLsByPrincipalWithInfo(request: APIRequest, principalPubKey: string, entityList?: string): Promise<PrincipalACLWithInfoResponse>;
 declare function getAccountChain(request: APIRequest, account: string): Promise<GetAccountChainAPIResponse>;
-declare function getAccountHistory(request: APIRequest, account: string, start?: unknown): Promise<GetAccountHistoryResponse>;
+declare function getAccountHistory(request: APIRequest, account?: string | unknown, startFromURL?: unknown): Promise<GetAccountHistoryResponse>;
 declare function getAllRepresentatives(request: APIRequest): Promise<{
     representatives: GetAllRepresentativesAPIResponse[];
 }>;
@@ -172,6 +175,9 @@ declare const _default: {
         };
         representatives: {
             GET: typeof getAllRepresentatives;
+        };
+        history: {
+            GET: typeof getAccountHistory;
         };
         account: {
             ':account': {

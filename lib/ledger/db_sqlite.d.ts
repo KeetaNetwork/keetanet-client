@@ -46,7 +46,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     getBlockHeight(transaction: DBSqliteTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: DBSqliteTransaction, block: BlockHash, from: LedgerSelector): Promise<Vote[] | null>;
     getVoteStaples(transaction: DBSqliteTransaction, voteBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(transaction: DBSqliteTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
+    getHistory(transaction: DBSqliteTransaction, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
     getBlockFromPrevious(transaction: DBSqliteTransaction, prevBlock: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getVotesFromMultiplePrevious(transaction: DBSqliteTransaction, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: GenericAccount): Promise<{
         [hash: string]: Vote[] | null;

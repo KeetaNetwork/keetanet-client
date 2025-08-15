@@ -1,5 +1,5 @@
 import { Block, BlockHash } from './block';
-import type { BlockJSON, BlockJSONOutput } from './block';
+import type { BlockJSON, BlockJSONOutput, BlockJSONOutputSerialized } from './block';
 import Account, { AccountKeyAlgorithm, type StorageAddress, type TokenAddress } from './account';
 import type { ASN1Date } from './utils/asn1';
 import { type ToJSONSerializableOptions, type ToJSONSerializable } from './utils/conversion';
@@ -28,14 +28,15 @@ export interface VoteJSON {
     validityTo: string | Date;
     signature: string | ArrayBuffer;
     fee?: FeeAmountAndTokenJSON;
+    quote?: boolean;
 }
 type VoteJSONOutput = ToJSONSerializable<ReturnType<Vote['toJSON']>>;
 export interface VoteStapleJSON {
-    blocks: BlockJSON[] | BlockJSONOutput[];
+    blocks: BlockJSON[] | BlockJSONOutput[] | BlockJSONOutputSerialized[];
     votes: VoteJSON[] | VoteJSONOutput[];
 }
 declare class VoteHash extends BufferStorage {
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteHash;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteHash;
     readonly storageKind = "VoteHash";
     constructor(blockhash: ConstructorParameters<typeof BufferStorage>[0]);
 }
@@ -64,6 +65,7 @@ type CertificatePublicKeyInfo = [CertificateOID[], {
     value: Buffer;
 }];
 export type CertificateExtensionFeeEntry = [
+    quote: boolean,
     amount: bigint,
     payTo?: {
         type: 'context';
@@ -127,7 +129,7 @@ export declare class VoteBlockHashMap<ValueType = unknown> implements Map<VoteBl
  * VoteBlockHash.
  */
 export declare class VoteBlockHash extends BufferStorage {
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteBlockHash;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteBlockHash;
     static readonly Map: typeof VoteBlockHashMap;
     readonly storageKind = "VoteBlockHash";
     get hashFunctionName(): string;
@@ -154,7 +156,7 @@ type VoteBuilderOptions = {
      */
     fee?: FeeAmountAndToken;
 };
-export declare class PossiblyExpiredVote {
+declare class VoteLikeBase {
     #private;
     readonly issuer: Account;
     readonly serial: bigint;
@@ -163,6 +165,8 @@ export declare class PossiblyExpiredVote {
     readonly validityTo: Date;
     readonly signature: ArrayBuffer;
     readonly fee: FeeAmountAndToken | undefined;
+    readonly quote: boolean | undefined;
+    protected static expectedQuoteValue: boolean;
     readonly $trusted: boolean;
     readonly $permanent: boolean;
     readonly $uid: string;
@@ -170,12 +174,14 @@ export declare class PossiblyExpiredVote {
     protected static allowedSlop: number;
     protected static permanentVoteThreshold: number;
     static Staple: typeof VoteStaple;
-    static Builder: typeof VoteBuilder;
+    static Builder: typeof BaseVoteBuilder;
     static readonly VoteBlocksHash: typeof VoteBlockHash;
-    static isInstance: (obj: any, strict?: boolean) => obj is PossiblyExpiredVote;
+    static Quote: typeof VoteQuote;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteLikeBase;
+    protected getClass<T extends typeof VoteLikeBase>(): T;
     static isValidJSON(voteJSON: VoteJSON | VoteJSONOutput): voteJSON is VoteJSON | VoteJSONOutput;
-    static fromJSON(voteJSON: VoteJSON | VoteJSONOutput, options?: VoteOptions): PossiblyExpiredVote | Vote;
-    constructor(vote: Buffer | ArrayBuffer | PossiblyExpiredVote | Uint8Array | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
+    static fromJSON<T extends typeof VoteLikeBase = typeof VoteLikeBase>(this: T, voteJSON: VoteJSON | VoteJSONOutput, options?: VoteOptions): InstanceType<T>;
+    constructor(vote: Buffer | ArrayBuffer | VoteLikeBase | Uint8Array | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
     toBytes(): ArrayBuffer;
     get hash(): VoteHash;
     get blocksHash(): VoteBlockHash;
@@ -183,6 +189,7 @@ export declare class PossiblyExpiredVote {
     toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
         fee?: FeeAmountAndTokenJSON;
+        quote?: boolean;
         issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
         serial: bigint;
         blocks: BlockHash[];
@@ -197,21 +204,36 @@ export declare class PossiblyExpiredVote {
     protected expirationCheckMoment(): number;
     get expired(): boolean;
 }
+export declare class PossiblyExpiredVote extends VoteLikeBase {
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is PossiblyExpiredVote;
+    constructor(vote: Buffer | ArrayBuffer | VoteLikeBase | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
+}
 /**
  * A vote is a certificate issued indicating that the issuer "vouches" for the
  * blocks specified will fit into the ledger of the operator/issuer.
  */
 export declare class Vote extends PossiblyExpiredVote {
+    static Builder: typeof VoteBuilder;
     readonly possiblyExpired = false;
-    static isInstance: (obj: any, strict?: boolean) => obj is Vote;
-    constructor(vote: Buffer | ArrayBuffer | Vote | PossiblyExpiredVote | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is Vote;
+    constructor(vote: Buffer | ArrayBuffer | VoteLikeBase | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
+}
+/**
+ * A VoteQuote is a certificate issued indicating what the issuer will charge for fees
+ */
+export declare class VoteQuote extends VoteLikeBase {
+    static Builder: typeof VoteQuoteBuilder;
+    protected static expectedQuoteValue: boolean;
+    readonly isVoteQuote = true;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteQuote;
+    constructor(vote: Buffer | ArrayBuffer | VoteLikeBase | string | VoteJSON | VoteJSONOutput, options?: VoteOptions);
 }
 /**
  * A vote staple is a distributable block consisting of one or more blocks
  * and one or more votes.
  */
 declare class VoteStapleHash extends BufferStorage {
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteStapleHash;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteStapleHash;
     readonly storageKind = "VoteStapleHash";
     get hashFunctionName(): string;
     constructor(stapleHash: ConstructorParameters<typeof BufferStorage>[0]);
@@ -230,7 +252,7 @@ export declare class VoteBlockBundle {
     readonly votes: Vote[];
     readonly blocks: Block[];
     static readonly VoteBlockHash: typeof VoteBlockHash;
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteBlockBundle;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteBlockBundle;
     /**
      * Construct a new vote bundle from votes and blocks
      */
@@ -283,6 +305,7 @@ export declare class VoteBlockBundle {
         votes: {
             $binary?: string;
             fee?: FeeAmountAndTokenJSON;
+            quote?: boolean;
             issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
             serial: bigint;
             blocks: BlockHash[];
@@ -296,12 +319,14 @@ export declare class VoteBlockBundle {
         }[];
         blocks: {
             $binary?: string;
-            version: 1;
+            signature?: string;
+            signatures?: string[];
+            version: 1 | 2;
             date: Date;
             previous: BlockHash;
             account: import("./account").GenericAccount;
-            signer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
-            signature: string;
+            purpose: import("./block").BlockPurpose;
+            signer: Account | [import("./account").MultisigAddress, any[]];
             network: bigint;
             subnet: bigint | undefined;
             operations: import("./block/operations").ExportedJSONOperation[];
@@ -311,12 +336,13 @@ export declare class VoteBlockBundle {
     };
 }
 export declare class VoteStaple extends VoteBlockBundle {
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteStaple;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteStaple;
     constructor(votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions?: VoteOptions);
 }
-export declare class VoteBuilder {
+export declare class BaseVoteBuilder {
     #private;
-    static isInstance: (obj: any, strict?: boolean) => obj is VoteBuilder;
+    protected quote: boolean;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is BaseVoteBuilder;
     constructor(account: Account, blocks?: (Block | BlockHash)[], options?: VoteBuilderOptions);
     addBlocks(blocks: (Block | BlockHash | string)[]): void;
     addBlock(block: Block | BlockHash | string): void;
@@ -326,7 +352,16 @@ export declare class VoteBuilder {
         tbsCertificate: CertificateSchema;
         signatureInfo: CertificateOID[];
     };
-    createVote(voteData: ArrayBuffer, tbsCertificate: CertificateSchema, signatureInfo: CertificateOID[], signature: BufferStorage, voteOptions?: VoteOptions): Vote;
+    createVote(voteData: ArrayBuffer, tbsCertificate: CertificateSchema, signatureInfo: CertificateOID[], signature: BufferStorage): ArrayBuffer;
+    protected generate(serial: bigint, validTo: Date | null, validFrom?: Date): Promise<ArrayBuffer>;
+}
+export declare class VoteBuilder extends BaseVoteBuilder {
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteBuilder;
     seal(serial: bigint, validTo: Date | null, validFrom?: Date, voteOptions?: VoteOptions): Promise<Vote>;
+}
+export declare class VoteQuoteBuilder extends BaseVoteBuilder {
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteQuoteBuilder;
+    protected quote: boolean;
+    seal(serial: bigint, validTo: Date | null, validFrom?: Date, voteOptions?: VoteOptions): Promise<VoteQuote>;
 }
 export default Vote;

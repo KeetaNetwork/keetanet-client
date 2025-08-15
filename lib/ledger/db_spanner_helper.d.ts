@@ -184,7 +184,21 @@ declare const ColumnTypes: {
         fromSpanner: (pubKey: string) => GenericAccount;
         toSpanner: (account: GenericAccount) => import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
     };
-    readonly BUFFER_BIGINT: {
+    readonly BUFFER_BIGINT_39: {
+        dbType: string;
+        dbSize: string;
+        toSpanner: (buf: bigint) => Buffer;
+        fromSpanner: (value: Buffer) => bigint;
+        toComparable: (val: Buffer | bigint | string) => bigint;
+    };
+    readonly BUFFER_BIGINT_16: {
+        dbType: string;
+        dbSize: string;
+        toSpanner: (buf: bigint) => Buffer;
+        fromSpanner: (value: Buffer) => bigint;
+        toComparable: (val: Buffer | bigint | string) => bigint;
+    };
+    readonly BUFFER_BIGINT_8: {
         dbType: string;
         dbSize: string;
         toSpanner: (buf: bigint) => Buffer;
@@ -231,6 +245,7 @@ declare const schema: {
             readonly description: ColumnInterface<"INFO_DESCRIPTION", true>;
             readonly metadata: ColumnInterface<"INFO_METADATA", true>;
             readonly supply: ColumnInterface<"SUPPLY", true>;
+            readonly multisigQuorum: ColumnInterface<"BIGINT", true>;
             readonly defaultBasePermission: ColumnInterface<"BASE_PERMISSION", true>;
             readonly defaultExternalPermission: ColumnInterface<"EXTERNAL_PERMISSION", true>;
         };
@@ -274,7 +289,7 @@ declare const schema: {
         readonly columns: {
             readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
             readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH", false>;
-            readonly orderIndex: ColumnInterface<"BUFFER_BIGINT", false>;
+            readonly orderIndex: ColumnInterface<"BUFFER_BIGINT_39", false>;
         };
         readonly key: readonly [Key, Key];
         readonly interleave: Interleave;
@@ -295,9 +310,10 @@ declare const schema: {
             readonly onLedger: ColumnInterface<"LEDGER", false>;
             readonly vote: ColumnInterface<"VOTE", false>;
             readonly timestamp: ColumnInterface<"TIMESTAMP", false>;
-            readonly expires: ColumnInterface<"TIMESTAMP", false>;
             readonly issuer: ColumnInterface<"ACCOUNT", false>;
             readonly voteBlockHash: ColumnInterface<"VOTEBLOCKHASH", false>;
+            readonly orderIndex: ColumnInterface<"BUFFER_BIGINT_16", false>;
+            readonly expiresIndex: ColumnInterface<"BUFFER_BIGINT_8", true>;
         };
         readonly key: readonly [Key, Key];
     };
@@ -370,6 +386,12 @@ declare const schema: {
         readonly table: "history";
         readonly key: readonly [Key, Key];
     };
+    readonly historyOrdered: {
+        readonly type: "INDEX";
+        readonly table: "history";
+        readonly key: readonly [Key];
+        readonly storing: readonly [Key];
+    };
     readonly chainAccountHash: {
         readonly type: "INDEX";
         readonly table: "chain";
@@ -383,15 +405,16 @@ declare const schema: {
         readonly key: readonly [Key];
         readonly storing: readonly [Key];
     };
-    readonly votesTimestamp: {
+    readonly votesOrderIndex: {
         readonly type: "INDEX";
         readonly table: "votes";
         readonly key: readonly [Key, Key];
         readonly storing: readonly [Key];
     };
-    readonly votesOnLedgerExpired: {
+    readonly votesExpiredIndex: {
         readonly type: "INDEX";
         readonly table: "votes";
+        readonly nullFiltered: true;
         readonly key: readonly [Key, Key];
         readonly storing: readonly [Key];
     };

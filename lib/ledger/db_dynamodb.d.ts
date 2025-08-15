@@ -41,7 +41,7 @@ declare class DynamoDBTransaction implements LedgerStorageTransactionBase {
     getBlockHeight(blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(block: BlockHash, from: LedgerSelector, issuer?: Account, transactionAlreadyVerifiedActiveByCaller?: boolean): Promise<Vote[] | null>;
     getVoteStaple(stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(account: GenericAccount, start: VoteBlockHash | null, limit: number): Promise<VoteBlockHash[]>;
+    getHistory(account: GenericAccount | null, start: VoteBlockHash | null, limit: number): Promise<VoteBlockHash[]>;
     getVotesFromMultiplePrevious(prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;
     }>;
@@ -86,7 +86,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
     getBlockHeight(transaction: DynamoDBTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
     getVotes(transaction: DynamoDBTransaction, block: BlockHash, from: LedgerSelector): Promise<Vote[] | null>;
     getVoteStaples(transaction: DynamoDBTransaction, stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
-    getHistory(transaction: DynamoDBTransaction, account: GenericAccount, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
+    getHistory(transaction: DynamoDBTransaction, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;
     getVotesFromMultiplePrevious(transaction: DynamoDBTransaction, prevBlocks: BlockHash[], from: LedgerSelector, issuer?: Account): Promise<{
         [hash: string]: Vote[] | null;
     }>;

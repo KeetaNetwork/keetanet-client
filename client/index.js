@@ -57274,6 +57274,7 @@ exports.UserClientBuilder = exports.PendingAccount = void 0;
 const lib_1 = __importDefault(__webpack_require__(8568));
 const account_1 = __webpack_require__(9415);
 const block_1 = __webpack_require__(6158);
+const operations_1 = __webpack_require__(2778);
 const client_1 = __importDefault(__webpack_require__(3642));
 const permissions_1 = __webpack_require__(5860);
 const conversion_1 = __webpack_require__(2360);
@@ -57519,7 +57520,7 @@ class UserClientBuilder {
         });
         return (await _a.FromPendingJSON(__classPrivateFieldGet(this, _UserClientBuilder_defaultOptions, "f"), getPrivateKey, [this.pendingToJSON()]));
     }
-    async publish(client) {
+    async publish(options, client) {
         if (client === undefined) {
             client = __classPrivateFieldGet(this, _UserClientBuilder_userClient, "f");
         }
@@ -57532,9 +57533,57 @@ class UserClientBuilder {
         }
         else {
             const blocks = await this.computeBlocks(client);
-            retval = await client.client.transmit(blocks.blocks);
+            retval = await client.client.transmit(blocks.blocks, options);
         }
         return (retval);
+    }
+    async computeFeeBlock(staple, options = {}, renderOptions) {
+        __classPrivateFieldGet(this, _UserClientBuilder_instances, "m", _UserClientBuilder_useOptions).call(this, options);
+        if (renderOptions === undefined) {
+            renderOptions = __classPrivateFieldGet(this, _UserClientBuilder_userClient, "f");
+        }
+        if (renderOptions === undefined) {
+            throw (new client_1.default('CLIENT_BUILDER_USER_CLIENT_REQUIRED', 'UserClient is required to compute blocks'));
+        }
+        if (!('getPrevious' in renderOptions)) {
+            renderOptions = __classPrivateFieldGet(this, _UserClientBuilder_instances, "m", _UserClientBuilder_getRenderOptionsFromClient).call(this, renderOptions);
+        }
+        const previousByKey = {};
+        for (const existing of staple.blocks) {
+            const previous = existing.previous.toString();
+            const pubKey = existing.account.publicKeyString.get();
+            if (!previousByKey[pubKey] || previousByKey[pubKey].toString() === previous) {
+                previousByKey[pubKey] = existing.hash.toString();
+            }
+        }
+        const { account, signer } = __classPrivateFieldGet(this, _UserClientBuilder_pendingOptions, "f");
+        const accountPubKey = account.publicKeyString.get();
+        let previous = previousByKey[accountPubKey];
+        if (!previous) {
+            previous = await renderOptions.getPrevious(account) ?? block_1.Block.NO_PREVIOUS;
+        }
+        const { baseToken } = lib_1.default.Account.generateBaseAddresses(renderOptions.network);
+        const operations = [];
+        for (const vote of staple.votes) {
+            if (vote.fee !== undefined) {
+                operations.push({
+                    type: operations_1.OperationType.SEND,
+                    amount: vote.fee.amount,
+                    to: vote.fee.payTo ?? vote.issuer,
+                    token: vote.fee.token ?? baseToken
+                });
+            }
+        }
+        const block = await new block_1.Block.Builder({
+            version: 2,
+            purpose: block_1.BlockPurpose.FEE,
+            account: account,
+            signer: signer,
+            network: renderOptions.network,
+            previous: previous,
+            operations: operations
+        }).seal();
+        return (block);
     }
     async computeBlocks(renderOptions) {
         if (this.rendered) {
@@ -57973,7 +58022,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Client_instances, _Client_reps, _Client_weightOrderedReps, _Client_intervals, _Client_updateRepsPromise, _Client_apiRaw, _Client_api, _Client_requestVotes, _Client_getVotes, _Client_getBuilderRenderOptions, _Client_urlSeparatedAccounts, _Client_formatAllBalances, _Client_parseResponsePermissions, _Client_formatAccountInfo, _Client_parseAccountInfo, _Client_parsePermissionEntries, _Client_mapCertificateWithBundleResult, _Client_parseRepInfo, _UserClient_instances, _UserClient_config, _UserClient_client, _UserClient_listeners, _UserClient_intervals, _UserClient_previousAccountChangeData, _UserClient_socketPromise, _UserClient_filteredWebSocket, _UserClient_changePromise, _UserClient_reconnectAttempts, _UserClient_RECONNECT_TIMEOUT, _UserClient_transientUserClients, _UserClient_getAccount, _UserClient_publishAidURL_get, _UserClient_publishWithPublishAid, _UserClient_reconnectWebSocket, _UserClient_setupFilteredWebSocket, _UserClient_emit, _UserClient_emitAccountInfoIfChanged;
+var _Client_instances, _Client_reps, _Client_weightOrderedReps, _Client_intervals, _Client_updateRepsPromise, _Client_apiRaw, _Client_api, _Client_requestVoteOrQuote, _Client_requestQuotes, _Client_requestVotes, _Client_getVotes, _Client_getBuilderRenderOptions, _Client_urlSeparatedAccounts, _Client_formatAllBalances, _Client_parseResponsePermissions, _Client_formatAccountInfo, _Client_parseAccountInfo, _Client_parsePermissionEntries, _Client_mapCertificateWithBundleResult, _Client_parseRepInfo, _UserClient_instances, _UserClient_config, _UserClient_client, _UserClient_listeners, _UserClient_intervals, _UserClient_previousAccountChangeData, _UserClient_socketPromise, _UserClient_filteredWebSocket, _UserClient_changePromise, _UserClient_reconnectAttempts, _UserClient_RECONNECT_TIMEOUT, _UserClient_transientUserClients, _UserClient_getAccount, _UserClient_publishAidURL_get, _UserClient_publishWithPublishAid, _UserClient_reconnectWebSocket, _UserClient_setupFilteredWebSocket, _UserClient_emit, _UserClient_emitAccountInfoIfChanged;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.lib = exports.UserClient = exports.Client = void 0;
 exports.blockGenerator = blockGenerator;
@@ -58009,6 +58058,7 @@ const effects_1 = __webpack_require__(7346);
 const client_1 = __importDefault(__webpack_require__(3642));
 const certificate_1 = __webpack_require__(5661);
 const certificate_2 = __webpack_require__(5661);
+const vote_1 = __webpack_require__(1130);
 function isGetAccountStateAPIResponseFailure(object) {
     if (typeof object !== 'object' || object === null) {
         return (false);
@@ -58192,23 +58242,42 @@ class Client {
      * votes and permanent votes for the blocks and then publish them to
      * the network.
      *
-     * If `blocks` is a {@link UserClientBuilder} then the blocks will be
-     * computed and then transmitted.  If `blocks` is an array of blocks
-     * then they will be transmitted as-is.
+     * The `blocks` builder will be computed using {@link computeBuilderBlocks} and then transmitted.
      *
-     * @param blocks The blocks or UserClientBuilder to transmit
+     * @param builder The UserClientBuilder to compute and transmit transmit
      * @param network The network to use for the builder (if using a builder)
      * @return The result of the publish operation
      */
-    async transmit(blocks, network) {
-        if (builder_1.UserClientBuilder.isInstance(blocks)) {
-            if (network === undefined) {
-                throw (new Error('Network must be defined when using transmit() with a builder'));
+    async transmitBuilder(builder, network, options) {
+        const blocks = await this.computeBuilderBlocks(network, builder);
+        return (await this.transmit(blocks.blocks, options));
+    }
+    /**
+     * Transmit a set of blocks to the network.  This will request short
+     * votes and permanent votes for the blocks and then publish them to
+     * the network.  Optionally it will generate a fee block from a user
+     * provided function if fees are required.
+     *
+     * @param blocks The blocks to transmit
+     * @param options User provided options {@link PublishOptions }
+     * @return The result of the publish operation
+     */
+    async transmit(blocks, options) {
+        const tempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, blocks, undefined, undefined, options?.quotes);
+        let requiresFee = false;
+        for (const vote of tempVotes) {
+            if (vote.fee !== undefined) {
+                requiresFee = true;
             }
-            await this.computeBuilderBlocks(network, blocks);
-            blocks = blocks.blocks;
         }
-        const tempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, blocks);
+        if (requiresFee) {
+            if (options?.generateFeeBlock === undefined) {
+                throw (new Error('Votes require fees but generateFeeBlock was not defined'));
+            }
+            const staple = vote_1.VoteStaple.fromVotesAndBlocks(tempVotes, blocks);
+            const feeBlock = await options.generateFeeBlock(staple);
+            blocks.push(feeBlock);
+        }
         const permVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, blocks, tempVotes);
         const votesAndBlocks = lib_1.default.Vote.Staple.fromVotesAndBlocks(permVotes, blocks);
         return (await this.transmitStaple(votesAndBlocks));
@@ -58658,7 +58727,7 @@ class Client {
      * that it will always return at least 1 vote staple if there are any
      * vote staples available.
      *
-     * @param account The account to get the history for
+     * @param account The account to get the history for -- if null then the history for all accounts will be returned
      * @param options The options to use for the request
      * @param options.startBlocksHash The block hash to start from -- this is used to paginate the request
      * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned
@@ -58682,20 +58751,19 @@ class Client {
             const query = {
                 limit: String(limit)
             };
+            if (startVoteStapleID !== undefined) {
+                query.start = startVoteStapleID;
+            }
             let history;
-            if (startVoteStapleID === undefined) {
-                history = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, 'ANY', 'GET /node/ledger/account/:account/history', {
-                    args: {
-                        account
-                    },
+            if (account === null) {
+                history = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, 'ANY', 'GET /node/ledger/history', {
                     queryParams: query
                 });
             }
             else {
-                history = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, 'ANY', 'GET /node/ledger/account/:account/history/start/:block', {
+                history = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, 'ANY', 'GET /node/ledger/account/:account/history', {
                     args: {
-                        account: account,
-                        block: startVoteStapleID
+                        account
                     },
                     queryParams: query
                 });
@@ -58705,7 +58773,7 @@ class Client {
             }
             for (const historyEntry of history.history) {
                 const voteStapleInfo = historyEntry.voteStaple;
-                if (!voteStapleInfo['$binary']) {
+                if (voteStapleInfo['$binary'] === undefined) {
                     throw (new Error('Vote Staple is missing binary data'));
                 }
                 const voteStapleBinary = Buffer.from(voteStapleInfo['$binary'], 'base64');
@@ -59117,6 +59185,9 @@ class Client {
         }
         return (voteStaple);
     }
+    async getVoteQuotes(blocks) {
+        return (await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestQuotes).call(this, blocks));
+    }
     /** Work in progress */
     async getLedgerChecksum(rep = 'ANY') {
         const checksumResponse = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'GET /node/ledger/checksum');
@@ -59285,7 +59356,95 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
     }
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return await __classPrivateFieldGet(this, _Client_instances, "m", _Client_apiRaw).call(this, rep, path, method, options);
-}, _Client_requestVotes = async function _Client_requestVotes(blocks, otherVotes, reps = __classPrivateFieldGet(this, _Client_reps, "f")) {
+}, _Client_requestVoteOrQuote = async function _Client_requestVoteOrQuote(api, request, reps = __classPrivateFieldGet(this, _Client_reps, "f"), quotes = []) {
+    let recentVotingError;
+    let recentVotingErrorWeight;
+    const quoteMap = new Map();
+    for (const quote of quotes) {
+        quoteMap.set(quote.issuer.publicKeyAndTypeString, quote);
+    }
+    const votePromises = [];
+    for (const rep of reps) {
+        const quote = quoteMap.get(rep.key.publicKeyAndTypeString);
+        if (quote !== undefined) {
+            request.quote = Buffer.from(quote.toBytes()).toString('base64');
+        }
+        votePromises.push((async () => {
+            try {
+                const apiResult = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, api, {
+                    body: request
+                });
+                return (apiResult);
+            }
+            catch (voteError) {
+                const weight = rep.weight ?? 0n;
+                if (recentVotingErrorWeight === undefined || weight > recentVotingErrorWeight) {
+                    recentVotingError = voteError;
+                    recentVotingErrorWeight = weight;
+                }
+            }
+            return (undefined);
+        })());
+    }
+    const votesObjects = await Promise.allSettled(votePromises);
+    const retval = [];
+    let voteSettlementError;
+    for (const voteObjectWrapperSettled of votesObjects) {
+        if (voteObjectWrapperSettled.status === 'rejected') {
+            voteSettlementError = voteObjectWrapperSettled.reason;
+            continue;
+        }
+        const voteObjectWrapper = voteObjectWrapperSettled.value;
+        if (voteObjectWrapper === undefined) {
+            continue;
+        }
+        if ('vote' in voteObjectWrapper) {
+            const voteObject = voteObjectWrapper['vote'];
+            const voteBin = Buffer.from(voteObject['$binary'], 'base64');
+            const vote = new lib_1.default.Vote(voteBin);
+            retval.push(vote);
+        }
+        else if ('quote' in voteObjectWrapper) {
+            const voteObject = voteObjectWrapper['quote'];
+            const quoteBin = Buffer.from(voteObject['$binary'], 'base64');
+            const quote = new lib_1.default.Vote.Quote(quoteBin);
+            retval.push(quote);
+        }
+        else {
+            throw (new Error('Vote or Quote not in response'));
+        }
+    }
+    if (retval.length === 0 && recentVotingError !== undefined) {
+        if (recentVotingError !== undefined) {
+            /*
+             * We're re-throwing this error, it is one
+             * of the rejected promises
+             */
+            throw (recentVotingError);
+        }
+        else if (voteSettlementError !== undefined) {
+            /*
+             * We're re-throwing this error, it is one
+             * of the rejected promises
+             */
+            throw (voteSettlementError);
+        }
+        else {
+            throw (new Error('Unknown error requesting all votes'));
+        }
+    }
+    return (retval);
+}, _Client_requestQuotes = async function _Client_requestQuotes(blocks, reps = __classPrivateFieldGet(this, _Client_reps, "f")) {
+    // Wait for reps promise to ensure we have the right list of reps and their weight
+    await __classPrivateFieldGet(this, _Client_updateRepsPromise, "f");
+    const request = {
+        blocks: blocks.map(function (block) {
+            return (Buffer.from(block.toBytes()).toString('base64'));
+        })
+    };
+    const quotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVoteOrQuote).call(this, 'POST /vote/quote', request, reps);
+    return (quotes);
+}, _Client_requestVotes = async function _Client_requestVotes(blocks, otherVotes, reps = __classPrivateFieldGet(this, _Client_reps, "f"), quotes) {
     // Wait for reps promise to ensure we have the right list of reps and their weight
     await __classPrivateFieldGet(this, _Client_updateRepsPromise, "f");
     const request = {
@@ -59318,66 +59477,8 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
             });
         }
     }
-    let recentVotingError;
-    let recentVotingErrorWeight;
-    const votePromises = [];
-    for (const rep of reps) {
-        votePromises.push((async () => {
-            try {
-                const apiResult = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'POST /vote/_root', {
-                    body: request
-                });
-                return (apiResult);
-            }
-            catch (voteError) {
-                if (otherVotes !== undefined) {
-                    throw (voteError);
-                }
-                const weight = rep.weight ?? 0n;
-                if (recentVotingErrorWeight === undefined || weight > recentVotingErrorWeight) {
-                    recentVotingError = voteError;
-                    recentVotingErrorWeight = weight;
-                }
-            }
-            return (undefined);
-        })());
-    }
-    const votesObjects = await Promise.allSettled(votePromises);
-    const retval = [];
-    let voteSettlementError;
-    for (const voteObjectWrapperSettled of votesObjects) {
-        if (voteObjectWrapperSettled.status === 'rejected') {
-            voteSettlementError = voteObjectWrapperSettled.reason;
-            continue;
-        }
-        const voteObjectWrapper = voteObjectWrapperSettled.value;
-        if (voteObjectWrapper === undefined) {
-            continue;
-        }
-        const voteObject = voteObjectWrapper['vote'];
-        const voteBin = Buffer.from(voteObject['$binary'], 'base64');
-        retval.push(new lib_1.default.Vote(voteBin));
-    }
-    if (retval.length === 0 && recentVotingError !== undefined) {
-        if (recentVotingError !== undefined) {
-            /*
-             * We're re-throwing this error, it is one
-             * of the rejected promises
-             */
-            throw (recentVotingError);
-        }
-        else if (voteSettlementError !== undefined) {
-            /*
-             * We're re-throwing this error, it is one
-             * of the rejected promises
-             */
-            throw (voteSettlementError);
-        }
-        else {
-            throw (new Error('Unknown error requesting all votes'));
-        }
-    }
-    return (retval);
+    const votes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVoteOrQuote).call(this, 'POST /vote/_root', request, reps, quotes);
+    return (votes);
 }, _Client_getVotes = async function _Client_getVotes(blockhash, side = 'main', rep = 'ANY') {
     const query = {
         side: (0, common_1.assertLedgerStorage)(side)
@@ -59742,7 +59843,14 @@ class UserClient {
         const { networkAddress, baseToken } = lib_1.default.Account.generateBaseAddresses(config.network);
         this.networkAddress = networkAddress;
         this.baseToken = baseToken;
-        __classPrivateFieldSet(this, _UserClient_config, config, "f");
+        __classPrivateFieldSet(this, _UserClient_config, {
+            generateFeeBlock: async (staple) => {
+                const builder = this.initBuilder();
+                const block = await builder.computeFeeBlock(staple);
+                return (block);
+            },
+            ...config
+        }, "f");
         // For event listeners/polling
         __classPrivateFieldSet(this, _UserClient_listeners, {}, "f");
         __classPrivateFieldSet(this, _UserClient_intervals, {}, "f");
@@ -59864,11 +59972,12 @@ class UserClient {
      * instead of this one.
      *
      * @param builder The builder to publish
+     * @param options options for publishing {@link PublishOptions }
      * @return The vote staple that was generated and whether it was able to be published
      */
-    async publishBuilder(builder) {
+    async publishBuilder(builder, options = { generateFeeBlock: __classPrivateFieldGet(this, _UserClient_config, "f").generateFeeBlock }) {
         if (!__classPrivateFieldGet(this, _UserClient_config, "f").usePublishAid) {
-            return (await __classPrivateFieldGet(this, _UserClient_client, "f").transmit(builder, this.network));
+            return (await __classPrivateFieldGet(this, _UserClient_client, "f").transmitBuilder(builder, this.network, options));
         }
         await __classPrivateFieldGet(this, _UserClient_client, "f").computeBuilderBlocks(this.network, builder);
         const retval = await __classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_publishWithPublishAid).call(this, builder.blocks);
@@ -59940,6 +60049,14 @@ class UserClient {
             }
         }
         throw (new Error('Unreachable code reached in UserClient.send'));
+    }
+    /**
+     * Gets a quote for the cost for a given set of blocks from each representative
+     * @param blocks
+     * @returns A list of quotes from representatives the client knows about
+     */
+    async getQuotes(blocks) {
+        return (await __classPrivateFieldGet(this, _UserClient_client, "f").getVoteQuotes(blocks));
     }
     /**
      * Generate a new identifier for the given type and publish the blocks
@@ -60543,7 +60660,9 @@ exports.baseValidationConfig = {
         },
         supply: {
             maxValue: (10n ** 200n) - 1n
-        }
+        },
+        blockSignerCount: { maxValue: 16n },
+        blockSignerDepth: { maxValue: 3n }
     },
     permissions: {
         maxExternalOffset: 32
@@ -62308,25 +62427,25 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
 var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
     if (kind === "m") throw new TypeError("Private method is not writable");
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
-var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Block_instances, _Block_valueBytes, _Block_valueHash, _Block_validateOperations, _Block_validateSignature, _BlockBuilder_block;
+var _Block_instances, _a, _Block_valueBytes, _Block_valueHash, _Block_getSortedRequiredSigners, _Block_validateOperationsPurpose, _Block_validateSignerField, _Block_validateSignatures, _BlockBuilder_block;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BlockBuilder = exports.Block = exports.BlockHash = exports.AdjustMethod = void 0;
-exports.assertAdjustMethod = assertAdjustMethod;
-const account_1 = __importDefault(__webpack_require__(9415));
+exports.BlockBuilder = exports.Block = exports.BlockHash = exports.AdjustMethod = exports.BlockPurpose = void 0;
+exports.toAdjustMethod = toAdjustMethod;
+const account_1 = __importStar(__webpack_require__(9415));
 const buffer_1 = __webpack_require__(3310);
 const hash_1 = __webpack_require__(7908);
 const ASN1 = __importStar(__webpack_require__(6045));
@@ -62334,16 +62453,41 @@ const helper_1 = __webpack_require__(3208);
 const util_1 = __webpack_require__(9023);
 const Operations = __importStar(__webpack_require__(2778));
 const block_1 = __importDefault(__webpack_require__(7412));
+const common_1 = __webpack_require__(5663);
 const NO_PREVIOUS = '9bd05fa2-8e59-42a2-8153-26d8e8c10143:NO_PREVIOUS';
+var BlockPurpose;
+(function (BlockPurpose) {
+    BlockPurpose[BlockPurpose["GENERIC"] = 0] = "GENERIC";
+    BlockPurpose[BlockPurpose["FEE"] = 1] = "FEE";
+})(BlockPurpose || (exports.BlockPurpose = BlockPurpose = {}));
+function toBlockPurpose(value) {
+    if (typeof value === 'bigint') {
+        value = Number(value);
+    }
+    if (typeof value !== 'number') {
+        throw (new Error(`Invalid BlockPurpose supplied: got ${value} -- ${typeof value}`));
+    }
+    // We add this type assertion to make sure the switch is exhaustive
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    switch (value) {
+        case BlockPurpose.GENERIC:
+        case BlockPurpose.FEE:
+            return (value);
+    }
+    throw (new Error(`Invalid BlockPurpose supplied: got ${value} -- ${typeof value}`));
+}
 var AdjustMethod;
 (function (AdjustMethod) {
     AdjustMethod[AdjustMethod["ADD"] = 0] = "ADD";
     AdjustMethod[AdjustMethod["SUBTRACT"] = 1] = "SUBTRACT";
     AdjustMethod[AdjustMethod["SET"] = 2] = "SET";
 })(AdjustMethod || (exports.AdjustMethod = AdjustMethod = {}));
-function assertAdjustMethod(value, bigintOkay) {
-    if (bigintOkay && typeof value === 'bigint') {
+function toAdjustMethod(value) {
+    if (typeof value === 'bigint') {
         value = Number(value);
+    }
+    if (typeof value !== 'number') {
+        throw (new Error(`Invalid AdjustMethod supplied: got ${value} -- ${typeof value}`));
     }
     // We add this type assertion to make sure the switch is exhaustive
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -62388,7 +62532,7 @@ BlockHash.Set = (0, helper_1.setGenerator)(BlockHash, function (value) {
     return (new BlockHash(Buffer.from(value, 'hex')));
 });
 /** @internal */
-const BlockASN1Schema = [
+const BlockV1ASN1Schema = [
     0n,
     ASN1.BufferStorageASN1.Validate.IsInteger,
     { choice: [ASN1.BufferStorageASN1.Validate.IsInteger, ASN1.BufferStorageASN1.Validate.IsNull] },
@@ -62399,28 +62543,154 @@ const BlockASN1Schema = [
     { sequenceOf: { choice: Object.values(Operations.BlockOperationASN1Schema) } },
     ASN1.BufferStorageASN1.Validate.IsOctetString
 ];
+const multisigSignerInfoASN1Schema = [
+    ASN1.BufferStorageASN1.Validate.IsOctetString,
+    {
+        sequenceOf: {
+            choice: [
+                // XXX:TODO We need to use a type assertion here because the ASN1 schema does not support recursive types
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                (() => multisigSignerInfoASN1Schema),
+                ASN1.BufferStorageASN1.Validate.IsOctetString
+            ]
+        }
+    }
+];
+function parseBlockSignerFieldContainer(input, state) {
+    if (!state) {
+        state = { depth: 0 };
+    }
+    else if (state.depth > 3) {
+        throw (new block_1.default('BLOCK_INVALID_MULTISIG_SIGNER_DEPTH', 'Multisig signer depth exceeded maximum allowed depth'));
+    }
+    const multisigAccount = account_1.default.fromPublicKeyAndType(input[0]).assertKeyType(account_1.AccountKeyAlgorithm.MULTISIG);
+    const signers = [];
+    // XXX:TODO We need to use a type assertion here because the ASN1 schema does not support recursive types properly
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    for (const signer of input[1]) {
+        let parsedSigner;
+        if (Buffer.isBuffer(signer)) {
+            parsedSigner = account_1.default.fromPublicKeyAndType(signer).assertAccount();
+        }
+        else if (signer && Array.isArray(signer)) {
+            if (signer.length !== 2) {
+                throw (new Error('Multisig signer must have two items'));
+            }
+            if (!Buffer.isBuffer(signer[0])) {
+                throw (new Error('Multisig signer first item must be a buffer'));
+            }
+            if (!Array.isArray(signer[1])) {
+                throw (new Error('Multisig signer second item must be an array'));
+            }
+            // XXX:TODO We need to use a type assertion here because we are not asserting the type recursively
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            const inner = parseBlockSignerFieldContainer(signer, { depth: state.depth + 1 });
+            parsedSigner = inner.parsed;
+        }
+        else {
+            throw (new Error('Multisig signer must be a buffer or an array'));
+        }
+        signers.push(parsedSigner);
+    }
+    return ({
+        parsed: [multisigAccount, signers],
+        depth: state.depth
+    });
+}
+function getMultisigSignerContainer(input) {
+    const out = [input[0].publicKeyAndType, []];
+    for (const signer of input[1]) {
+        let parsed;
+        if (Array.isArray(signer)) {
+            parsed = getMultisigSignerContainer(signer);
+        }
+        else {
+            parsed = signer.publicKeyAndType;
+        }
+        out[1].push(parsed);
+    }
+    // XXX:TODO We need to use a type assertion here because the ASN1 schema does not support recursive types properly
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return out;
+}
+/** @internal */
+const BlockV2ASN1Schema = {
+    type: 'context',
+    kind: 'explicit',
+    value: 1,
+    contains: [
+        ASN1.BufferStorageASN1.Validate.IsInteger,
+        { optional: ASN1.BufferStorageASN1.Validate.IsInteger },
+        { type: 'date', kind: 'general' },
+        ASN1.BufferStorageASN1.Validate.IsInteger,
+        ASN1.BufferStorageASN1.Validate.IsOctetString,
+        {
+            choice: [
+                ASN1.BufferStorageASN1.Validate.IsNull,
+                // If principal has a private key, the signature of principal
+                ASN1.BufferStorageASN1.Validate.IsOctetString,
+                // If principal does not have private key, list of accounts signing on behalf of principal and their signatures
+                multisigSignerInfoASN1Schema
+            ]
+        },
+        ASN1.BufferStorageASN1.Validate.IsOctetString,
+        { sequenceOf: { choice: Object.values(Operations.BlockOperationASN1Schema) } },
+        {
+            choice: [
+                // If principal has a private key, the signature of principal
+                ASN1.BufferStorageASN1.Validate.IsOctetString,
+                // If principal does not have private key, list of accounts signing on behalf of principal and their signatures
+                { sequenceOf: ASN1.BufferStorageASN1.Validate.IsOctetString }
+            ]
+        }
+    ]
+};
+const BlockASN1Schema = {
+    choice: [
+        BlockV1ASN1Schema,
+        BlockV2ASN1Schema
+    ]
+};
+function parseBlockSignerFieldJSON(input) {
+    if (!Array.isArray(input)) {
+        return (account_1.default.toAccount(input).assertAccount());
+    }
+    if (input.length !== 2) {
+        throw (new Error('Multisig signer field must have two items'));
+    }
+    const signer = account_1.default.toAccount(input[0]).assertKeyType(account_1.AccountKeyAlgorithm.MULTISIG);
+    const innerSigners = [];
+    for (const signer of input[1]) {
+        innerSigners.push(parseBlockSignerFieldJSON(signer));
+    }
+    return ([signer, innerSigners]);
+}
 /**
  * Statically assert that the BlockASN1 type is compatible with BlockASN1Schema
  * @internal
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function _ignore_static_checks() {
+    // V1 Checks
     // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/consistent-type-assertions
-    const _ignore_check_blockasn1_forward_1 = {};
+    const _ignore_check_blockasn1v1_forward_1 = {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _ignore_check_blockasn1_forward_2 = _ignore_check_blockasn1_forward_1;
+    const _ignore_check_blockasn1v1_forward_2 = _ignore_check_blockasn1v1_forward_1;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/consistent-type-assertions
-    const _ignore_check_blockasn1_reverse_1 = {};
+    const _ignore_check_blockasn1v1_reverse_1 = {};
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _ignore_check_blockasn1_reverse_2 = _ignore_check_blockasn1_reverse_1;
+    const _ignore_check_blockasn1v1_reverse_2 = _ignore_check_blockasn1v1_reverse_1;
+    // V2 Checks
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/consistent-type-assertions
+    const _ignore_check_blockasn1v2_forward_1 = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _ignore_check_blockasn1v2_forward_2 = _ignore_check_blockasn1v2_forward_1;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,@typescript-eslint/consistent-type-assertions
+    const _ignore_check_blockasn1v2_reverse_1 = {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _ignore_check_blockasn1v2_reverse_2 = _ignore_check_blockasn1v2_reverse_1;
 }
-function assertBlockBlockCanonicalVersion(input) {
-    const expected = 1;
-    if (input !== expected) {
-        throw (new Error('Invalid block version'));
-    }
-}
-function MapInputValues(input) {
+function MapV1InputValues(input) {
     const output = {};
     if (input.version !== 1) {
         throw (new Error('MapInputValues should not be called with version != 1'));
@@ -62433,6 +62703,9 @@ function MapInputValues(input) {
      * Import account
      */
     output.account = account_1.default.toAccount(input.account) ?? undefined;
+    if (Array.isArray(input.signer)) {
+        throw (new Error('V1 block signer must not be a multisig signer'));
+    }
     output.signer = account_1.default.toAccount(input.signer);
     if (!output.signer && output.account?.isAccount()) {
         output.signer = output.account;
@@ -62485,37 +62758,129 @@ function MapInputValues(input) {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return output;
 }
+function MapV2InputValues(input) {
+    const output = {};
+    if (input.version !== 2) {
+        throw (new Error('MapInputValues should not be called with version != 2'));
+    }
+    output.version = input.version;
+    output.purpose = input.purpose;
+    if (input.date !== undefined) {
+        output.date = new Date(input.date);
+    }
+    /*
+     * Import account
+     */
+    output.account = account_1.default.toAccount(input.account) ?? undefined;
+    /*
+     * Import previous block hash
+     */
+    if (input.previous !== undefined) {
+        if (BlockHash.isInstance(input.previous)) {
+            output.previous = input.previous;
+        }
+        else if (input.previous === NO_PREVIOUS) {
+            if (output.account) {
+                output.previous = BlockHash.getAccountOpeningHash(output.account);
+            }
+        }
+        else {
+            output.previous = new BlockHash(input.previous);
+        }
+    }
+    /*
+     * Import network
+     */
+    if (input.network !== undefined) {
+        output.network = BigInt(input.network);
+    }
+    /*
+     * Import Subnet
+     */
+    if (input.subnet !== undefined) {
+        output.subnet = BigInt(input.subnet);
+    }
+    /*
+     * Import operations from JSON
+     */
+    if (input.operations !== undefined) {
+        output.operations = Operations.ImportOperationsJSON(input.operations);
+    }
+    if (input.signer !== undefined) {
+        output.signer = parseBlockSignerFieldJSON(input.signer);
+    }
+    // This is valid, the compiler does not understand that we are adding all of the values in this function
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return output;
+}
+function assertBlockSignatureField(input) {
+    if (input.length < 1) {
+        throw (new Error('Input must include 1+ signatures'));
+    }
+}
 /**
  * Block:  An item which contains a number of operations (transactions) which
  * originated from an account at a particular instant
  */
 class Block {
+    get principal() {
+        if (Array.isArray(this.signer)) {
+            return (this.signer[0]);
+        }
+        else {
+            return (this.signer);
+        }
+    }
     static async fromUnsignedJSON(input) {
         const inputCheck = input;
         if (typeof inputCheck === 'object' && inputCheck !== null) {
-            if ('signature' in inputCheck) {
-                throw (new Error('fromUnsignedJSON() was called when a signature already exists'));
+            if ('signature' in inputCheck || 'signatures' in inputCheck) {
+                throw (new Error('fromUnsignedJSON() was called when a signature(s) already exists'));
             }
         }
-        const container = Block.getASN1ContainerWithoutSignature(input);
+        const container = this.getASN1ContainerWithoutSignature(input);
+        // We have to ignore the type here because the ASN1.JStoASN1 function does not handle recursive types well
+        // @ts-ignore
         const bytes = ASN1.JStoASN1(container).toBER(false);
         const hash = new BlockHash((0, hash_1.Hash)(Buffer.from(bytes)));
-        const signature = await input.signer.sign(hash.getBuffer());
-        return (new Block({
-            version: input.version,
-            date: input.date,
-            previous: input.previous,
-            account: input.account,
-            signer: input.signer,
-            operations: input.operations,
-            network: input.network,
-            subnet: input.subnet,
-            signature: signature.getBuffer()
+        const signers = __classPrivateFieldGet(this, _a, "m", _Block_getSortedRequiredSigners).call(this, input.signer);
+        const signatures = await Promise.all(signers.map(async function (signer) {
+            const signature = await signer.sign(hash.getBuffer());
+            return (signature.getBuffer());
         }));
+        let blockInput;
+        if (input.version === 1) {
+            blockInput = { ...input, signature: signatures[0] };
+        }
+        else {
+            blockInput = { ...input, signatures };
+        }
+        return (new _a(blockInput));
     }
-    static isValidJSON(block) {
-        for (const checkField of ['version', 'date', 'previous', 'network', 'network', 'account', 'signer', 'signature', 'operations']) {
-            if (block[checkField] === undefined) {
+    static isValidJSON(block, version) {
+        if (!block || typeof block !== 'object' || Array.isArray(block)) {
+            return (false);
+        }
+        if (!('version' in block)) {
+            return (false);
+        }
+        if (version !== undefined && block.version !== version) {
+            return (false);
+        }
+        const checkFields = ['date', 'previous', 'network', 'network', 'account', 'signer', 'operations'];
+        if (block.version === 1) {
+            checkFields.push('signature');
+        }
+        else if (block.version === 2) {
+            checkFields.push('signatures');
+            checkFields.push('purpose');
+        }
+        else {
+            return (false);
+        }
+        for (const checkField of checkFields) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            if (!(checkField in block) || block[checkField] === undefined) {
                 return (false);
             }
         }
@@ -62526,7 +62891,6 @@ class Block {
         _Block_valueBytes.set(this, void 0);
         _Block_valueHash.set(this, void 0);
         // Extra attributes
-        this.$signatureValid = true;
         this.$opening = false;
         if (typeof input === 'string') {
             input = Buffer.from(input, 'base64');
@@ -62535,75 +62899,159 @@ class Block {
             input = (0, helper_1.bufferToArrayBuffer)(input);
         }
         if (util_1.types.isArrayBuffer(input)) {
-            /*
-             * TypeScript cannot deal with this complex type, so we have to manually
-             * specify the type -- this might be fixed in TypeScript 5.7+
-             */
-            // @ts-ignore
             const data = new ASN1.BufferStorageASN1(input, BlockASN1Schema).getASN1();
-            if (data[0] !== 0n) {
-                throw (new block_1.default('BLOCK_INVALID_VERSION', 'Only version 1 is supported'));
+            if (Array.isArray(data)) {
+                if (data[0] !== 0n) {
+                    throw (new Error('Invalid block version without context tag'));
+                }
+                this.version = 1;
+                this.purpose = BlockPurpose.GENERIC;
+                this.network = data[1];
+                this.subnet = data[2] ?? undefined;
+                this.date = data[3].date;
+                const signerContainer = data[4];
+                this.signer = account_1.default.fromPublicKeyAndType(signerContainer).assertAccount();
+                const acctItem = data[5];
+                if (acctItem === null) {
+                    this.account = this.signer;
+                }
+                else {
+                    this.account = account_1.default.fromPublicKeyAndType(acctItem);
+                    if (this.account.comparePublicKey(this.signer)) {
+                        throw (new Error('Account should not be in block when it is same as signer, we cannot use this block'));
+                    }
+                }
+                const prevHashBuf = data[6];
+                this.previous = new BlockHash(prevHashBuf);
+                this.operations = Operations.ImportOperationsASN1(data[7], this.network);
+                this.signatures = [data[8]];
             }
-            const version = Number(data[0]) + 1;
-            assertBlockBlockCanonicalVersion(version);
-            this.version = version;
-            this.network = data[1];
-            this.subnet = data[2] ?? undefined;
-            this.date = data[3].date;
-            const signerPubKey = data[4];
-            this.signer = account_1.default.fromPublicKeyAndType(signerPubKey).assertAccount();
-            const acctItem = data[5];
-            if (acctItem === null) {
-                this.account = this.signer;
-            }
-            else {
-                this.account = account_1.default.fromPublicKeyAndType(acctItem);
-                if (this.account.comparePublicKey(this.signer)) {
-                    throw (new Error('Account should not be in block when it is same as signer, we cannot use this block'));
+            else if (data.value === 1) {
+                this.version = 2;
+                const container = data.contains;
+                this.network = container[0];
+                this.subnet = container[1] ?? undefined;
+                this.date = container[2].date;
+                this.purpose = toBlockPurpose(container[3]);
+                this.account = account_1.default.fromPublicKeyAndType(container[4]);
+                const signersContainer = container[5];
+                if (signersContainer === null) {
+                    this.signer = this.account.assertAccount();
+                }
+                else if (Buffer.isBuffer(signersContainer)) {
+                    this.signer = account_1.default.fromPublicKeyAndType(signersContainer).assertAccount();
+                    if (this.account.comparePublicKey(this.signer)) {
+                        throw (new Error('Signer should not be in block when it is same as account, we cannot use this block'));
+                    }
+                }
+                else {
+                    this.signer = parseBlockSignerFieldContainer(signersContainer).parsed;
+                }
+                this.previous = new BlockHash(container[6]);
+                this.operations = Operations.ImportOperationsASN1(container[7], this.network);
+                const signatureContainer = container[8];
+                if (Buffer.isBuffer(signatureContainer)) {
+                    this.signatures = [signatureContainer];
+                }
+                else {
+                    if (signatureContainer.length <= 1) {
+                        throw (new Error('Signature field invalid, must be greater than one when using sequence of'));
+                    }
+                    assertBlockSignatureField(signatureContainer);
+                    this.signatures = signatureContainer;
                 }
             }
-            const prevHashBuf = data[6];
-            this.previous = new BlockHash(prevHashBuf);
-            this.operations = Operations.ImportOperationsASN1(data[7], this.network);
-            this.signature = data[8];
+            else {
+                throw (new Error('Unknown block version'));
+            }
             __classPrivateFieldSet(this, _Block_valueBytes, input, "f");
         }
         else {
-            if (!Block.isValidJSON(input)) {
+            if (_a.isInstance(input)) {
+                this.version = input.version;
+                this.purpose = input.purpose;
+                this.date = input.date;
+                this.previous = input.previous;
+                this.network = input.network;
+                this.subnet = input.subnet;
+                this.account = input.account;
+                this.operations = input.operations;
+                this.signer = input.signer;
+                this.signatures = input.signatures;
+            }
+            else if (_a.isValidJSON(input, 1)) {
+                /*
+                * Map input to our values
+                */
+                const { version, date, previous, network, subnet, account, operations, signer } = MapV1InputValues(input);
+                this.version = version;
+                this.purpose = BlockPurpose.GENERIC;
+                this.date = date;
+                this.previous = previous;
+                this.network = network;
+                this.subnet = subnet;
+                this.account = account;
+                this.operations = operations;
+                this.signer = signer;
+                /*
+                * We must handle the signature last because we will
+                * sign the hash of the block based on what has been
+                * processed
+                */
+                if (input.signature === undefined) {
+                    throw (new Error('Cannot construct block without a signature and explicit direction to sign'));
+                }
+                let signature;
+                if (typeof input.signature === 'string') {
+                    signature = Buffer.from(input.signature, 'hex');
+                }
+                else {
+                    signature = Buffer.from(input.signature);
+                }
+                this.signatures = [signature];
+            }
+            else if (_a.isValidJSON(input, 2)) {
+                /*
+                * Map input to our values
+                */
+                const { version, date, previous, network, subnet, account, operations, signer, purpose } = MapV2InputValues(input);
+                this.version = version;
+                this.purpose = purpose;
+                this.date = date;
+                this.previous = previous;
+                this.network = network;
+                this.subnet = subnet;
+                this.account = account;
+                this.signer = signer;
+                this.operations = operations;
+                /*
+                * We must handle the signature last because we will
+                * sign the hash of the block based on what has been
+                * processed
+                */
+                if (input.signatures === undefined) {
+                    throw (new Error('Cannot construct block without a signature and explicit direction to sign'));
+                }
+                const signatures = input.signatures.map(function (signature) {
+                    if (typeof signature === 'string') {
+                        return (Buffer.from(signature, 'hex'));
+                    }
+                    else {
+                        return (Buffer.from(signature));
+                    }
+                });
+                assertBlockSignatureField(signatures);
+                this.signatures = signatures;
+            }
+            else {
                 throw (new Error('Cannot construct block, it is not a valid Block JSON object'));
             }
             /* XXX:TODO: Verify that no extra keys were passed in */
-            /*
-             * Map input to our values
-             */
-            const { version, date, previous, network, subnet, account, operations, signer } = MapInputValues(input);
-            this.version = version;
-            this.date = date;
-            this.previous = previous;
-            this.network = network;
-            this.subnet = subnet;
-            this.account = account;
-            this.signer = signer;
-            this.operations = operations;
-            /*
-             * We must handle the signature last because we will
-             * sign the hash of the block based on what has been
-             * processed
-             */
-            if (input.signature === undefined) {
-                throw (new Error('Cannot construct block without a signature and explicit direction to sign'));
-            }
-            if (typeof input.signature === 'string') {
-                this.signature = Buffer.from(input.signature, 'hex');
-            }
-            else {
-                this.signature = Buffer.from(input.signature);
-            }
         }
         if (this.previous.compareHexString(this.hash)) {
             throw (new block_1.default('BLOCK_PREVIOUS_SELF', 'internal error: Block references itself'));
         }
-        const checkAccountOpening = Block.getAccountOpeningHash(this.account);
+        const checkAccountOpening = _a.getAccountOpeningHash(this.account);
         this.$opening = this.previous.compareHexString(checkAccountOpening);
         if (this.network < 0n) {
             throw (new Error('Network ID must be a positive number'));
@@ -62613,35 +63061,91 @@ class Block {
                 throw (new Error('Subnet ID must be a positive number'));
             }
         }
-        if (this.version !== 1) {
-            throw (new Error('We only support Blocks with Version 1'));
+        if (this.version !== 1 && this.version !== 2) {
+            throw (new block_1.default('BLOCK_INVALID_VERSION', 'We only support Blocks Version 1-2'));
         }
         if (this.account.isMultisig()) {
             throw (new block_1.default('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account'));
         }
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateOperations).call(this);
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignature).call(this);
+        if (this.account.isMultisig()) {
+            throw (new block_1.default('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account'));
+        }
+        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignerField).call(this);
+        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateOperationsPurpose).call(this);
+        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignatures).call(this);
     }
     static getAccountOpeningHash(account) {
         return (BlockHash.getAccountOpeningHash(account));
     }
-    toBytes(includeSignature = true) {
-        if (__classPrivateFieldGet(this, _Block_valueBytes, "f") !== undefined) {
-            if (includeSignature) {
-                return (__classPrivateFieldGet(this, _Block_valueBytes, "f"));
+    toBytes(includeSignatures = true) {
+        if (__classPrivateFieldGet(this, _Block_valueBytes, "f") !== undefined && includeSignatures) {
+            return (__classPrivateFieldGet(this, _Block_valueBytes, "f"));
+        }
+        const sharedBlockValues = {
+            previous: this.previous,
+            operations: this.operations,
+            account: this.account,
+            network: this.network,
+            subnet: this.subnet,
+            date: this.date
+        };
+        let container;
+        if (this.version === 1) {
+            if (Array.isArray(this.signer) || this.signatures.length !== 1) {
+                throw (new Error('Block v1 only supports single signer'));
+            }
+            container = _a.getV1ASN1ContainerWithoutSignature({
+                ...sharedBlockValues,
+                version: 1,
+                signer: this.signer
+            });
+            if (includeSignatures) {
+                container.push(this.signatures[0]);
             }
         }
-        const container = Block.getASN1ContainerWithoutSignature(this);
-        if (includeSignature) {
-            container.push(this.signature);
+        else {
+            const versionTag = this.version - 1;
+            if (versionTag !== 1) {
+                // We only support version 2
+                throw (new block_1.default('BLOCK_INVALID_VERSION', 'We only support version 1/2 blocks'));
+            }
+            const v2Container = _a.getV2ASN1ContainerWithoutSignature({
+                ...sharedBlockValues,
+                purpose: this.purpose,
+                version: this.version,
+                signer: this.signer
+            });
+            const baseContextTag = {
+                type: 'context',
+                kind: 'explicit',
+                value: versionTag
+            };
+            if (includeSignatures) {
+                let signatureContainer;
+                if (this.signatures.length > 1) {
+                    signatureContainer = this.signatures;
+                }
+                else if (this.signatures.length === 1) {
+                    signatureContainer = this.signatures[0];
+                }
+                else {
+                    throw (new Error('Block has not been signed'));
+                }
+                container = { ...baseContextTag, contains: [...v2Container, signatureContainer] };
+            }
+            else {
+                container = { ...baseContextTag, contains: v2Container };
+            }
         }
+        // We know the container is valid because of the container type, but the ASN1.JStoASN1 function does not handle recursive types well
+        // @ts-ignore
         const retval = ASN1.JStoASN1(container).toBER(false);
-        if (includeSignature) {
+        if (includeSignatures) {
             __classPrivateFieldSet(this, _Block_valueBytes, retval, "f");
         }
         return (retval);
     }
-    static getASN1ContainerWithoutSignature(input) {
+    static getV1ASN1ContainerWithoutSignature(input) {
         let outputAccount;
         if (input.account.comparePublicKey(input.signer)) {
             outputAccount = null;
@@ -62652,7 +63156,7 @@ class Block {
         if (input.version !== 1) {
             throw (new Error('Cannot call getASN1ContainerWithoutSignature when version != 1'));
         }
-        const container = [
+        return ([
             0n,
             input.network,
             input.subnet ?? null,
@@ -62661,21 +63165,72 @@ class Block {
             outputAccount,
             Buffer.from(input.previous.get()),
             Operations.ExportBlockOperations([...input.operations])
-        ];
-        return (container);
+        ]);
+    }
+    static getV2ASN1ContainerWithoutSignature(input) {
+        if (input.version !== 2) {
+            throw (new Error('Only version 2 supported'));
+        }
+        let signerContainer;
+        if (Array.isArray(input.signer)) {
+            signerContainer = getMultisigSignerContainer(input.signer);
+        }
+        else if (input.signer.comparePublicKey(input.account)) {
+            signerContainer = null;
+        }
+        else {
+            signerContainer = input.signer.publicKeyAndType;
+        }
+        return ([
+            input.network,
+            input.subnet,
+            { type: 'date', kind: 'general', date: input.date },
+            BigInt(input.purpose),
+            input.account.publicKeyAndType,
+            signerContainer,
+            Buffer.from(input.previous.get()),
+            Operations.ExportBlockOperations([...input.operations])
+        ]);
+    }
+    static getASN1ContainerWithoutSignature(input) {
+        if (input.version === 1) {
+            return (this.getV1ASN1ContainerWithoutSignature(input));
+        }
+        else if (input.version === 2) {
+            return ({
+                type: 'context',
+                kind: 'explicit',
+                value: 1,
+                contains: this.getV2ASN1ContainerWithoutSignature(input)
+            });
+        }
+        else {
+            throw (new block_1.default('BLOCK_INVALID_VERSION', 'Invalid Version'));
+        }
     }
     toJSON(options) {
         const additionalFields = {};
         if (options?.addBinary) {
             additionalFields['$binary'] = Buffer.from(this.toBytes()).toString('base64');
         }
+        const signatures = this.signatures.map(function (signature) {
+            return (signature.toString('hex').toUpperCase());
+        });
+        if (this.version === 1) {
+            additionalFields.signature = signatures[0];
+        }
+        else {
+            additionalFields.signatures = signatures;
+        }
         return ({
             version: this.version,
             date: this.date,
             previous: this.previous,
             account: this.account,
+            purpose: this.purpose,
+            // XXX:TODO We need to use a type assertion here because toJSONSerializable does not support recursive types
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             signer: this.signer,
-            signature: this.signature.toString('hex').toUpperCase(),
             network: this.network,
             subnet: this.subnet,
             operations: Operations.ExportOperationsJSON(this.operations),
@@ -62702,7 +63257,27 @@ class Block {
     }
 }
 exports.Block = Block;
-_Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(), _Block_instances = new WeakSet(), _Block_validateOperations = function _Block_validateOperations() {
+_a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(), _Block_instances = new WeakSet(), _Block_getSortedRequiredSigners = function _Block_getSortedRequiredSigners(input) {
+    const queue = [input];
+    const visited = new account_1.default.Set();
+    const out = [];
+    while (queue.length > 0) {
+        // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const cur = queue.shift();
+        if (account_1.default.isInstance(cur)) {
+            if (visited.has(cur)) {
+                continue;
+            }
+            visited.add(cur);
+            out.push(cur);
+        }
+        else {
+            queue.unshift(...cur[1]);
+        }
+    }
+    return (out);
+}, _Block_validateOperationsPurpose = function _Block_validateOperationsPurpose() {
     /**
      * Do not allow blocks to contain invalid constructions
      */
@@ -62711,23 +63286,63 @@ _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(), _Block_inst
         operationIndex: 0
     };
     for (const operation of this.operations) {
+        if (this.purpose === BlockPurpose.FEE) {
+            if (operation.type !== Operations.OperationType.SEND) {
+                throw (new block_1.default('BLOCK_INVALID_PURPOSE_VALIDATION', `Block purpose is FEE, but operation at index ${context.operationIndex} is not a SEND operation`));
+            }
+        }
         operation.validate(context);
         context.operationIndex++;
     }
-}, _Block_validateSignature = function _Block_validateSignature() {
-    /* XXX:TODO: 64 is the size of signatures right now but this shouldn't be hard-coded */
-    const signature = new buffer_1.BufferStorage(this.signature, 64);
-    const valid = this.signer.verify(this.hash.get(), signature.get());
-    if (valid !== true) {
-        throw (new Error(`Unable to validate signature of ${this.hash.toString()} against signature ${this.signature}`));
+}, _Block_validateSignerField = function _Block_validateSignerField() {
+    if (!Array.isArray(this.signer)) {
+        return;
+    }
+    const queue = [[1n, this.signer]];
+    while (queue.length > 0) {
+        // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const [depth, cur] = queue.shift();
+        (0, common_1.validateBlockSignerDepth)(depth, this.network);
+        if (Array.isArray(cur)) {
+            (0, common_1.validateBlockSignerCount)(BigInt(cur[1].length), this.network);
+            const seen = new account_1.default.Set();
+            for (const innerSigner of cur[1]) {
+                let signer;
+                if (Array.isArray(innerSigner)) {
+                    signer = innerSigner[0];
+                    queue.push([depth + 1n, innerSigner]);
+                }
+                else {
+                    signer = innerSigner;
+                }
+                if (seen.has(signer)) {
+                    throw (new block_1.default('BLOCK_INVALID_MULTISIG_SIGNER_DUPLICATE', `Multisig signer at depth ${depth} has duplicate signer ${signer.publicKeyString.get()}`));
+                }
+                seen.add(signer);
+            }
+        }
+    }
+}, _Block_validateSignatures = function _Block_validateSignatures() {
+    const signers = __classPrivateFieldGet(_a, _a, "m", _Block_getSortedRequiredSigners).call(_a, this.signer);
+    if (this.signatures.length !== signers.length) {
+        throw (new block_1.default('BLOCK_INVALID_SIGNER', 'Signer count does not match signature count'));
+    }
+    for (let i = 0; i < signers.length; i++) {
+        const signature = new buffer_1.BufferStorage(this.signatures[i], 64);
+        const valid = signers[i].verify(this.hash.get(), signature.get());
+        if (valid !== true) {
+            throw (new Error(`Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i]} for account ${signers[i].publicKeyString.get()}`));
+        }
     }
 };
-Block.isInstance = (0, helper_1.checkableGenerator)(Block);
+Block.isInstance = (0, helper_1.checkableGenerator)(_a);
 Block.Hash = BlockHash;
 Block.OperationType = Operations.OperationType;
 Block.Operation = Operations.Operation;
 Block.NO_PREVIOUS = NO_PREVIOUS;
 Block.AdjustMethod = AdjustMethod;
+Block.Purpose = BlockPurpose;
 class BlockBuilder {
     constructor(block) {
         _BlockBuilder_block.set(this, void 0);
@@ -62745,13 +63360,13 @@ class BlockBuilder {
             __classPrivateFieldSet(this, _BlockBuilder_block, new Block(block), "f");
         }
         else {
-            if (block !== undefined && Block.isValidJSON(block)) {
+            if (block !== undefined && Block.isValidJSON(block, 2)) {
                 __classPrivateFieldSet(this, _BlockBuilder_block, new Block(block), "f");
             }
             else {
                 const incompleteBlockJSON = {
-                    version: 1,
                     date: (new Date()).toISOString(),
+                    version: 1,
                     ...block
                 };
                 /*
@@ -62761,7 +63376,18 @@ class BlockBuilder {
                 if (incompleteBlockJSON.previous === BlockBuilder.NO_PREVIOUS) {
                     setPreviousNoBlock = true;
                 }
-                const newBlockJSON = MapInputValues(incompleteBlockJSON);
+                let newBlockJSON;
+                if (incompleteBlockJSON.version === 1) {
+                    // We have to use a type assertion here because the MapV1InputValues function does not support recursive types
+                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                    newBlockJSON = MapV1InputValues({ ...incompleteBlockJSON, version: 1 });
+                }
+                else if (incompleteBlockJSON.version === 2) {
+                    newBlockJSON = MapV2InputValues({ ...incompleteBlockJSON, version: 2 });
+                }
+                else {
+                    throw (new Error('Cannot construct block, it is not a valid Block JSON object'));
+                }
                 if (setPreviousNoBlock) {
                     newBlockJSON.previous = BlockBuilder.NO_PREVIOUS;
                 }
@@ -62801,20 +63427,42 @@ class BlockBuilder {
             network: this.network,
             subnet: this.subnet,
             operations: this.operations,
+            purpose: this.purpose,
             ['$opening']: this.$opening
         });
     }
     async seal() {
-        const block = await Block.fromUnsignedJSON(MapInputValues(this));
+        if (this.version === undefined) {
+            throw (new Error('Cannot seal block without version'));
+        }
+        let input;
+        // There is no clean way to tell the compiler which version `this` is, so we have to use a type assertion
+        if (this.version === 1) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            input = MapV1InputValues(this);
+        }
+        else {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            input = MapV2InputValues(this);
+        }
+        const block = await Block.fromUnsignedJSON(input);
         __classPrivateFieldSet(this, _BlockBuilder_block, block, "f");
         return (block);
     }
     unseal() {
         let retval;
         if (Block.isInstance(__classPrivateFieldGet(this, _BlockBuilder_block, "f"))) {
-            __classPrivateFieldSet(this, _BlockBuilder_block, { ...__classPrivateFieldGet(this, _BlockBuilder_block, "f") }, "f");
+            __classPrivateFieldSet(this, _BlockBuilder_block, {
+                version: __classPrivateFieldGet(this, _BlockBuilder_block, "f").version,
+                date: __classPrivateFieldGet(this, _BlockBuilder_block, "f").date,
+                previous: __classPrivateFieldGet(this, _BlockBuilder_block, "f").previous,
+                account: __classPrivateFieldGet(this, _BlockBuilder_block, "f").account,
+                signer: __classPrivateFieldGet(this, _BlockBuilder_block, "f").signer,
+                network: __classPrivateFieldGet(this, _BlockBuilder_block, "f").network,
+                subnet: __classPrivateFieldGet(this, _BlockBuilder_block, "f").subnet,
+                operations: [...__classPrivateFieldGet(this, _BlockBuilder_block, "f").operations]
+            }, "f");
             retval = __classPrivateFieldGet(this, _BlockBuilder_block, "f");
-            delete retval['signature'];
         }
         else {
             retval = __classPrivateFieldGet(this, _BlockBuilder_block, "f");
@@ -62839,12 +63487,36 @@ class BlockBuilder {
         }
     }
     set signer(signer) {
-        this.currentWIP.signer = account_1.default.toAccount(signer);
+        if (signer) {
+            this.currentWIP.signer = parseBlockSignerFieldJSON(signer);
+        }
+        else {
+            this.currentWIP.signer = undefined;
+        }
     }
     get signer() {
         const signer = __classPrivateFieldGet(this, _BlockBuilder_block, "f").signer;
-        if (signer !== undefined && !account_1.default.isInstance(signer)) {
-            throw (new Error('internal error: We only represent signer as Account'));
+        if (signer === undefined) {
+            if (this.account && this.account.isAccount() && this.account.hasPrivateKey) {
+                return (this.account);
+            }
+        }
+        else {
+            const queue = [signer];
+            while (queue.length > 0) {
+                const cur = queue.shift();
+                let signer;
+                if (Array.isArray(cur)) {
+                    signer = cur[0];
+                    queue.push(...cur[1]);
+                }
+                else {
+                    signer = cur;
+                }
+                if (!account_1.default.isInstance(signer)) {
+                    throw (new Error('internal error: We only represent signer/multisig-info as their constructed values'));
+                }
+            }
         }
         return (signer);
     }
@@ -62856,7 +63528,16 @@ class BlockBuilder {
         if (account !== undefined && !account_1.default.isInstance(account)) {
             throw (new Error('internal error: We only represent account as an Account'));
         }
-        return (account ?? this.signer);
+        if (account === undefined && this.version === 1 || this.version === undefined) {
+            if (Array.isArray(this.signer)) {
+                throw (new Error('Cannot create a v1 block with a multisig signer'));
+            }
+            if (typeof this.signer === 'string') {
+                throw (new Error('We should only represent signer as an Account'));
+            }
+            return (this.signer);
+        }
+        return (account);
     }
     set previous(blockhash) {
         const wip = this.currentWIP;
@@ -62928,6 +63609,18 @@ class BlockBuilder {
     }
     get version() {
         return (this.currentBlock.version);
+    }
+    set purpose(purpose) {
+        if (purpose !== undefined && purpose !== BlockPurpose.GENERIC && this.version === 1) {
+            throw (new Error('Cannot set purpose (other than generic) on a v1 block'));
+        }
+        this.currentWIP.purpose = purpose;
+    }
+    get purpose() {
+        if (this.currentBlock.purpose !== undefined) {
+            return (this.currentBlock.purpose);
+        }
+        return (BlockPurpose.GENERIC);
     }
     set network(network) {
         this.currentWIP.network = network;
@@ -63025,7 +63718,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _BlockOperationSEND_instances, _BlockOperationSEND_to, _BlockOperationSEND_amount, _BlockOperationSEND_token, _BlockOperationSEND_computeToken, _BlockOperationRECEIVE_instances, _BlockOperationRECEIVE_amount, _BlockOperationRECEIVE_token, _BlockOperationRECEIVE_from, _BlockOperationRECEIVE_forward, _BlockOperationRECEIVE_exact, _BlockOperationRECEIVE_computeExact, _BlockOperationRECEIVE_computeForward, _BlockOperationRECEIVE_computeToken, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_instances, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_amount, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken, _BlockOperationSET_REP_to, _BlockOperationCREATE_IDENTIFIER_instances, _BlockOperationCREATE_IDENTIFIER_identifier, _BlockOperationCREATE_IDENTIFIER_computeIdentifier, _BlockOperationSET_INFO_instances, _BlockOperationSET_INFO_name, _BlockOperationSET_INFO_description, _BlockOperationSET_INFO_metadata, _BlockOperationSET_INFO_defaultPermission, _BlockOperationSET_INFO_validateNameDesc, _BlockOperationMODIFY_PERMISSIONS_instances, _BlockOperationMODIFY_PERMISSIONS_principal, _BlockOperationMODIFY_PERMISSIONS_target, _BlockOperationMODIFY_PERMISSIONS_method, _BlockOperationMODIFY_PERMISSIONS_permissions, _BlockOperationMODIFY_PERMISSIONS_computePermissions, _BlockOperationTOKEN_ADMIN_SUPPLY_instances, _BlockOperationTOKEN_ADMIN_SUPPLY_amount, _BlockOperationTOKEN_ADMIN_SUPPLY_method, _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod, _BlockOperationMANAGE_CERTIFICATE_instances, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, _BlockOperationMANAGE_CERTIFICATE_method, _BlockOperationMANAGE_CERTIFICATE_asCertificate, _BlockOperationMANAGE_CERTIFICATE_asIntermediateCertificates, _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod;
+var _BlockOperationSEND_instances, _BlockOperationSEND_to, _BlockOperationSEND_amount, _BlockOperationSEND_token, _BlockOperationSEND_computeToken, _BlockOperationRECEIVE_instances, _BlockOperationRECEIVE_amount, _BlockOperationRECEIVE_token, _BlockOperationRECEIVE_from, _BlockOperationRECEIVE_forward, _BlockOperationRECEIVE_exact, _BlockOperationRECEIVE_computeExact, _BlockOperationRECEIVE_computeForward, _BlockOperationRECEIVE_computeToken, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_instances, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_amount, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken, _BlockOperationSET_REP_to, _BlockOperationCREATE_IDENTIFIER_instances, _BlockOperationCREATE_IDENTIFIER_identifier, _BlockOperationCREATE_IDENTIFIER_createArguments, _BlockOperationCREATE_IDENTIFIER_computeIdentifier, _BlockOperationCREATE_IDENTIFIER_computeCreateArguments, _BlockOperationSET_INFO_instances, _BlockOperationSET_INFO_name, _BlockOperationSET_INFO_description, _BlockOperationSET_INFO_metadata, _BlockOperationSET_INFO_defaultPermission, _BlockOperationSET_INFO_validateNameDesc, _BlockOperationMODIFY_PERMISSIONS_instances, _BlockOperationMODIFY_PERMISSIONS_principal, _BlockOperationMODIFY_PERMISSIONS_target, _BlockOperationMODIFY_PERMISSIONS_method, _BlockOperationMODIFY_PERMISSIONS_permissions, _BlockOperationMODIFY_PERMISSIONS_computePermissions, _BlockOperationTOKEN_ADMIN_SUPPLY_instances, _BlockOperationTOKEN_ADMIN_SUPPLY_amount, _BlockOperationTOKEN_ADMIN_SUPPLY_method, _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod, _BlockOperationMANAGE_CERTIFICATE_instances, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, _BlockOperationMANAGE_CERTIFICATE_method, _BlockOperationMANAGE_CERTIFICATE_asCertificate, _BlockOperationMANAGE_CERTIFICATE_asIntermediateCertificates, _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Operation = exports.BlockOperationASN1Schema = exports.OperationType = void 0;
 exports.createBlockOperation = createBlockOperation;
@@ -63121,7 +63814,25 @@ const BlockOperationASN1SchemaBase = {
         { name: 'target', schema: { optional: asn1_1.ValidateASN1.IsOctetString } }
     ],
     'CREATE_IDENTIFIER': [
-        { name: 'identifier', schema: asn1_1.ValidateASN1.IsOctetString }
+        { name: 'identifier', schema: asn1_1.ValidateASN1.IsOctetString },
+        {
+            name: 'createArguments',
+            schema: {
+                optional: {
+                    choice: [
+                        {
+                            type: 'context',
+                            kind: 'explicit',
+                            value: 7,
+                            contains: [
+                                { sequenceOf: asn1_1.ValidateASN1.IsOctetString },
+                                asn1_1.ValidateASN1.IsInteger
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
     ],
     'TOKEN_ADMIN_SUPPLY': [
         { name: 'amount', schema: asn1_1.ValidateASN1.IsInteger },
@@ -63469,16 +64180,24 @@ class BlockOperationCREATE_IDENTIFIER extends BlockOperation {
         _BlockOperationCREATE_IDENTIFIER_instances.add(this);
         this.type = OperationType.CREATE_IDENTIFIER;
         _BlockOperationCREATE_IDENTIFIER_identifier.set(this, void 0);
+        _BlockOperationCREATE_IDENTIFIER_createArguments.set(this, void 0);
         if (input.type !== OperationType.CREATE_IDENTIFIER) {
             throw (new block_1.default('BLOCK_INVALID_TYPE', 'Invalid construction of BlockOperationCREATE_IDENTIFIER'));
         }
         __classPrivateFieldSet(this, _BlockOperationCREATE_IDENTIFIER_identifier, __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_instances, "m", _BlockOperationCREATE_IDENTIFIER_computeIdentifier).call(this, input.identifier), "f");
+        __classPrivateFieldSet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_instances, "m", _BlockOperationCREATE_IDENTIFIER_computeCreateArguments).call(this, input.createArguments), "f");
     }
     set identifier(identifier) {
         __classPrivateFieldSet(this, _BlockOperationCREATE_IDENTIFIER_identifier, __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_instances, "m", _BlockOperationCREATE_IDENTIFIER_computeIdentifier).call(this, identifier), "f");
     }
     get identifier() {
         return (__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_identifier, "f"));
+    }
+    set createArguments(input) {
+        __classPrivateFieldSet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_instances, "m", _BlockOperationCREATE_IDENTIFIER_computeCreateArguments).call(this, input), "f");
+    }
+    get createArguments() {
+        return (__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f"));
     }
     validate(context) {
         const { block, operationIndex } = context;
@@ -63493,24 +64212,65 @@ class BlockOperationCREATE_IDENTIFIER extends BlockOperation {
         if (this.identifier.comparePublicKey(validIdentifier) === false) {
             throw (new block_1.default('BLOCK_IDENTIFIER_INVALID', 'Requested token identifier is not valid'));
         }
+        const keyTypesArgumentsRequired = [account_1.AccountKeyAlgorithm.MULTISIG];
+        const shouldHaveCreateArguments = keyTypesArgumentsRequired.includes(this.identifier.keyType);
+        if ((this.createArguments !== undefined) !== shouldHaveCreateArguments) {
+            throw (new block_1.default('BLOCK_INVALID_CREATE_IDENTIFIER_ARGS', `Create arguments set/unset when should not be for key type ${this.identifier.keyType}`));
+        }
+        if (__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f")) {
+            if (!__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_identifier, "f").isKeyType(__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f").type)) {
+                throw (new block_1.default('BLOCK_INVALID_CREATE_IDENTIFIER_ARGS', 'Invalid create arguments for key type'));
+            }
+            if (__classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f").type === account_1.AccountKeyAlgorithm.MULTISIG) {
+                const { signers, quorum } = __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f");
+                (0, common_1.validateBlockSignerCount)(BigInt(signers.length), block.network);
+                const signerSet = new account_1.default.Set(signers);
+                if (signerSet.size !== signers.length) {
+                    throw (new block_1.default('BLOCK_INVALID_MULTISIG_SIGNER_DUPLICATE', `Duplicate signer found`));
+                }
+                if (quorum < 1n || quorum > signerSet.size) {
+                    throw (new block_1.default('BLOCK_INVALID_MULTISIG_QUORUM', `Quorum must be between [1, ${signerSet.size}], got ${quorum}`));
+                }
+            }
+            else {
+                throw (new Error('Unrecognized createArguments type'));
+            }
+        }
     }
     toJSON() {
         return ({
             type: this.type,
-            identifier: this.identifier
+            identifier: this.identifier,
+            createArguments: __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f")
         });
     }
 }
-_BlockOperationCREATE_IDENTIFIER_identifier = new WeakMap(), _BlockOperationCREATE_IDENTIFIER_instances = new WeakSet(), _BlockOperationCREATE_IDENTIFIER_computeIdentifier = function _BlockOperationCREATE_IDENTIFIER_computeIdentifier(identifierStr) {
+_BlockOperationCREATE_IDENTIFIER_identifier = new WeakMap(), _BlockOperationCREATE_IDENTIFIER_createArguments = new WeakMap(), _BlockOperationCREATE_IDENTIFIER_instances = new WeakSet(), _BlockOperationCREATE_IDENTIFIER_computeIdentifier = function _BlockOperationCREATE_IDENTIFIER_computeIdentifier(identifierStr) {
     const account = this.computeTo(identifierStr, true);
     if (account.keyType === account_1.AccountKeyAlgorithm.NETWORK) {
         throw (new Error('BlockOperationCREATE_IDENTIFIER must have a non-network identifier account'));
     }
-    // XXX:TODO Remove this once multisig account metadata is done
-    if (account.keyType === account_1.AccountKeyAlgorithm.MULTISIG) {
-        throw (new Error('Multisig accounts currently not supported'));
-    }
     return (account);
+}, _BlockOperationCREATE_IDENTIFIER_computeCreateArguments = function _BlockOperationCREATE_IDENTIFIER_computeCreateArguments(input) {
+    if (input === undefined) {
+        return (undefined);
+    }
+    if (input.type === account_1.AccountKeyAlgorithm.MULTISIG) {
+        return ({
+            type: account_1.AccountKeyAlgorithm.MULTISIG,
+            quorum: BigInt(input.quorum),
+            signers: input.signers.map(function (signerInput) {
+                const signer = account_1.default.toAccount(signerInput);
+                if (!signer.isMultisig() && !signer.isAccount()) {
+                    throw (new block_1.default('BLOCK_INVALID_CREATE_IDENTIFIER_ARGS', 'Unsupported key type for multisig signer'));
+                }
+                return (signer);
+            })
+        });
+    }
+    else {
+        throw (new block_1.default('BLOCK_INVALID_CREATE_IDENTIFIER_ARGS', 'Unsupported key type for identifier creation args'));
+    }
 };
 BlockOperationCREATE_IDENTIFIER.isInstance = (0, helper_1.checkableGenerator)(BlockOperationCREATE_IDENTIFIER);
 class BlockOperationSET_INFO extends BlockOperation {
@@ -63767,7 +64527,7 @@ class BlockOperationTOKEN_ADMIN_SUPPLY extends BlockOperation {
     }
 }
 _BlockOperationTOKEN_ADMIN_SUPPLY_amount = new WeakMap(), _BlockOperationTOKEN_ADMIN_SUPPLY_method = new WeakMap(), _BlockOperationTOKEN_ADMIN_SUPPLY_instances = new WeakSet(), _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod = function _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod(method) {
-    const numericMethod = (0, _1.assertAdjustMethod)(method, true);
+    const numericMethod = (0, _1.toAdjustMethod)(method);
     if (numericMethod === _2.default.AdjustMethod.SET) {
         throw (new Error('Cannot use AdjustMethod.SET on a TOKEN_ADMIN_SUPPLY operation'));
     }
@@ -63925,7 +64685,7 @@ _BlockOperationMANAGE_CERTIFICATE_certificateOrHash = new WeakMap(), _BlockOpera
     }
     return (bundleObject);
 }, _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod = function _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod(method) {
-    const numericMethod = (0, _1.assertAdjustMethod)(method, true);
+    const numericMethod = (0, _1.toAdjustMethod)(method);
     if (numericMethod === _2.default.AdjustMethod.SET) {
         throw (new Error('Cannot use AdjustMethod.SET on a MANAGE_CERTIFICATE operation.'));
     }
@@ -63993,10 +64753,29 @@ function ExportBlockOperations(operations) {
         }
         // We want to be able to read any key on the operation, so we need to cast it to any
         const unTypedEntry = entry;
-        for (const { name: key } of operationSchema) {
+        for (const { name: key, schema } of operationSchema) {
             let valueToWrite = unTypedEntry[key];
             if (valueToWrite === undefined) {
+                if (typeof schema === 'object' && schema && !('optional' in schema)) {
+                    throw (new Error(`Key ${key} for operation ${typeStr} is not optional but undefined value provided`));
+                }
                 continue;
+            }
+            else if (typeStr === 'CREATE_IDENTIFIER' && key === 'createArguments') {
+                // We are checking this in other places, and if this argument changes there will be many other things that break beforehand
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                const typedValue = valueToWrite;
+                valueToWrite = {
+                    type: 'context',
+                    kind: 'explicit',
+                    value: valueToWrite.type,
+                    contains: [
+                        typedValue.signers.map(function (signer) {
+                            return (signer.publicKeyAndType);
+                        }),
+                        typedValue.quorum
+                    ]
+                };
             }
             else if (typeof valueToWrite === 'string') {
                 valueToWrite = { type: 'string', kind: 'utf8', value: valueToWrite };
@@ -64030,34 +64809,37 @@ function ExportBlockOperations(operations) {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return container;
 }
+function assertExplicitContextValueLike(input) {
+    if (typeof input !== 'object' || input === null) {
+        throw (new Error(`Found entry which is not a context ${String(input)}`));
+    }
+    if (!('type' in input) || input.type !== 'context') {
+        throw (new Error(`Found entry which is not a context ${String(input)}`));
+    }
+    if (!('kind' in input) || input.kind !== 'explicit') {
+        throw (new Error(`Found entry which is not an explicit context ${String(input)}`));
+    }
+    if (!('value' in input)) {
+        throw (new Error(`Found entry which is not a numeric explicit context ${String(input)}`));
+    }
+    const typeInput = input.value;
+    if (typeof typeInput !== 'number') {
+        throw (new Error(`Found entry which is not a numeric explicit context ${String(input)}`));
+    }
+    if (!('contains' in input)) {
+        throw (new Error(`Found entry which which lacks contains ${JSON.stringify(input)}`));
+    }
+    if (!Array.isArray(input.contains)) {
+        throw (new Error(`Found entry which is not a Sequence ${input.contains}`));
+    }
+}
 function ImportOperationsASN1(input, network) {
     const retval = [];
     for (const entryWrapper of input) {
         const operation = {};
-        if (typeof entryWrapper !== 'object' || entryWrapper === null) {
-            throw (new Error(`Found entry which is not a context ${String(entryWrapper)}`));
-        }
-        if (!('type' in entryWrapper) || entryWrapper.type !== 'context') {
-            throw (new Error(`Found entry which is not a context ${String(entryWrapper)}`));
-        }
-        if (!('kind' in entryWrapper) || entryWrapper.kind !== 'explicit') {
-            throw (new Error(`Found entry which is not an explicit context ${String(entryWrapper)}`));
-        }
-        if (!('value' in entryWrapper)) {
-            throw (new Error(`Found entry which is not a numeric explicit context ${String(entryWrapper)}`));
-        }
-        const typeInput = entryWrapper.value;
-        if (typeof typeInput !== 'number') {
-            throw (new Error(`Found entry which is not a numeric explicit context ${String(entryWrapper)}`));
-        }
-        const type = assertOperationType(typeInput);
-        if (!('contains' in entryWrapper)) {
-            throw (new Error(`Found entry which which lacks contains ${JSON.stringify(entryWrapper)}`));
-        }
+        assertExplicitContextValueLike(entryWrapper);
+        const type = assertOperationType(entryWrapper.value);
         const entry = entryWrapper.contains;
-        if (!Array.isArray(entry)) {
-            throw (new Error(`Found entry which is not a Sequence ${entry}`));
-        }
         const typeStr = operationTypeToString(type);
         const operationSchema = BlockOperationASN1SchemaBase[typeStr];
         if (!operationSchema) {
@@ -64088,6 +64870,22 @@ function ImportOperationsASN1(input, network) {
                 newKeyValue.validate(network);
                 keyValueOut = newKeyValue;
             }
+            else if (key === 'createArguments' && typeStr === 'CREATE_IDENTIFIER') {
+                assertExplicitContextValueLike(keyValueIn);
+                if (keyValueIn.value !== account_1.AccountKeyAlgorithm.MULTISIG) {
+                    throw (new Error('unrecognized type for multisig create arguments'));
+                }
+                if (keyValueIn.contains.length !== 2 || !Array.isArray(keyValueIn.contains[0])) {
+                    throw (new Error('Invalid createArgs container'));
+                }
+                keyValueOut = {
+                    type: keyValueIn.value,
+                    signers: keyValueIn.contains[0].map(function (value) {
+                        return (account_1.default.fromPublicKeyAndType(value));
+                    }),
+                    quorum: keyValueIn.contains[1]
+                };
+            }
             else if (Array.isArray(keyValueIn) && key === 'intermediateCertificates') {
                 keyValueOut = new certificate_1.CertificateBundle(keyValueIn.map(function (certificate) {
                     return (new certificate_1.Certificate(certificate));
@@ -64095,7 +64893,7 @@ function ImportOperationsASN1(input, network) {
             }
             else if ((0, helper_1.isBuffer)(keyValueIn)) {
                 if (type === OperationType.MANAGE_CERTIFICATE && key === 'certificateOrHash') {
-                    const method = (0, _1.assertAdjustMethod)(operation['method'], true);
+                    const method = (0, _1.toAdjustMethod)(operation['method']);
                     if (method === _2.AdjustMethod.SUBTRACT) {
                         keyValueOut = new certificate_1.CertificateHash(keyValueIn);
                     }
@@ -64187,6 +64985,13 @@ const BlockErrorCodes = [
     'ONLY_IDENTIFIER_OP',
     'NO_TOKEN_OP',
     'NO_IDENTIFIER_OP',
+    'INVALID_SIGNER',
+    'INVALID_PURPOSE_VALIDATION',
+    'INVALID_MULTISIG_QUORUM',
+    'INVALID_MULTISIG_SIGNER_DEPTH',
+    'INVALID_MULTISIG_SIGNER_COUNT',
+    'INVALID_MULTISIG_SIGNER_DUPLICATE',
+    'INVALID_CREATE_IDENTIFIER_ARGS',
     'NO_MULTISIG_OP',
     'IDENTIFIER_INVALID',
     'GENERAL_FIELD_INVALID',
@@ -64347,7 +65152,16 @@ const LedgerErrorCodes = [
     'BLOCKS_DIFFER_FROM_VOTED_ON',
     'NO_PERM_WITHOUT_SELF_TEMP',
     'DUPLICATE_VOTE_ISSUER_FOUND',
-    'OTHER'
+    'OTHER',
+    'MISSING_BLOCKS',
+    // Fee Errors
+    'FEE_AMOUNT_MISMATCH',
+    'FEE_TOKEN_MISMATCH',
+    'FEE_MISSING',
+    'MISSING_REQUIRED_FEE_BLOCK',
+    'PERM_VOTE_WITH_QUOTE',
+    'QUOTE_MISMATCH',
+    'REQUIRED_FEE_MISMATCH'
 ];
 class KeetaNetLedgerError extends _1.KeetaNetError {
     constructor(code, message, shouldRetry = false, retryDelay) {
@@ -64479,7 +65293,13 @@ const VoteErrorCodes = [
     'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT',
     'MALFORMED_FEES_IN_PERMANENT_VOTE',
     'MALFORMED_FEES_PAY_TO_INVALID',
-    'MALFORMED_FEES_TOKEN_NOT_TOKEN'
+    'MALFORMED_FEES_TOKEN_NOT_TOKEN',
+    // Fee Quote Errors
+    'FEE_IS_QUOTE',
+    'FEE_QUOTE_MISSING_FEES',
+    'FEE_NOT_QUOTE',
+    'MALFORMED_FEES_KIND_MISSING',
+    'MALFORMED_FEES_QUOTE_INVALID'
 ];
 class KeetaNetVoteError extends _1.KeetaNetError {
     constructor(code, message) {
@@ -64835,6 +65655,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LedgerStorageBase = void 0;
 exports.findPermissionMatch = findPermissionMatch;
 exports.validateSupply = validateSupply;
+exports.validateBlockSignerCount = validateBlockSignerCount;
+exports.validateBlockSignerDepth = validateBlockSignerDepth;
 exports.computeLedgerEffect = computeLedgerEffect;
 exports.addTimeStatistic = addTimeStatistic;
 exports.assertLedgerStorage = assertLedgerStorage;
@@ -64842,6 +65664,7 @@ const account_1 = __importStar(__webpack_require__(9415));
 const block_1 = __webpack_require__(6158);
 const permissions_1 = __webpack_require__(5860);
 const ledger_1 = __importDefault(__webpack_require__(452));
+const helper_1 = __webpack_require__(3208);
 const config_1 = __webpack_require__(1491);
 const block_2 = __importDefault(__webpack_require__(7412));
 function findPermissionMatch(lookingFor, entries) {
@@ -64871,6 +65694,18 @@ function validateSupply(amount, network) {
     const { maxValue } = (0, config_1.getValidation)(network).accountInfoFieldRules['supply'];
     if (amount > maxValue) {
         throw (new block_2.default('BLOCK_SUPPLY_INVALID', `supply does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`));
+    }
+}
+function validateBlockSignerCount(amount, network) {
+    const { maxValue } = (0, config_1.getValidation)(network).accountInfoFieldRules['blockSignerCount'];
+    if (amount > maxValue || amount < 1n) {
+        throw (new block_2.default('BLOCK_INVALID_MULTISIG_SIGNER_COUNT', `signer count does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`));
+    }
+}
+function validateBlockSignerDepth(depth, network) {
+    const { maxValue } = (0, config_1.getValidation)(network).accountInfoFieldRules['blockSignerDepth'];
+    if (depth > maxValue) {
+        throw (new block_2.default('BLOCK_INVALID_MULTISIG_SIGNER_DEPTH', `signer depth does not fit proper format -- GOT: '${depth}' MaxValue: ${maxValue}`));
     }
 }
 /**
@@ -65335,8 +66170,11 @@ class LedgerStorageBase {
             }
             ret.defaultPermission = new permissions_1.Permissions(baseSet, externalSet);
         }
-        if (account.keyType === account_1.AccountKeyAlgorithm.TOKEN) {
+        if (account.isToken()) {
             ret.supply = BigInt(row.supply ?? 0);
+        }
+        if (account.isMultisig() && row.multisigQuorum !== undefined) {
+            ret.multisigQuorum = BigInt(row.multisigQuorum);
         }
         return (ret);
     }
@@ -65344,9 +66182,12 @@ class LedgerStorageBase {
         const validKeys = ['name', 'description', 'metadata'];
         if (account.isIdentifier()) {
             validKeys.push('defaultPermission');
-        }
-        if (account.keyType === account_1.AccountKeyAlgorithm.TOKEN) {
-            validKeys.push('supply');
+            if (account.isToken()) {
+                validKeys.push('supply');
+            }
+            if (account.isMultisig()) {
+                validKeys.push('multisigQuorum');
+            }
         }
         const keys = Object.keys(info);
         const foundBannedKey = keys.find(function (key) {
@@ -65355,6 +66196,33 @@ class LedgerStorageBase {
         if (foundBannedKey !== undefined) {
             throw (new ledger_1.default('LEDGER_INVALID_ACCOUNT_INFO_KEY', `Invalid AccountInfo field ${foundBannedKey}`));
         }
+    }
+    /**
+     * @param moment - The date to use as the base for the timestamp.
+     * @param momentBits - The number of bits to use for the timestamp
+     * @param totalLength - The total length of the generated number in bits
+     * @param randomData - A hexadecimal string to use as the random data.
+     * @param timestampFuzzMS - The number of milliseconds to fuzz the timestamp by, defaults to 1n (precise).
+     * @param optimistic - If true, the timestamp will be incremented by 1 quanta, defaults to false.
+     * @returns A bigint representing the noisy timestamp.
+     */
+    _generateNoisyTimestamp(moment, momentBits, totalLength, randomData, timestampFuzzMS = 1, optimistic = false) {
+        if (timestampFuzzMS > Number.MAX_SAFE_INTEGER) {
+            throw (new Error('timestampFuzzMs is too large'));
+        }
+        const timestampFuzz = BigInt(Math.ceil(Math.log2(Number(timestampFuzzMS))));
+        const length = totalLength - momentBits;
+        if (BigInt(randomData.length * 8) < (length + timestampFuzz)) {
+            throw (new Error('randomData is too short for the specified bit length'));
+        }
+        if (length < 0n) {
+            throw (new Error('momentBits should be less than totalLength'));
+        }
+        const timestamp = BigInt(moment.valueOf()) >> timestampFuzz;
+        const mask = (1n << (length + timestampFuzz)) - 1n;
+        const upperBits = (timestamp + (optimistic ? 1n : 0n)) << (length + timestampFuzz);
+        const lowerBits = (0, helper_1.bufferToBigInt)(randomData) & mask;
+        return (upperBits | lowerBits);
     }
     async getHeadBlock(transaction, account, from) {
         const response = await this.getHeadBlocks(transaction, [account], from);
@@ -65372,9 +66240,9 @@ class LedgerStorageBase {
         }
         return (null);
     }
-    async gc(transaction) {
+    async gc(transaction, timeLimitMS = 280000) {
         let lastGCResult = false;
-        for (const startTime = Date.now(); Date.now() - startTime < 280000;) {
+        for (const startTime = Date.now(); Date.now() - startTime < timeLimitMS;) {
             const gcResult = await this.gcBatch(transaction);
             lastGCResult = gcResult;
             if (!gcResult) {
@@ -65434,8 +66302,38 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.computeEffectOfBlocks = computeEffectOfBlocks;
 const account_1 = __importStar(__webpack_require__(9415));
 const block_1 = __webpack_require__(6158);
+const operations_1 = __webpack_require__(2778);
 const permissions_1 = __webpack_require__(5860);
 const certificate_1 = __webpack_require__(5661);
+;
+/**
+ * Base Fee Units per Block
+ */
+const baseBlockFeeUnit = 1000n;
+/**
+ * Fee Unit for an Opening Block
+ */
+const openingBlockFeeUnit = 10000n;
+/**
+ * Operation specific Fee Units
+ */
+const operationFeeUnitOverrides = {
+    [operations_1.OperationType.SEND]: 10n,
+    [operations_1.OperationType.SET_REP]: 20n,
+    [operations_1.OperationType.SET_INFO]: 100n,
+    [operations_1.OperationType.MODIFY_PERMISSIONS]: 20n,
+    [operations_1.OperationType.CREATE_IDENTIFIER]: 200n,
+    [operations_1.OperationType.TOKEN_ADMIN_SUPPLY]: 10n,
+    [operations_1.OperationType.TOKEN_ADMIN_MODIFY_BALANCE]: 10n,
+    [operations_1.OperationType.RECEIVE]: 10n,
+    [operations_1.OperationType.MANAGE_CERTIFICATE]: 100n
+};
+/**
+ * Get the Fee Unit for a given operation type
+ */
+function getOperationFeeUnit(operation) {
+    return (operationFeeUnitOverrides[operation]);
+}
 function addOrCombineRequirements(existing, addition, alwaysCombine) {
     const resp = [...existing];
     let additionTarget;
@@ -65538,6 +66436,19 @@ function addPermissionRequirement(state, requirement) {
     const existing = state.accounts[principalPubKey].fields.permissionRequirements ?? [];
     state.accounts[principalPubKey].fields.permissionRequirements = addOrCombineRequirements(existing, requirement, true);
 }
+function updateMinSignerSetLength(state, multisigAccount, count) {
+    const multisigPublicKey = multisigAccount.publicKeyString.get();
+    if (state.accounts[multisigPublicKey] === undefined) {
+        state.accounts[multisigPublicKey] = {
+            account: multisigAccount,
+            fields: {}
+        };
+    }
+    const current = state.accounts[multisigPublicKey].fields.minSignerSetLength;
+    if (current === undefined || current > count) {
+        state.accounts[multisigPublicKey].fields.minSignerSetLength = count;
+    }
+}
 function modifyBalanceInState(balanceState) {
     const { state, account, token, method, amount, otherAccount } = balanceState;
     const accountPubKey = account.publicKeyString.get();
@@ -65581,6 +66492,32 @@ function modifyBalanceInState(balanceState) {
         });
     }
     accountBalanceInfo[tokenPubKey] = tokenField;
+}
+function updateAccountInfoInState(state, account, info) {
+    const accountPubKey = account.publicKeyString.get();
+    const toUpdate = {
+        name: info.name,
+        description: info.description,
+        metadata: info.metadata
+    };
+    if (account.isIdentifier()) {
+        if (info.defaultPermission !== undefined) {
+            toUpdate.defaultPermission = info.defaultPermission;
+        }
+        if (account.isMultisig() && info.multisigQuorum !== undefined) {
+            toUpdate.multisigQuorum = info.multisigQuorum;
+        }
+    }
+    else {
+        state.possibleNewAccounts.add(account);
+    }
+    if (!state.accounts[accountPubKey]) {
+        state.accounts[accountPubKey] = {
+            account: account,
+            fields: {}
+        };
+    }
+    state.accounts[accountPubKey].fields.info = toUpdate;
 }
 /**
  * Compute the effect of a SEND operation
@@ -65709,34 +66646,39 @@ function computeEffectOfOperationCREATE_IDENTIFIER(state, block, operation, cont
     }
     state.possibleNewAccounts.add(operation.identifier);
     state.accounts[accountPubKey].fields.createRequests?.push({
-        previousBlockHash: block.previous,
-        account: block.account,
-        requestedIdentifier: operation.identifier,
-        operationIndex: context.operationIndex
+        createdIdentifier: operation.identifier,
+        createArguments: operation.createArguments
     });
-    addPermission(state, {
-        principal: block.account,
-        entity: operation.identifier,
-        method: block_1.Block.AdjustMethod.SET,
-        permissions: new permissions_1.Permissions(['OWNER'])
-    });
-}
-function computeEffectOfOperationSET_INFO(state, block, operation) {
-    const accountPubKey = block.account.publicKeyString.get();
-    const toUpdate = {
-        name: operation.name,
-        description: operation.description,
-        metadata: operation.metadata
-    };
-    if (block.account.isIdentifier()) {
-        if (operation.defaultPermission !== undefined) {
-            toUpdate.defaultPermission = operation.defaultPermission;
+    if (operation.identifier.isMultisig()) {
+        if (!operation.createArguments || operation.createArguments.type !== account_1.AccountKeyAlgorithm.MULTISIG) {
+            throw (new Error('Invalid identifier creation arguments'));
+        }
+        updateAccountInfoInState(state, operation.identifier, { multisigQuorum: operation.createArguments.quorum });
+        for (const multisigSigner of operation.createArguments.signers) {
+            addPermission(state, {
+                principal: multisigSigner,
+                entity: operation.identifier,
+                method: block_1.Block.AdjustMethod.SET,
+                permissions: new permissions_1.Permissions(['MULTISIG_SIGNER'])
+            });
         }
     }
     else {
-        state.possibleNewAccounts.add(block.account);
+        addPermission(state, {
+            principal: block.account,
+            entity: operation.identifier,
+            method: block_1.Block.AdjustMethod.SET,
+            permissions: new permissions_1.Permissions(['OWNER'])
+        });
     }
-    state.accounts[accountPubKey].fields.info = toUpdate;
+}
+function computeEffectOfOperationSET_INFO(state, block, operation) {
+    updateAccountInfoInState(state, block.account, {
+        name: operation.name,
+        description: operation.description,
+        metadata: operation.metadata,
+        defaultPermission: operation.defaultPermission
+    });
 }
 function computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operation) {
     state.possibleNewAccounts.add(operation.principal);
@@ -65977,7 +66919,7 @@ function computePermissionEffect(state, type, effect, block, operation, context)
     };
     switch (type) {
         case 'SIGNER':
-            baseRequirement.principal = block.signer;
+            baseRequirement.principal = block.principal;
             baseRequirement.entity = block.account;
             break;
         case 'ACCOUNT':
@@ -66033,7 +66975,8 @@ function computeEffectOfBlocks(blocks, ledger) {
         possibleNewAccounts: new account_1.default.Set(),
         metadata: {
             blockCount: 0,
-            operationCount: 0
+            operationCount: 0,
+            feeUnits: 0n
         }
     };
     let onlyReturnTouched = false;
@@ -66048,13 +66991,26 @@ function computeEffectOfBlocks(blocks, ledger) {
      */
     for (const block of blocks) {
         accumulatedEffects.metadata.blockCount++;
+        accumulatedEffects.metadata.feeUnits += baseBlockFeeUnit;
         const blockAccountPubKey = block.account.publicKeyString.get();
-        accumulatedEffects.touched.add(block.signer);
+        const signerQueue = [block.signer];
+        while (signerQueue.length > 0) {
+            // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const signer = signerQueue.shift();
+            if (account_1.default.isInstance(signer)) {
+                accumulatedEffects.touched.add(signer);
+                continue;
+            }
+            accumulatedEffects.touched.add(signer[0]);
+            signerQueue.push(...signer[1]);
+        }
         if (block.$opening) {
             accumulatedEffects.possibleNewAccounts.add(block.account);
+            accumulatedEffects.metadata.feeUnits += openingBlockFeeUnit;
         }
-        if (!(block.signer.comparePublicKey(block.account))) {
-            accumulatedEffects.possibleNewAccounts.add(block.signer);
+        if (!(block.principal.comparePublicKey(block.account))) {
+            accumulatedEffects.possibleNewAccounts.add(block.principal);
         }
         if (accumulatedEffects.accounts[blockAccountPubKey] === undefined) {
             accumulatedEffects.accounts[blockAccountPubKey] = {
@@ -66069,12 +67025,13 @@ function computeEffectOfBlocks(blocks, ledger) {
             const context = {
                 ledger,
                 operationIndex: Number(operationIndex),
-                signedByDifferent: !block.account.comparePublicKey(block.signer),
+                signedByDifferent: !block.account.comparePublicKey(block.principal),
                 openingBlock: block.$opening
             };
             const operation = block.operations[operationIndex];
             const handler = operationHandlers[operation.type];
             accumulatedEffects.metadata.operationCount++;
+            accumulatedEffects.metadata.feeUnits += getOperationFeeUnit(operation.type);
             if (handler.accountPermissionACL) {
                 computePermissionEffect(accumulatedEffects, 'ACCOUNT', handler.accountPermissionACL, block, operation, context);
             }
@@ -66084,6 +67041,30 @@ function computeEffectOfBlocks(blocks, ledger) {
                     permissionEffect = handler.signerPermissionACL;
                 }
                 computePermissionEffect(accumulatedEffects, 'SIGNER', permissionEffect, block, operation, context);
+                if (Array.isArray(block.signer)) {
+                    const signerFieldQueue = [block.signer];
+                    while (signerFieldQueue.length > 0) {
+                        // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+                        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                        const [multisig, signers] = signerFieldQueue.shift();
+                        updateMinSignerSetLength(accumulatedEffects, multisig, BigInt(signers.length));
+                        for (const signer of signers) {
+                            let principal;
+                            if (account_1.default.isInstance(signer)) {
+                                principal = signer;
+                            }
+                            else {
+                                principal = signer[0];
+                                signerFieldQueue.push(signer);
+                            }
+                            addPermissionRequirement(accumulatedEffects, {
+                                entity: multisig,
+                                principal: principal,
+                                permissions: new permissions_1.Permissions(['MULTISIG_SIGNER'])
+                            });
+                        }
+                    }
+                }
             }
             handler.effectGenerator(accumulatedEffects, block, operation, context);
         }
@@ -66197,7 +67178,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateLedgerOutcome, _Ledger_storage, _Ledger_config;
+var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_computeFeeFromBlocks, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateLedgerOutcome, _LedgerAtomicInterface_validateBlocksForVote, _LedgerAtomicInterface_voteOrQuoteWithFees, _Ledger_storage, _Ledger_config;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Ledger = exports.LedgerKind = void 0;
 const vote_1 = __webpack_require__(1130);
@@ -66211,6 +67192,7 @@ const effects_1 = __webpack_require__(7346);
 const conversion_1 = __webpack_require__(2360);
 const cache_1 = __importDefault(__webpack_require__(5834));
 const timing_1 = __webpack_require__(2895);
+const operations_1 = __webpack_require__(2778);
 /**
  * Kind of ledger
  */
@@ -66229,14 +67211,16 @@ class LedgerAtomicInterface {
         _LedgerAtomicInterface_subnet.set(this, void 0);
         _LedgerAtomicInterface_kind.set(this, void 0);
         _LedgerAtomicInterface_privateKey.set(this, void 0);
+        _LedgerAtomicInterface_computeFeeFromBlocks.set(this, void 0);
         _LedgerAtomicInterface_storage.set(this, void 0);
-        _LedgerAtomicInterface_transaction.set(this, void 0);
         _LedgerAtomicInterface_ledger.set(this, void 0);
         _LedgerAtomicInterface_cache.set(this, void 0);
+        _LedgerAtomicInterface_transaction.set(this, void 0);
         __classPrivateFieldSet(this, _LedgerAtomicInterface_network, config.network, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_subnet, config.subnet, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_kind, config.kind, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_privateKey, config.privateKey, "f");
+        __classPrivateFieldSet(this, _LedgerAtomicInterface_computeFeeFromBlocks, config.computeFeeFromBlocks, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_ledger, ledger, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_storage, storage, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_transaction, transaction, "f");
@@ -66264,16 +67248,27 @@ class LedgerAtomicInterface {
         __classPrivateFieldSet(this, _LedgerAtomicInterface_transaction, null, "f");
         await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").abortTransaction(transaction);
     }
-    async vote(blocks, otherVotes) {
-        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
-        if (__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
-            throw (new Error(`May not issue votes in read-only mode, in ${__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
+    async vote(blocks, otherVotes, quote) {
+        if (blocks.length === 0) {
+            throw (new ledger_1.default('LEDGER_MISSING_BLOCKS', 'At least one block is required to issue a vote'));
         }
         if (!__classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f")) {
             throw (new Error('Cannot vote on block, no private key loaded'));
         }
+        if (__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
+            throw (new Error(`May not issue votes in read-only mode, in ${__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
+        }
         const privateKey = __classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f");
         const ledgerPubKey = privateKey.publicKeyString.get();
+        if (quote !== undefined) {
+            if (otherVotes !== undefined) {
+                throw (new ledger_1.default('LEDGER_PERM_VOTE_WITH_QUOTE', 'Quote should not be included when requesting permanent votes'));
+            }
+            if (!quote.issuer.comparePublicKey(ledgerPubKey)) {
+                throw (new ledger_1.default('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key'));
+            }
+        }
+        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         /**
          * If there are other votes, ensure one of them was issued by
          * us and the blocks are in the same order as the set of
@@ -66283,7 +67278,18 @@ class LedgerAtomicInterface {
             let foundOurVote = false;
             const seenVoteUIDs = new Set();
             const seenVoteIssuers = new account_1.default.Set();
+            const possibleFeeBlock = blocks.at(-1);
+            let hasFeeBlock = false;
+            let blockCount = blocks.length;
+            if (possibleFeeBlock?.purpose === block_1.BlockPurpose.FEE) {
+                hasFeeBlock = true;
+                blockCount--;
+            }
+            const requiredFees = new Map();
             for (const checkVote of otherVotes) {
+                if (checkVote.quote === true) {
+                    throw (new ledger_1.default('LEDGER_PERM_VOTE_WITH_QUOTE', 'Cannot request permanent votes with quotes'));
+                }
                 if (seenVoteUIDs.has(checkVote.$id)) {
                     throw (new ledger_1.default('LEDGER_DUPLICATE_VOTE_FOUND', 'Duplicate vote UID found'));
                 }
@@ -66292,13 +67298,16 @@ class LedgerAtomicInterface {
                 }
                 seenVoteIssuers.add(checkVote.issuer);
                 seenVoteUIDs.add(checkVote.$id);
+                if (checkVote.fee !== undefined) {
+                    requiredFees.set(checkVote.issuer, checkVote.fee);
+                }
                 if (checkVote.$permanent) {
                     throw (new ledger_1.default('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote for a permanent vote'));
                 }
-                let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blocks.length;
+                let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blockCount;
                 /* If they do not differ from length alone, compare block hashes */
                 if (!blocksDifferFromVoteBlocks) {
-                    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+                    for (let blockIndex = 0; blockIndex < blockCount; blockIndex++) {
                         if (!blocks[blockIndex].hash.compareHexString(checkVote.blocks[blockIndex])) {
                             blocksDifferFromVoteBlocks = true;
                             break;
@@ -66312,69 +67321,43 @@ class LedgerAtomicInterface {
                     foundOurVote = true;
                 }
             }
+            if (requiredFees.size > 0) {
+                if (!hasFeeBlock) {
+                    throw (new ledger_1.default('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
+                }
+                if (requiredFees.size !== possibleFeeBlock?.operations.length) {
+                    throw (new ledger_1.default('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
+                }
+            }
+            // Verify that all required fees have been included in the fee block
+            for (const [issuer, fee] of requiredFees) {
+                const foundFee = possibleFeeBlock?.operations.find((operation) => {
+                    const expectedPayTo = fee.payTo ?? issuer;
+                    const expectedToken = fee.token ?? __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").baseToken;
+                    if (operation.type === operations_1.OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
+                        if (operation.amount !== fee.amount) {
+                            throw (new ledger_1.default('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`));
+                        }
+                        if (!operation.token.comparePublicKey(expectedToken)) {
+                            throw (new ledger_1.default('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`));
+                        }
+                        return (true);
+                    }
+                    return (false);
+                });
+                if (foundFee === undefined) {
+                    throw (new ledger_1.default('LEDGER_FEE_MISSING', `Missing Required Fee for ${fee.payTo?.publicKeyString.get() ?? issuer.publicKeyString.get()}`));
+                }
+            }
             if (!foundOurVote) {
                 throw (new ledger_1.default('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us'));
             }
         }
-        /**
-         * Create a map of all blocks by their hash
-         */
-        const blockHashMap = {};
-        for (const block of blocks) {
-            blockHashMap[block.hash.toString()] = block;
-        }
-        const seenBlockHashes = new block_1.BlockHash.Set();
-        const usedPreviousBlockHashes = new block_1.BlockHash.Set();
-        const blocksToCheckOurVotesFor = [];
-        const needToGetHeadFor = new account_1.default.Set();
-        const expectedHead = {};
-        for (const block of blocks) {
-            const prevBlockHash = block.previous;
-            seenBlockHashes.add(block.hash);
-            if (block.network !== __classPrivateFieldGet(this, _LedgerAtomicInterface_network, "f")) {
-                throw (new ledger_1.default('LEDGER_INVALID_NETWORK', 'Cannot vote on block for a different network'));
-            }
-            if (block.subnet !== __classPrivateFieldGet(this, _LedgerAtomicInterface_subnet, "f")) {
-                throw (new ledger_1.default('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet'));
-            }
-            if (usedPreviousBlockHashes.has(prevBlockHash)) {
-                throw (new ledger_1.default('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`));
-            }
-            usedPreviousBlockHashes.add(prevBlockHash);
-            /**
-             * Only allow this vote if it is the successor the current
-             * HEAD block for the account, or if no blocks exist on the
-             * account and its an opening block, or if the predecessor
-             * block is also being voted on
-             */
-            let predecessorBeingVotedOn = false;
-            if (!block.$opening) {
-                const prevBlock = blockHashMap[prevBlockHash.toString()];
-                if (prevBlock !== undefined) {
-                    predecessorBeingVotedOn = true;
-                    if (!(prevBlock.account.comparePublicKey(block.account))) {
-                        throw (new ledger_1.default('LEDGER_INVALID_CHAIN', 'Invalid chain, changes accounts'));
-                    }
-                    if (!seenBlockHashes.has(prevBlockHash)) {
-                        throw (new ledger_1.default('LEDGER_PREVIOUS_NOT_SEEN', `Invalid reference to block, out-of-order: ${prevBlockHash} has not already been seen`));
-                    }
-                }
-            }
-            if (!predecessorBeingVotedOn) {
-                const pubKey = block.account.publicKeyString.get();
-                needToGetHeadFor.add(block.account);
-                expectedHead[pubKey] = block;
-            }
-            /**
-             * Ensure we have no active vote for another conflicting successor of this block's parent (previous),
-             * which could cause a fork
-             */
-            blocksToCheckOurVotesFor.push(block);
-        }
+        const allLedgerHeads = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateBlocksForVote).call(this, blocks);
+        const needToGetHeadFor = new account_1.default.Set(allLedgerHeads.keys());
         const allHeads = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getHeadBlockHashes(transaction, needToGetHeadFor);
-        for (const pubKey in expectedHead) {
-            const expectedBlock = expectedHead[pubKey];
-            const accountHead = allHeads[pubKey];
+        for (const [account, expectedBlock] of allLedgerHeads.entries()) {
+            const accountHead = allHeads[account.publicKeyString.get()];
             if (accountHead === null) {
                 if (!expectedBlock.$opening) {
                     throw (new ledger_1.default('LEDGER_NOT_OPENING', 'Cannot vote on non-opening block for an empty account'));
@@ -66388,9 +67371,13 @@ class LedgerAtomicInterface {
                 throw (new ledger_1.default('LEDGER_NOT_SUCCESSOR', 'The block is not the successor to the account head block'));
             }
         }
-        const previousToCheckFor = blocksToCheckOurVotesFor.map(b => b.previous);
+        /**
+         * Ensure we have no active vote for another conflicting successor of this block's parent (previous),
+         * which could cause a fork
+         */
+        const previousToCheckFor = blocks.map(b => b.previous);
         const allPrevious = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getVotesFromMultiplePrevious(transaction, previousToCheckFor, 'both', account_1.default.toAccount(ledgerPubKey));
-        for (const block of blocksToCheckOurVotesFor) {
+        for (const block of blocks) {
             const previousVotes = allPrevious[block.previous.toString()];
             if (previousVotes !== null && previousVotes.length > 0) {
                 /**
@@ -66413,32 +67400,7 @@ class LedgerAtomicInterface {
          * If no other votes have been supplied, validate that the blocks are valid, and issue a short vote
          */
         if (otherVotes === undefined) {
-            await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateLedgerOutcome).call(this, blocks);
-            const now = Date.now();
-            for (const block of blocks) {
-                const blockDate = block.date.valueOf();
-                const timeOffset = 5 /* m */ * 60 /* s */ * 1000 /* ms */;
-                /**
-                 * Do not allow short votes on blocks from the distant past
-                 */
-                if (blockDate < (now - timeOffset) || blockDate > (now + timeOffset)) {
-                    throw (new Error(`Refusing to issue vote for block dated ${block.date.toISOString()}`));
-                }
-            }
-            /**
-             * Serial number
-             */
-            const serial = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getNextSerialNumber(__classPrivateFieldGet(this, _LedgerAtomicInterface_transaction, "f"));
-            /**
-             * Short expiry (5 minutes)
-             */
-            const pendingVoteExpiry = new Date();
-            pendingVoteExpiry.setUTCMinutes(pendingVoteExpiry.getUTCMinutes() + 5);
-            const wipVote = new vote_1.VoteBuilder(privateKey);
-            for (const block of blocks) {
-                wipVote.addBlock(block);
-            }
-            const vote = await wipVote.seal(serial, pendingVoteExpiry);
+            const vote = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_voteOrQuoteWithFees).call(this, blocks, 'VOTE', quote);
             const blocksAndVote = vote_1.VoteStaple.fromVotesAndBlocks([vote], blocks);
             await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").addPendingVote(transaction, blocksAndVote);
             return (vote);
@@ -66467,6 +67429,11 @@ class LedgerAtomicInterface {
          */
         await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").addPendingVote(transaction, blocksAndVote);
         return (vote);
+    }
+    async quote(blocks) {
+        await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateBlocksForVote).call(this, blocks);
+        const quote = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_voteOrQuoteWithFees).call(this, blocks, 'QUOTE');
+        return (quote);
     }
     async add(votesAndBlocks, from) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
@@ -66787,9 +67754,13 @@ class LedgerAtomicInterface {
         }
         return (retval);
     }
-    async gc() {
+    async gc(timeLimitMS) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
-        return (await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").gc(transaction));
+        return (await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").gc(transaction, timeLimitMS));
+    }
+    async getFee(blocks, effectsInput) {
+        const effects = effectsInput ?? (0, effects_1.computeEffectOfBlocks)(blocks, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"));
+        return (__classPrivateFieldGet(this, _LedgerAtomicInterface_computeFeeFromBlocks, "f").call(this, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"), blocks, effects));
     }
     async _testingRunStorageFunction(code) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
@@ -66797,7 +67768,7 @@ class LedgerAtomicInterface {
         return (retval);
     }
 }
-_LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = new WeakMap(), _LedgerAtomicInterface_kind = new WeakMap(), _LedgerAtomicInterface_privateKey = new WeakMap(), _LedgerAtomicInterface_storage = new WeakMap(), _LedgerAtomicInterface_transaction = new WeakMap(), _LedgerAtomicInterface_ledger = new WeakMap(), _LedgerAtomicInterface_cache = new WeakMap(), _LedgerAtomicInterface_instances = new WeakSet(), _LedgerAtomicInterface_assertTransaction = function _LedgerAtomicInterface_assertTransaction() {
+_LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = new WeakMap(), _LedgerAtomicInterface_kind = new WeakMap(), _LedgerAtomicInterface_privateKey = new WeakMap(), _LedgerAtomicInterface_computeFeeFromBlocks = new WeakMap(), _LedgerAtomicInterface_storage = new WeakMap(), _LedgerAtomicInterface_ledger = new WeakMap(), _LedgerAtomicInterface_cache = new WeakMap(), _LedgerAtomicInterface_transaction = new WeakMap(), _LedgerAtomicInterface_instances = new WeakSet(), _LedgerAtomicInterface_assertTransaction = function _LedgerAtomicInterface_assertTransaction() {
     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_transaction, "f") === null) {
         throw (new Error('Attempt to use closed transaction'));
     }
@@ -66864,36 +67835,56 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
             throw (new ledger_1.default('LEDGER_INVALID_PERMISSIONS', `${accountPubKey} does not have required permissions to perform action on ${reqEntityKey}/${reqTargetKey} -- needs [${baseFlagsStr}]/[${externalOffsetsStr}]`));
         }
     }
-}, _LedgerAtomicInterface_checkPermissionRequirements = async function _LedgerAtomicInterface_checkPermissionRequirements(allRequirements) {
+}, _LedgerAtomicInterface_checkPermissionRequirements = async function _LedgerAtomicInterface_checkPermissionRequirements(effects) {
     __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
     const newOwners = {};
     const requirementsByPrincipal = {};
     const needToGetAccountInfoFor = new account_1.default.Set();
-    for (const singleRequirement of allRequirements) {
-        const principal = singleRequirement.principal;
-        const principalPubKey = principal.publicKeyString.get();
-        if (!requirementsByPrincipal[principalPubKey]) {
-            requirementsByPrincipal[principalPubKey] = [];
-        }
-        requirementsByPrincipal[principalPubKey].push(singleRequirement);
-        const { entity, permissions } = singleRequirement;
-        const entityKey = entity.publicKeyString.get();
-        if (permissions === null) {
-            continue;
-        }
-        if (permissions.has(['OWNER'])) {
-            if (newOwners[entityKey] === undefined) {
-                newOwners[entityKey] = {
-                    entity, owners: []
-                };
+    const allAccountsChanges = Object.values(effects);
+    const foundMultisigSignerLengths = [];
+    for (const { account, fields } of allAccountsChanges) {
+        if (account.isMultisig()) {
+            if (fields.minSignerSetLength !== undefined) {
+                needToGetAccountInfoFor.add(account);
+                foundMultisigSignerLengths.push([account, fields.minSignerSetLength]);
             }
-            newOwners[entityKey].owners.push(principal);
         }
-        if (permissions.base.isValidForDefault && entity.isIdentifier()) {
-            needToGetAccountInfoFor.add(entity);
+        for (const singleRequirement of fields.permissionRequirements ?? []) {
+            const principal = singleRequirement.principal;
+            const principalPubKey = principal.publicKeyString.get();
+            if (!requirementsByPrincipal[principalPubKey]) {
+                requirementsByPrincipal[principalPubKey] = [];
+            }
+            requirementsByPrincipal[principalPubKey].push(singleRequirement);
+            const { entity, permissions } = singleRequirement;
+            const entityKey = entity.publicKeyString.get();
+            if (permissions === null) {
+                continue;
+            }
+            if (permissions.has(['OWNER'])) {
+                if (newOwners[entityKey] === undefined) {
+                    newOwners[entityKey] = {
+                        entity, owners: []
+                    };
+                }
+                newOwners[entityKey].owners.push(principal);
+            }
+            if (permissions.base.isValidForDefault && entity.isIdentifier()) {
+                needToGetAccountInfoFor.add(entity);
+            }
         }
     }
     const foundAccountInfo = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_listAccountInfo).call(this, needToGetAccountInfoFor);
+    for (const [multisig, foundSingerLength] of foundMultisigSignerLengths) {
+        const multisigPubKey = multisig.publicKeyString.get();
+        const foundInfo = foundAccountInfo[multisigPubKey];
+        if (!foundInfo?.multisigQuorum) {
+            throw (new Error(`Multisig quorum not found for ${multisigPubKey}`));
+        }
+        if (foundInfo.multisigQuorum > foundSingerLength) {
+            throw (new ledger_1.default('LEDGER_INVALID_PERMISSIONS', `Quorum of ${foundInfo.multisigQuorum} not reached for ${multisigPubKey} -- got ${foundSingerLength}`));
+        }
+    }
     const checkPromises = [];
     for (const principalPubKey in requirementsByPrincipal) {
         const accountRequirements = requirementsByPrincipal[principalPubKey];
@@ -66914,7 +67905,7 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     const ownersByIdentifier = {};
     // 'ADD' or 'REMOVE' an owner from ownersByIdentifier
     const modifyOwners = (method, entity, principal) => {
-        if (entity.isIdentifier() === false) {
+        if (entity.isIdentifier() === false || entity.isMultisig()) {
             return;
         }
         const entityPubKey = entity.assertIdentifier().publicKeyString.get();
@@ -66934,18 +67925,14 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
                 break;
         }
     };
-    const accountEffects = (0, effects_1.computeEffectOfBlocks)(blocks, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f")).accounts;
+    const effects = (0, effects_1.computeEffectOfBlocks)(blocks, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"));
+    const accountEffects = effects.accounts;
     const allAccountsChanges = Object.values(accountEffects);
     /**
      * Ensure all required permissions are met
      * See which accounts are now owners, and add those accounts to the set that we have
      */
-    const allPermissionRequirements = [];
-    for (const accountChanges of allAccountsChanges) {
-        const requirements = accountChanges.fields.permissionRequirements ?? [];
-        allPermissionRequirements.push(...requirements);
-    }
-    const { newOwners } = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_checkPermissionRequirements).call(this, allPermissionRequirements);
+    const { newOwners } = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_checkPermissionRequirements).call(this, accountEffects);
     for (const entityPubKey in newOwners) {
         const { entity, owners } = newOwners[entityPubKey];
         for (const newOwner of owners) {
@@ -66959,7 +67946,7 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
          */
         const createRequests = fields.createRequests ?? [];
         for (const createRequest of createRequests) {
-            modifyOwners('ADD', createRequest.requestedIdentifier, account);
+            modifyOwners('ADD', createRequest.createdIdentifier, account);
         }
         /**
          * If an account was granted permissions, we should take that into effect
@@ -67011,6 +67998,98 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
             }
         }
     }
+    return (effects);
+}, _LedgerAtomicInterface_validateBlocksForVote = async function _LedgerAtomicInterface_validateBlocksForVote(blocks) {
+    /**
+     * Create a map of all blocks by their hash
+     */
+    const blockHashMap = {};
+    for (const block of blocks) {
+        blockHashMap[block.hash.toString()] = block;
+    }
+    const seenBlockHashes = new block_1.BlockHash.Set();
+    const usedPreviousBlockHashes = new block_1.BlockHash.Set();
+    const allLedgerHeads = new Map();
+    for (const block of blocks) {
+        const prevBlockHash = block.previous;
+        seenBlockHashes.add(block.hash);
+        if (block.network !== __classPrivateFieldGet(this, _LedgerAtomicInterface_network, "f")) {
+            throw (new ledger_1.default('LEDGER_INVALID_NETWORK', 'Cannot vote on block for a different network'));
+        }
+        if (block.subnet !== __classPrivateFieldGet(this, _LedgerAtomicInterface_subnet, "f")) {
+            throw (new ledger_1.default('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet'));
+        }
+        if (usedPreviousBlockHashes.has(prevBlockHash)) {
+            throw (new ledger_1.default('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`));
+        }
+        usedPreviousBlockHashes.add(prevBlockHash);
+        /**
+         * Only allow this vote if it is the successor the current
+         * HEAD block for the account, or if no blocks exist on the
+         * account and its an opening block, or if the predecessor
+         * block is also being voted on
+         */
+        let predecessorBeingVotedOn = false;
+        if (!block.$opening) {
+            const prevBlock = blockHashMap[prevBlockHash.toString()];
+            if (prevBlock !== undefined) {
+                predecessorBeingVotedOn = true;
+                if (!(prevBlock.account.comparePublicKey(block.account))) {
+                    throw (new ledger_1.default('LEDGER_INVALID_CHAIN', 'Invalid chain, changes accounts'));
+                }
+                if (!seenBlockHashes.has(prevBlockHash)) {
+                    throw (new ledger_1.default('LEDGER_PREVIOUS_NOT_SEEN', `Invalid reference to block, out-of-order: ${prevBlockHash} has not already been seen`));
+                }
+            }
+        }
+        if (!predecessorBeingVotedOn) {
+            allLedgerHeads.set(block.account, block);
+        }
+    }
+    return (allLedgerHeads);
+}, _LedgerAtomicInterface_voteOrQuoteWithFees = async function _LedgerAtomicInterface_voteOrQuoteWithFees(blocks, type, quote) {
+    if (__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
+        throw (new Error(`May not issue votes in read-only mode, in ${__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
+    }
+    if (!__classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f")) {
+        throw (new Error('Cannot vote on block, no private key loaded'));
+    }
+    __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+    const effects = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateLedgerOutcome).call(this, blocks);
+    const now = Date.now();
+    for (const block of blocks) {
+        const blockDate = block.date.valueOf();
+        const timeOffset = 5 /* m */ * 60 /* s */ * 1000 /* ms */;
+        /**
+         * Do not allow short votes on blocks from the distant past
+         */
+        if (blockDate < (now - timeOffset) || blockDate > (now + timeOffset)) {
+            throw (new Error(`Refusing to issue vote for block dated ${block.date.toISOString()}`));
+        }
+    }
+    /**
+     * Serial number
+     */
+    const serial = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getNextSerialNumber(__classPrivateFieldGet(this, _LedgerAtomicInterface_transaction, "f"));
+    /**
+     * Short expiry (5 minutes)
+     */
+    const pendingVoteExpiry = new Date();
+    pendingVoteExpiry.setUTCMinutes(pendingVoteExpiry.getUTCMinutes() + 5);
+    const builderType = (type === 'QUOTE') ? vote_1.VoteQuoteBuilder : vote_1.VoteBuilder;
+    const builder = new builderType(__classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f"));
+    for (const block of blocks) {
+        builder.addBlock(block);
+    }
+    /**
+     * If a quote was provided use it as the fee, otherwise generate new fee
+     */
+    const fee = quote?.fee ?? await this.getFee(blocks, effects);
+    if (fee !== null) {
+        builder.addFee(fee);
+    }
+    const voteOrQuote = await builder.seal(serial, pendingVoteExpiry);
+    return (voteOrQuote);
 };
 /**
  * The core Ledger components
@@ -67046,6 +68125,26 @@ class Ledger {
     }
     copy(newNode) {
         return (new Ledger(__classPrivateFieldGet(this, _Ledger_config, "f"), newNode, __classPrivateFieldGet(this, _Ledger_storage, "f")));
+    }
+    getFeePayToAndToken(accounts, token) {
+        const retval = {};
+        if (accounts !== undefined && accounts.length > 0) {
+            // Get a random fee account from the set of possible accounts
+            const feeAccount = accounts[Math.floor(Math.random() * accounts.length)];
+            // If the fee account matches the ledger private key then we can omit the account
+            // Fee is then paid to the vote issuer
+            if (!feeAccount.comparePublicKey(__classPrivateFieldGet(this, _Ledger_config, "f").privateKey?.publicKeyString.get())) {
+                retval.payTo = feeAccount;
+            }
+        }
+        if (token !== undefined) {
+            // If base token matches ledger fee token then we can omit the token
+            // Fee is then paid using the base token
+            if (!this.baseToken.comparePublicKey(token)) {
+                retval.token = token;
+            }
+        }
+        return (retval);
     }
     /**
      * Execute some code with a transaction held, if the code fails the
@@ -67168,6 +68267,11 @@ class Ledger {
             return (await transaction.vote(...args));
         }));
     }
+    async quote(...args) {
+        return (await this.run('db-quote', async function (transaction) {
+            return (await transaction.quote(...args));
+        }));
+    }
     async add(...args) {
         return (await this.run('db-add', async function (transaction) {
             return (await transaction.add(...args));
@@ -67276,6 +68380,11 @@ class Ledger {
     async gc(...args) {
         return (await this.run('db-gc', async function (transaction) {
             return (await transaction.gc(...args));
+        }));
+    }
+    async getFee(...args) {
+        return (await this.run('db-getFee', async function (transaction) {
+            return (await transaction.getFee(...args));
         }));
     }
     async stats() {
@@ -67825,9 +68934,9 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _P2PWebSocket_underlyingSocket, _P2PWebSocket_socket, _P2PWebSocket_switch, _P2PSwitch_instances, _P2PSwitch_connectedPeersCleanup, _P2PSwitch_connectedPeersRemote, _P2PSwitch_connectedPeersLocal, _P2PSwitch_localNode, _P2PSwitch_manualPeersCheckIntervals, _P2PSwitch_asyncSends, _P2PSwitch_messageFilterCache, _P2PSwitch_connectedPeerConnection, _P2PSwitch_connectedPeers, _P2PSwitch_updateLastSeenPeer, _P2PSwitch_peersCacheSet, _P2PSwitch_peersCached, _P2PSwitch_relayActiveState, _P2PSwitch_performPeerCleanup, _P2PSwitch_getLocalPeerInfo, _P2PSwitch_emitOutgoingGreeting, _P2PSwitch_localNodeKeyOrNull, _P2PSwitch_handleIncomingGreeting, _P2PSwitch_updateConnTimeout, _P2PSwitch_connectToPeer, _P2PSwitch_passesFilter;
+var _P2PHttpConnection_switch, _P2PWebSocket_underlyingSocket, _P2PWebSocket_socket, _P2PWebSocket_switch, _P2PSwitch_instances, _P2PSwitch_connectedPeersCleanup, _P2PSwitch_connectedPeersRemote, _P2PSwitch_connectedPeersLocal, _P2PSwitch_localNode, _P2PSwitch_manualPeersCheckIntervals, _P2PSwitch_asyncSends, _P2PSwitch_messageFilterCache, _P2PSwitch_connectedPeerConnection, _P2PSwitch_connectedPeers, _P2PSwitch_updateLastSeenPeer, _P2PSwitch_peersCacheSet, _P2PSwitch_peersCached, _P2PSwitch_relayActiveState, _P2PSwitch_performPeerCleanup, _P2PSwitch_getLocalPeerInfo, _P2PSwitch_emitOutgoingGreeting, _P2PSwitch_localNodeKeyOrNull, _P2PSwitch_handleIncomingGreeting, _P2PSwitch_updateConnTimeout, _P2PSwitch_connectToPeer, _P2PSwitch_passesFilter;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Testing = exports.P2PSwitch = exports.P2PWebSocket = void 0;
+exports.Testing = exports.P2PSwitch = exports.P2PWebSocket = exports.P2PHttpConnection = void 0;
 exports.generateP2PPeerSigned = generateP2PPeerSigned;
 exports.P2PPeerFromJSO = P2PPeerFromJSO;
 exports.P2PPeerToJSO = P2PPeerToJSO;
@@ -67844,6 +68953,7 @@ const helper_1 = __webpack_require__(3208);
 const kv_memory_1 = __importDefault(__webpack_require__(1557));
 const vote_1 = __webpack_require__(1130);
 const effects_1 = __webpack_require__(7346);
+const version_1 = __webpack_require__(5672);
 const defaultP2PConfig = {
     timeoutIdle: 10 /* s */ * 1000 /* ms */,
     timeoutIdleGreeting: 5 /* s */ * 1000 /* ms */,
@@ -67852,12 +68962,13 @@ const defaultP2PConfig = {
     manualPeersCheckInFreq: 10 /* m */ * 60 /* s */ * 1000 /* ms */,
     seenMessageTTL: 1 /* m */ * 60 /* s */ * 1000 /* ms */,
     forwardingPeerCount: 16,
-    kv: null
+    kv: null,
+    useHTTPRepublish: false
 };
 /**
  * Convert a peer to a printable string
  */
-function printablePeer(peer) {
+function printablePeer(peer, endpoint) {
     if (peer === null) {
         return ('null (not yet greeted)');
     }
@@ -67865,7 +68976,7 @@ function printablePeer(peer) {
         case node_1.NodeKind.PARTICIPANT:
             return (`listener_${peer.id}`);
         case node_1.NodeKind.REPRESENTATIVE:
-            return (`rep_${peer.key.publicKeyString.get()}@${peer.endpoints.p2p}`);
+            return (`rep_${peer.key.publicKeyString.get()}@${endpoint ?? peer.endpoints.p2p}`);
     }
     return (null);
 }
@@ -67899,6 +69010,7 @@ function validateP2PPeer(peer) {
                         checkVersion,
                         peer.endpoints.p2p,
                         peer.endpoints.api,
+                        peer.preferUpdates,
                         peer.kind,
                         peer.key.publicKeyAndType
                     ];
@@ -67922,6 +69034,7 @@ async function generateP2PPeerSignature(peer) {
                     version,
                     peer.endpoints.p2p,
                     peer.endpoints.api,
+                    peer.preferUpdates,
                     peer.kind,
                     peer.key.publicKeyAndType
                 ];
@@ -67973,13 +69086,20 @@ function P2PPeerFromJSO(object) {
                 if (typeof endpoints.p2p !== 'string' || typeof endpoints.api !== 'string') {
                     return (null);
                 }
+                if (typeof object.preferUpdates !== 'string') {
+                    return (null);
+                }
+                if (object.preferUpdates !== 'http' && object.preferUpdates !== 'websocket') {
+                    return (null);
+                }
                 if (typeof object.key !== 'string') {
                     return (null);
                 }
                 const retvalUnsigned = {
                     kind: node_1.NodeKind.REPRESENTATIVE,
                     key: account_1.default.fromPublicKeyString(object.key).assertAccount(),
-                    endpoints: endpoints
+                    endpoints: endpoints,
+                    preferUpdates: object.preferUpdates
                 };
                 let retval;
                 if (typeof object.signature === 'string') {
@@ -68041,6 +69161,7 @@ function P2PPeerToJSO(peer) {
                 return ({
                     kind: peer.kind,
                     endpoints: peer.endpoints,
+                    preferUpdates: peer.preferUpdates,
                     key: peer.key.publicKeyString.get(),
                     ...additionalAttributes
                 });
@@ -68071,6 +69192,12 @@ function isP2PPeer(checkObject) {
                 return (false);
             }
             if (!('p2p' in checkObject.endpoints) || !('api' in checkObject.endpoints)) {
+                return (false);
+            }
+            if (!('preferUpdates' in checkObject)) {
+                return (false);
+            }
+            if (checkObject.preferUpdates !== 'http' && checkObject.preferUpdates !== 'websocket') {
                 return (false);
             }
             if (!('key' in checkObject)) {
@@ -68182,6 +69309,78 @@ async function waitForPeer(conn) {
         }, 10);
     })));
 }
+class P2PHttpConnection {
+    /**
+     * Initiate an outbound http connection and attach it to the specified switch
+     */
+    static async initiate(peer, p2pSwitch) {
+        if (!('endpoints' in peer)) {
+            return (null);
+        }
+        if (!('api' in peer.endpoints)) {
+            return (null);
+        }
+        if (!('preferUpdates' in peer) || peer.preferUpdates !== 'http') {
+            return (null);
+        }
+        const conn = new P2PHttpConnection(peer, p2pSwitch);
+        await p2pSwitch.registerConnection(conn);
+        return (conn);
+    }
+    constructor(peer, p2pSwitch) {
+        _P2PHttpConnection_switch.set(this, void 0);
+        this.abort = false;
+        this.validatedPeer = null;
+        this.timeout = 0;
+        this.peer = peer;
+        __classPrivateFieldSet(this, _P2PHttpConnection_switch, p2pSwitch, "f");
+    }
+    get connString() {
+        if (this.peerString === null) {
+            throw (new Error('HTTP Connection should have a peerString'));
+        }
+        return (this.peerString);
+    }
+    get peerString() {
+        if (this.peer.kind === node_1.NodeKind.PARTICIPANT) {
+            throw (new Error('HTTP Connections cannot be participants'));
+        }
+        return (printablePeer(this.peer, this.peer.endpoints.api));
+    }
+    async send(messageBuffer) {
+        if (this.peer.kind !== node_1.NodeKind.REPRESENTATIVE) {
+            return (false);
+        }
+        __classPrivateFieldGet(this, _P2PHttpConnection_switch, "f")._log.debug(`Called send on http connection: ${this.peerString}`);
+        const localGreetingInfo = await __classPrivateFieldGet(this, _P2PHttpConnection_switch, "f").getOutgoingGreetingInfo();
+        const fetchURL = `${this.peer.endpoints.api}/p2p/message`;
+        try {
+            await fetch(fetchURL, {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    'user-agent': `KeetaNet/v${version_1.version} (JS)`
+                },
+                body: JSON.stringify({
+                    message: messageBuffer.toString(),
+                    greeting: localGreetingInfo
+                })
+            });
+        }
+        catch (postMessageError) {
+            __classPrivateFieldGet(this, _P2PHttpConnection_switch, "f")._log.debug(`Failed to post message: ${postMessageError}`);
+        }
+        return (true);
+    }
+    async close() {
+        this.abort = true;
+        __classPrivateFieldGet(this, _P2PHttpConnection_switch, "f")._log.debug(`Called close on http connection: ${this.peerString}`);
+        await __classPrivateFieldGet(this, _P2PHttpConnection_switch, "f").unregisterConnection(this);
+    }
+}
+exports.P2PHttpConnection = P2PHttpConnection;
+_P2PHttpConnection_switch = new WeakMap();
+P2PHttpConnection.isInstance = (0, helper_1.checkableGenerator)(P2PHttpConnection);
 /**
  * A P2PConnection using the "ws" package
  */
@@ -68476,7 +69675,12 @@ class P2PSwitch {
          * been confirmed
          */
         const repLastSeenLimit = Math.max(this.config.timeoutIdle, this.config.manualPeersCheckInFreq) * 10;
-        let knownPeers = await this.config.kv.getAll('knownPeers');
+        const potentialKnownPeers = await this.config.kv.getAll('knownPeers');
+        // Filter for only valid entries in case the format becomes invalidated in the future
+        let knownPeers = Object.fromEntries(Object.entries(potentialKnownPeers).filter(([_, value]) => {
+            const peer = P2PPeerFromJSO(value);
+            return (peer !== null);
+        }));
         const lastSeenPeers = await this.config.kv.getAll('lastSeenPeers');
         const retval = [];
         /**
@@ -68730,6 +69934,13 @@ class P2PSwitch {
     async selfPeer() {
         return (await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this));
     }
+    async getOutgoingGreetingInfo() {
+        const greetingInfo = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this);
+        if (greetingInfo === null) {
+            throw (new Error('Invalid NodeKind for emitting outgoing greeting'));
+        }
+        return (P2PPeerToJSO(greetingInfo));
+    }
     /**
      * Receive a message from a connection
      *
@@ -68780,7 +69991,7 @@ class P2PSwitch {
             let forward = true;
             let acceptable = true;
             let rebroadcastOnly = false;
-            if (from.peer === null) {
+            if (from.peer === null || (P2PHttpConnection.isInstance(from) && message.type === 'greeting')) {
                 /**
                  * By default do not forward messages from un-greeted peers
                  */
@@ -69237,6 +70448,23 @@ class P2PSwitch {
         }
         return (false);
     }
+    /**
+     * TODO - make this private after refactoring websockets to handle higher load
+     * https://github.com/KeetaNetwork/node/issues/785
+     */
+    async haveAnyFilter(data) {
+        const kvFilters = await this.config.kv.getAll('messageFilters');
+        for (const key in kvFilters) {
+            const kvFilter = kvFilters[key];
+            if (kvFilter && typeof kvFilter === 'string') {
+                const filter = account_1.default.fromPublicKeyAndType(kvFilter);
+                const voteStaple = new vote_1.VoteStaple(data);
+                const { touched } = (0, effects_1.computeEffectOfBlocks)(voteStaple.blocks);
+                return (touched.has(filter));
+            }
+        }
+        return (false);
+    }
 }
 exports.P2PSwitch = P2PSwitch;
 _P2PSwitch_connectedPeersCleanup = new WeakMap(), _P2PSwitch_connectedPeersRemote = new WeakMap(), _P2PSwitch_connectedPeersLocal = new WeakMap(), _P2PSwitch_localNode = new WeakMap(), _P2PSwitch_manualPeersCheckIntervals = new WeakMap(), _P2PSwitch_asyncSends = new WeakMap(), _P2PSwitch_messageFilterCache = new WeakMap(), _P2PSwitch_peersCacheSet = new WeakMap(), _P2PSwitch_instances = new WeakSet(), _P2PSwitch_connectedPeerConnection = 
@@ -69408,7 +70636,8 @@ async function _P2PSwitch_relayActiveState(conn) {
                     endpoints: {
                         p2p: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.p2p,
                         api: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.api
-                    }
+                    },
+                    preferUpdates: this.config.useHTTPRepublish ? 'http' : 'websocket'
                 });
                 if (greetingInfoSigned === null) {
                     throw (new Error('internal error: Could not generate signature'));
@@ -69422,11 +70651,7 @@ async function _P2PSwitch_relayActiveState(conn) {
     return (greetingInfo);
 }, _P2PSwitch_emitOutgoingGreeting = async function _P2PSwitch_emitOutgoingGreeting(to) {
     const messageID = uuid.v4();
-    const greetingInfo = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this);
-    if (greetingInfo === null) {
-        throw (new Error('Invalid NodeKind for emitting outgoing greeting'));
-    }
-    const greeting = P2PPeerToJSO(greetingInfo);
+    const greeting = await this.getOutgoingGreetingInfo();
     this._log.debug('Sending greeting to', to.connString);
     return (await this.sendMessage(to, messageID, 'greeting', greeting, 0));
 }, _P2PSwitch_localNodeKeyOrNull = async function _P2PSwitch_localNodeKeyOrNull() {
@@ -69489,23 +70714,28 @@ async function _P2PSwitch_relayActiveState(conn) {
     }
 }, _P2PSwitch_connectToPeer = async function _P2PSwitch_connectToPeer(peer, logId) {
     this._log.debug(`[${logId}]`, 'Trying to connect to peer', printablePeer(peer));
-    let ws = null;
-    try {
-        ws = await P2PWebSocket.initiate(peer, this);
+    let p2pConnection = null;
+    if (peer.kind === node_1.NodeKind.REPRESENTATIVE && peer.preferUpdates === 'http') {
+        p2pConnection = await P2PHttpConnection.initiate(peer, this);
     }
-    catch (connectError) {
-        /* Ignored */
+    else {
+        try {
+            p2pConnection = await P2PWebSocket.initiate(peer, this);
+        }
+        catch (connectError) {
+            /* Ignored */
+        }
     }
-    if (ws === null) {
+    if (p2pConnection === null) {
         return (null);
     }
     /**
      * Since we established an outbound connection to this
      * peer we already know their information
      */
-    ws.validatedPeer = peer;
-    await this.registerConnection(ws);
-    await waitForPeer(ws);
+    p2pConnection.validatedPeer = peer;
+    await this.registerConnection(p2pConnection);
+    await waitForPeer(p2pConnection);
     /*
      * Since we successfully connected to the peer, update the
      * last seen information
@@ -69523,7 +70753,7 @@ async function _P2PSwitch_relayActiveState(conn) {
     catch (addPeerError) {
         this._log.error('Failed to add peer:', addPeerError);
     }
-    return (ws);
+    return (p2pConnection);
 }, _P2PSwitch_passesFilter = async function _P2PSwitch_passesFilter(target, data) {
     let filter = __classPrivateFieldGet(this, _P2PSwitch_messageFilterCache, "f")[target.connString];
     if (filter === undefined) {
@@ -69600,7 +70830,8 @@ var BaseFlag;
     BaseFlag[BaseFlag["TOKEN_ADMIN_MODIFY_BALANCE"] = 7] = "TOKEN_ADMIN_MODIFY_BALANCE";
     BaseFlag[BaseFlag["PERMISSION_DELEGATE_ADD"] = 11] = "PERMISSION_DELEGATE_ADD";
     BaseFlag[BaseFlag["PERMISSION_DELEGATE_REMOVE"] = 12] = "PERMISSION_DELEGATE_REMOVE";
-    BaseFlag[BaseFlag["MANAGE_CERTIFICATE"] = 13] = "MANAGE_CERTIFICATE"; /* 0x2000 */
+    BaseFlag[BaseFlag["MANAGE_CERTIFICATE"] = 13] = "MANAGE_CERTIFICATE";
+    BaseFlag[BaseFlag["MULTISIG_SIGNER"] = 14] = "MULTISIG_SIGNER"; /* 0x4000 */
 })(BaseFlag || (BaseFlag = {}));
 /**
  * Handles what flags are in what groups, groups cannot be mixed (except BASE)
@@ -69614,6 +70845,8 @@ var BasePermissionGroup;
     BasePermissionGroup[BasePermissionGroup["NETWORK"] = 3] = "NETWORK";
     BasePermissionGroup[BasePermissionGroup["TOKEN"] = 4] = "TOKEN";
     BasePermissionGroup[BasePermissionGroup["STORAGE"] = 5] = "STORAGE";
+    BasePermissionGroup[BasePermissionGroup["NONIDENTIFIER_OR_MULTISIG"] = 6] = "NONIDENTIFIER_OR_MULTISIG";
+    BasePermissionGroup[BasePermissionGroup["MULTISIG"] = 7] = "MULTISIG";
 })(BasePermissionGroup || (BasePermissionGroup = {}));
 const basePermissionRules = {
     ACCESS: {
@@ -69698,6 +70931,12 @@ const basePermissionRules = {
         canBeDefault: true,
         entity: BasePermissionGroup.ANY,
         principal: BasePermissionGroup.ANY,
+        target: BasePermissionGroup.NEVER
+    },
+    MULTISIG_SIGNER: {
+        canBeDefault: false,
+        entity: BasePermissionGroup.MULTISIG,
+        principal: BasePermissionGroup.NONIDENTIFIER_OR_MULTISIG,
         target: BasePermissionGroup.NEVER
     }
 };
@@ -69839,6 +71078,10 @@ class BaseSet extends PermissionSetHolder {
                 return (true);
             case _a.BasePermissionGroup.NEVER:
                 return (false);
+            case _a.BasePermissionGroup.NONIDENTIFIER_OR_MULTISIG:
+                return (account.isAccount() || account.isMultisig());
+            case _a.BasePermissionGroup.MULTISIG:
+                return (account.isMultisig());
         }
         return (false);
     }
@@ -71162,7 +72405,11 @@ class ValidateASN1 {
      * Given a schema, validate the ASN.1 object against it and return the
      * object as the validated type
      */
-    static againstSchema(input, schema) {
+    static againstSchema(input, schemaIn) {
+        let schema = schemaIn;
+        if (typeof schema === 'function') {
+            schema = schema();
+        }
         let needsMoreAnalysis = false;
         if (util_1.types.isDate(input) && schema === ValidateASN1.IsDate) {
             /* XXX:TODO */
@@ -72055,16 +73302,44 @@ function fromDNSequenceToString(dn) {
     const retval = parts.join(', ');
     return (retval);
 }
+const defaultHashName = HashLib.HashFunctionName;
 class CertificateBuilder {
     constructor(params) {
         _CertificateBuilder_params.set(this, void 0);
         __classPrivateFieldSet(this, _CertificateBuilder_params, {
-            hashLib: {
-                hash: HashLib.Hash,
-                name: HashLib.HashFunctionName
-            },
             ...params
         }, "f");
+    }
+    static hashName(params, purpose) {
+        const hashLib = params.hashLib;
+        if (hashLib !== undefined) {
+            switch (hashLib.name) {
+                case 'sha256':
+                case 'sha3-256':
+                    return (hashLib.name);
+                default:
+                    throw (new Error(`Unsupported hash algorithm "${hashLib.name}"`));
+            }
+        }
+        const hashName = params.hashParams?.defaults?.[purpose] ?? defaultHashName;
+        return (hashName);
+    }
+    static hash(params, purpose, ...data) {
+        /*
+         * If the deprecated hashLib parameter is set, then use it
+         * regardless of the algo parameter for backwards compatibility
+         * even though it is not recommended to use it anymore
+         */
+        const hashLib = params.hashLib;
+        if (hashLib !== undefined) {
+            return (hashLib.hash(...data));
+        }
+        const hashName = this.hashName(params, purpose);
+        const hashFunction = params.hashParams.functions?.[hashName];
+        if (hashFunction === undefined) {
+            throw (new Error(`Hash function "${hashName}" not found for purpose "${purpose}"`));
+        }
+        return (hashFunction(...data));
     }
     /**
      * Construct an extension
@@ -72084,12 +73359,8 @@ class CertificateBuilder {
     /**
      * Convert a KeetaNet Account to a Key ID (for Subject Key Identifier)
      */
-    accountToKeyId(account) {
-        const hashLib = __classPrivateFieldGet(this, _CertificateBuilder_params, "f").hashLib;
-        if (hashLib === undefined) {
-            throw (new Error('"hashLib" not set'));
-        }
-        return (Buffer.from(hashLib.hash(Buffer.concat([
+    accountToKeyId(params, account, purpose) {
+        return (Buffer.from(CertificateBuilder.hash(params, purpose, Buffer.concat([
             Buffer.from('KeetaKey', 'utf-8'),
             account.publicKeyAndType
         ]), 20)));
@@ -72153,10 +73424,11 @@ class CertificateBuilder {
         extensions.push(
         /** Extension: Authority Key Identifier */
         CertificateBuilder.extension('2.5.29.35', [
-            { type: 'context', value: 0, kind: 'implicit', contains: this.accountToKeyId(params.issuer) }
+            /** XXX:TODO: Copy the key ID from the issuer certificate's Subject Key Identifier if known */
+            { type: 'context', value: 0, kind: 'implicit', contains: this.accountToKeyId(params, params.issuer, 'aki') }
         ]), 
         /** Extension: Subject Key Identifier */
-        CertificateBuilder.extension('2.5.29.14', this.accountToKeyId(params.subjectPublicKey)));
+        CertificateBuilder.extension('2.5.29.14', this.accountToKeyId(params, params.subjectPublicKey, 'ski')));
         return (extensions);
     }
     /**
@@ -72165,7 +73437,26 @@ class CertificateBuilder {
     getFinalParams(params) {
         const finalParams = {
             ...__classPrivateFieldGet(this, _CertificateBuilder_params, "f"),
-            ...params
+            ...params,
+            hashParams: {
+                ...__classPrivateFieldGet(this, _CertificateBuilder_params, "f")?.hashParams,
+                ...params?.hashParams,
+                functions: {
+                    'sha256': function (data, len) {
+                        throw (new Error('not implemented, please provide an implementation'));
+                    },
+                    [defaultHashName]: HashLib.Hash,
+                    ...__classPrivateFieldGet(this, _CertificateBuilder_params, "f")?.hashParams?.functions,
+                    ...params?.hashParams?.functions
+                },
+                defaults: {
+                    signature: defaultHashName,
+                    ski: defaultHashName,
+                    aki: defaultHashName,
+                    ...__classPrivateFieldGet(this, _CertificateBuilder_params, "f")?.hashParams?.defaults,
+                    ...params?.hashParams?.defaults
+                }
+            }
         };
         /* Validate that required parameters are set */
         const issuer = finalParams.issuer;
@@ -72189,8 +73480,9 @@ class CertificateBuilder {
             throw (new Error('"serialNumber" not set'));
         }
         const hashLib = finalParams.hashLib;
-        if (hashLib === undefined) {
-            throw (new Error('"hashLib" not set'));
+        const hashParams = finalParams.hashParams;
+        if (hashParams === undefined) {
+            throw (new Error('"hashParams" not set'));
         }
         return ({
             ...finalParams,
@@ -72199,7 +73491,8 @@ class CertificateBuilder {
             validFrom,
             validTo,
             serial,
-            hashLib
+            hashLib,
+            hashParams
         });
     }
     /**
@@ -72207,13 +73500,13 @@ class CertificateBuilder {
      */
     async buildDER(params) {
         const finalParams = this.getFinalParams(params);
-        const hashLib = finalParams.hashLib;
         const { oid: signatureAlgorithmOID, hashData: hashData } = (function () {
+            const hashName = CertificateBuilder.hashName(finalParams, 'signature');
             switch (finalParams.issuer.keyType) {
                 case account_1.AccountKeyAlgorithm.ECDSA_SECP256K1:
                 case account_1.AccountKeyAlgorithm.ECDSA_SECP256R1:
                     return ({
-                        oid: `${hashLib.name}WithEcDSA`,
+                        oid: `${hashName}WithEcDSA`,
                         hashData: true
                     });
                 case account_1.AccountKeyAlgorithm.ED25519:
@@ -72281,7 +73574,7 @@ class CertificateBuilder {
          */
         let toSign;
         if (hashData) {
-            toSign = Buffer.from(hashLib.hash(tbsCertificateBuffer));
+            toSign = Buffer.from(CertificateBuilder.hash(finalParams, 'signature', tbsCertificateBuffer));
         }
         else {
             toSign = tbsCertificateBuffer;
@@ -72871,6 +74164,18 @@ class Certificate {
             return (null);
         }
         return (issuerCert.subjectPublicKey);
+    }
+    /**
+     * Get the extensions present in the certificate -- this is the raw
+     * extensions as they were parsed from the certificate, and may
+     * contain extensions that are not processed by this class.
+     */
+    getExtensions() {
+        this.assertConstructed();
+        if (__classPrivateFieldGet(this, _Certificate_extensionsRaw, "f") === undefined) {
+            return (undefined);
+        }
+        return (__classPrivateFieldGet(this, _Certificate_extensionsRaw, "f"));
     }
     assertConstructed() {
         if (!__classPrivateFieldGet(this, _Certificate_finalizeConstructionCalled, "f")) {
@@ -73738,6 +75043,7 @@ var _AsyncDisposableStackPolyfill_instances, _AsyncDisposableStackPolyfill_toDis
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.crypto = exports.AsyncDisposableStack = void 0;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
+exports.bufferToBigInt = bufferToBigInt;
 exports.isIntegerOrBigInt = isIntegerOrBigInt;
 exports.isBuffer = isBuffer;
 exports.arrayRepeat = arrayRepeat;
@@ -73772,6 +75078,13 @@ function bufferToArrayBuffer(input) {
         view[index] = input[index];
     }
     return (out);
+}
+function bufferToBigInt(buffer) {
+    let result = 0n;
+    for (const byte of buffer) {
+        result = (result << 8n) + BigInt(byte);
+    }
+    return (result);
 }
 /**
  * Check if a value is an integer or a bigint.
@@ -74132,7 +75445,11 @@ function setGenerator(parent, rawEncode, rawDecode) {
             _map.set(this, void 0);
             this[_b] = `${parent.name}Set`;
             __classPrivateFieldSet(this, _map, new Map(), "f");
-            __classPrivateFieldSet(this, _set, new Set(data.map(item => encode(item, __classPrivateFieldGet(this, _map, "f")))), "f");
+            __classPrivateFieldSet(this, _set, new Set, "f");
+            // Use a loop since data could be an Iterable not always an array
+            for (const item of data) {
+                __classPrivateFieldGet(this, _set, "f").add(encode(item, __classPrivateFieldGet(this, _map, "f")));
+            }
         }
         // Fit with new JS spec
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set/isSubsetOf
@@ -74350,7 +75667,7 @@ async function generateInitialVoteStaple(options) {
             blocks.recipientSupply = blocks.recipient;
             blocks.recipient = await new block_1.default.Builder({
                 network: network,
-                signer: recipient,
+                account: recipient,
                 previous: getPrevious(recipient),
                 operations: [{
                         type: block_1.default.OperationType.SET_REP,
@@ -74454,9 +75771,9 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _PossiblyExpiredVote_vote, _PossiblyExpiredVote_options, _PossiblyExpiredVote__hash, _PossiblyExpiredVote__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBuilder_account, _VoteBuilder_blocks, _VoteBuilder_fee;
+var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Testing = exports.VoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
+exports.Testing = exports.VoteQuoteBuilder = exports.VoteBuilder = exports.BaseVoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.VoteQuote = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
 const block_1 = __webpack_require__(6158);
 const hash_1 = __webpack_require__(7908);
 const account_1 = __importStar(__webpack_require__(9415));
@@ -74478,6 +75795,7 @@ const feeExtensionSchema = {
     value: 0,
     kind: 'explicit',
     contains: [
+        asn1_1.ValidateASN1.IsBoolean,
         asn1_1.ValidateASN1.IsInteger,
         { optional: { type: 'context', value: 0, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } },
         { optional: { type: 'context', value: 1, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } }
@@ -74578,29 +75896,35 @@ function feeFromVote(input) {
         }
     })();
     const feeData = feeInformation.contains;
-    const retval = { amount: feeData[0] };
-    const payToAsn1 = feeData[1];
+    const quote = feeData[0];
+    const retval = {
+        quote: quote,
+        fee: {
+            amount: feeData[1]
+        }
+    };
+    const payToAsn1 = feeData[2];
     if (payToAsn1 !== undefined) {
         const payTo = account_1.default.fromPublicKeyAndType(Buffer.from(payToAsn1.contains));
         if (payTo.isStorage()) {
-            retval.payTo = payTo;
+            retval.fee.payTo = payTo;
         }
         else {
             try {
-                retval.payTo = payTo.assertAccount();
+                retval.fee.payTo = payTo.assertAccount();
             }
             catch {
                 throw (new vote_1.default('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address'));
             }
         }
     }
-    const tokenAsn1 = feeData[2];
+    const tokenAsn1 = feeData[3];
     if (tokenAsn1 !== undefined) {
         const token = account_1.default.fromPublicKeyAndType(Buffer.from(tokenAsn1.contains));
         if (!token.isToken()) {
             throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token'));
         }
-        retval.token = token;
+        retval.fee.token = token;
     }
     return (retval);
 }
@@ -74734,7 +76058,11 @@ class VoteBlockHash extends buffer_1.BufferStorage {
 exports.VoteBlockHash = VoteBlockHash;
 VoteBlockHash.isInstance = (0, helper_1.checkableGenerator)(VoteBlockHash);
 VoteBlockHash.Map = VoteBlockHashMap;
-class PossiblyExpiredVote {
+class VoteLikeBase {
+    getClass() {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return this.constructor;
+    }
     static isValidJSON(voteJSON) {
         for (const checkField of ['issuer', 'serial', 'blocks', 'validityFrom', 'validityTo', 'signature']) {
             if (voteJSON[checkField] === undefined) {
@@ -74756,10 +76084,15 @@ class PossiblyExpiredVote {
                 return (false);
             }
         }
+        if ('quote' in voteJSON) {
+            if (voteJSON['quote'] === undefined) {
+                return (false);
+            }
+        }
         return (true);
     }
     static fromJSON(voteJSON, options = {}) {
-        if (!PossiblyExpiredVote.isValidJSON(voteJSON)) {
+        if (!VoteLikeBase.isValidJSON(voteJSON)) {
             throw (new vote_1.default('VOTE_INVALID_CONSTRUCTION_JSON', 'Cannot construct vote, it is not a valid vote JSON object'));
         }
         const issuer = account_1.default.toAccount(voteJSON.issuer);
@@ -74778,22 +76111,29 @@ class PossiblyExpiredVote {
         const validTo = new Date(voteJSON.validityTo);
         const validFrom = new Date(voteJSON.validityFrom);
         const signatureStorage = new buffer_1.BufferStorage(signature, signature.byteLength);
+        if (this.expectedQuoteValue !== (voteJSON.quote ?? false)) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${voteJSON.quote} - expected ${this.expectedQuoteValue}`));
+        }
+        if (voteJSON.quote === true && voteJSON.fee === undefined) {
+            throw (new vote_1.default('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided'));
+        }
         if (voteJSON.fee !== undefined) {
             voteBuilder.addFee(voteJSON.fee);
         }
         const { voteData, tbsCertificate, signatureInfo } = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom);
-        const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage, options);
-        return (vote);
+        const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage);
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return new this(vote, options);
     }
     constructor(vote, options = {}) {
         this.$trusted = false;
         this.$permanent = false;
-        _PossiblyExpiredVote_vote.set(this, void 0);
-        _PossiblyExpiredVote_options.set(this, void 0);
-        _PossiblyExpiredVote__hash.set(this, void 0);
-        _PossiblyExpiredVote__blocksHash.set(this, void 0);
-        __classPrivateFieldSet(this, _PossiblyExpiredVote_options, { ...options }, "f");
-        if (PossiblyExpiredVote.isInstance(vote, false)) {
+        _VoteLikeBase_vote.set(this, void 0);
+        _VoteLikeBase_options.set(this, void 0);
+        _VoteLikeBase__hash.set(this, void 0);
+        _VoteLikeBase__blocksHash.set(this, void 0);
+        __classPrivateFieldSet(this, _VoteLikeBase_options, { ...options }, "f");
+        if (VoteLikeBase.isInstance(vote, false)) {
             this.issuer = vote.issuer;
             this.serial = vote.serial;
             this.blocks = vote.blocks;
@@ -74801,12 +76141,13 @@ class PossiblyExpiredVote {
             this.validityTo = vote.validityTo;
             this.signature = vote.signature;
             this.fee = vote.fee;
+            this.quote = vote.quote;
             this.$trusted = vote.$trusted;
             this.$permanent = vote.$permanent;
             this.$uid = vote.$uid;
             this.$id = vote.$id;
-            __classPrivateFieldSet(this, _PossiblyExpiredVote_vote, __classPrivateFieldGet(vote, _PossiblyExpiredVote_vote, "f"), "f");
-            __classPrivateFieldSet(this, _PossiblyExpiredVote_options, __classPrivateFieldGet(vote, _PossiblyExpiredVote_options, "f"), "f");
+            __classPrivateFieldSet(this, _VoteLikeBase_vote, __classPrivateFieldGet(vote, _VoteLikeBase_vote, "f"), "f");
+            __classPrivateFieldSet(this, _VoteLikeBase_options, __classPrivateFieldGet(vote, _VoteLikeBase_options, "f"), "f");
             return;
         }
         if (typeof vote === 'string') {
@@ -74819,18 +76160,18 @@ class PossiblyExpiredVote {
             vote = (0, helper_1.bufferToArrayBuffer)(vote);
         }
         if (!(util_1.types.isArrayBuffer(vote))) {
-            if (PossiblyExpiredVote.isValidJSON(vote)) {
-                vote = PossiblyExpiredVote.fromJSON(vote).toBytes();
+            if (VoteLikeBase.isValidJSON(vote)) {
+                vote = VoteLikeBase.fromJSON(vote).toBytes();
             }
             else {
-                throw (new vote_1.default('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in PossiblyExpiredVote'));
+                throw (new vote_1.default('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in VoteLikeBase'));
             }
         }
-        __classPrivateFieldSet(this, _PossiblyExpiredVote_vote, vote, "f");
+        __classPrivateFieldSet(this, _VoteLikeBase_vote, vote, "f");
         /**
          * Vote Wrapper contains the vote, signature info, and signature
          */
-        const voteWrapper = (0, asn1_1.ASN1toJS)(__classPrivateFieldGet(this, _PossiblyExpiredVote_vote, "f"));
+        const voteWrapper = (0, asn1_1.ASN1toJS)(__classPrivateFieldGet(this, _VoteLikeBase_vote, "f"));
         if (!Array.isArray(voteWrapper)) {
             throw (new vote_1.default('VOTE_MALFORMED_WRAPPER', 'internal error: Malformed vote wrapper (must be a sequence)'));
         }
@@ -74930,13 +76271,13 @@ class PossiblyExpiredVote {
          * Votes must not be expired
          */
         const expirationCheckMomentISO = new Date(expirationCheckMoment).toISOString();
-        if (expirationCheckMoment < (this.validityFrom.valueOf() - PossiblyExpiredVote.allowedSlop)) {
+        if (expirationCheckMoment < (this.validityFrom.valueOf() - VoteLikeBase.allowedSlop)) {
             throw (new vote_1.default('VOTE_MOMENT_BEFORE_VALIDITY_FROM', `Vote was issued in the future (issued on ${validFrom.toISOString()}; moment: ${expirationCheckMomentISO})`));
         }
         /**
          * If the vote is forever viable, it is a permanent vote
          */
-        if (this.validityTo.valueOf() > (expirationCheckMoment + PossiblyExpiredVote.permanentVoteThreshold)) {
+        if (this.validityTo.valueOf() > (expirationCheckMoment + VoteLikeBase.permanentVoteThreshold)) {
             this.$permanent = true;
         }
         /**
@@ -75001,7 +76342,7 @@ class PossiblyExpiredVote {
             throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to be a Sequence'));
         }
         let blocks;
-        let fee;
+        let feeAndKind;
         for (const extensionInfo of extensions) {
             if (!Array.isArray(extensionInfo)) {
                 throw (new vote_1.default('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Expected each extension to be a Sequence'));
@@ -75034,7 +76375,7 @@ class PossiblyExpiredVote {
                     break;
                 case '1.3.6.1.4.1.62675.0.1.0':
                 case 'fees': // replace with fees 1.3.6.1.4.1.62675.0.1.0
-                    fee = feeFromVote(extensionData);
+                    feeAndKind = feeFromVote(extensionData);
                     break;
                 default:
                     if (critical) {
@@ -75049,11 +76390,16 @@ class PossiblyExpiredVote {
             throw (new vote_1.default('VOTE_MALFORMED_VOTE_NO_BLOCKS_FOUND', 'No block hashes found within vote'));
         }
         this.blocks = blocks;
-        if (fee !== undefined) {
+        if (feeAndKind !== undefined) {
             if (this.$permanent) {
                 throw (new vote_1.default('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'Permanent Vote cannot have fees'));
             }
-            this.fee = fee;
+            // Get the expected quote value from any child instances and compare
+            if (feeAndKind.quote !== this.getClass().expectedQuoteValue) {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${feeAndKind.quote} - expected ${this.getClass().expectedQuoteValue}`));
+            }
+            this.fee = feeAndKind.fee;
+            this.quote = feeAndKind.quote;
         }
         /**
          * Get the signature data
@@ -75141,19 +76487,19 @@ class PossiblyExpiredVote {
         }
     }
     toBytes() {
-        return (__classPrivateFieldGet(this, _PossiblyExpiredVote_vote, "f"));
+        return (__classPrivateFieldGet(this, _VoteLikeBase_vote, "f"));
     }
     get hash() {
-        if (!__classPrivateFieldGet(this, _PossiblyExpiredVote__hash, "f")) {
-            __classPrivateFieldSet(this, _PossiblyExpiredVote__hash, new VoteHash((0, hash_1.Hash)(Buffer.from(this.toBytes()))), "f");
+        if (!__classPrivateFieldGet(this, _VoteLikeBase__hash, "f")) {
+            __classPrivateFieldSet(this, _VoteLikeBase__hash, new VoteHash((0, hash_1.Hash)(Buffer.from(this.toBytes()))), "f");
         }
-        return (__classPrivateFieldGet(this, _PossiblyExpiredVote__hash, "f"));
+        return (__classPrivateFieldGet(this, _VoteLikeBase__hash, "f"));
     }
     get blocksHash() {
-        if (!__classPrivateFieldGet(this, _PossiblyExpiredVote__blocksHash, "f")) {
-            __classPrivateFieldSet(this, _PossiblyExpiredVote__blocksHash, VoteBlockHash.fromVote(this), "f");
+        if (!__classPrivateFieldGet(this, _VoteLikeBase__blocksHash, "f")) {
+            __classPrivateFieldSet(this, _VoteLikeBase__blocksHash, VoteBlockHash.fromVote(this), "f");
         }
-        return (__classPrivateFieldGet(this, _PossiblyExpiredVote__blocksHash, "f"));
+        return (__classPrivateFieldGet(this, _VoteLikeBase__blocksHash, "f"));
     }
     toString() {
         return (Buffer.from(this.toBytes()).toString('base64'));
@@ -75165,6 +76511,9 @@ class PossiblyExpiredVote {
         }
         if (this.fee !== undefined) {
             additionalFields['fee'] = this.fee;
+        }
+        if (this.quote !== undefined) {
+            additionalFields['quote'] = this.quote;
         }
         return ({
             issuer: this.issuer,
@@ -75182,8 +76531,8 @@ class PossiblyExpiredVote {
     }
     expirationCheckMoment() {
         let now;
-        if (__classPrivateFieldGet(this, _PossiblyExpiredVote_options, "f").now) {
-            now = __classPrivateFieldGet(this, _PossiblyExpiredVote_options, "f").now.valueOf();
+        if (__classPrivateFieldGet(this, _VoteLikeBase_options, "f").now) {
+            now = __classPrivateFieldGet(this, _VoteLikeBase_options, "f").now.valueOf();
         }
         else {
             now = Date.now();
@@ -75194,17 +76543,27 @@ class PossiblyExpiredVote {
         const now = this.expirationCheckMoment();
         const from = this.validityFrom.valueOf();
         const to = this.validityTo.valueOf();
-        if ((now + PossiblyExpiredVote.allowedSlop) < from || (now - PossiblyExpiredVote.allowedSlop) > to) {
+        if ((now + VoteLikeBase.allowedSlop) < from || (now - VoteLikeBase.allowedSlop) > to) {
             return (true);
         }
         return (false);
     }
 }
+_VoteLikeBase_vote = new WeakMap(), _VoteLikeBase_options = new WeakMap(), _VoteLikeBase__hash = new WeakMap(), _VoteLikeBase__blocksHash = new WeakMap();
+VoteLikeBase.expectedQuoteValue = false;
+VoteLikeBase.allowedSlop = 60 /* s */ * 1000 /* ms */;
+VoteLikeBase.permanentVoteThreshold = 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */;
+VoteLikeBase.VoteBlocksHash = VoteBlockHash;
+VoteLikeBase.isInstance = (0, helper_1.checkableGenerator)(VoteLikeBase);
+class PossiblyExpiredVote extends VoteLikeBase {
+    constructor(vote, options = {}) {
+        super(vote, options);
+        if (this.quote === true) {
+            throw (new vote_1.default('VOTE_FEE_IS_QUOTE', `Tried to construct a vote but fee kind is QUOTE`));
+        }
+    }
+}
 exports.PossiblyExpiredVote = PossiblyExpiredVote;
-_PossiblyExpiredVote_vote = new WeakMap(), _PossiblyExpiredVote_options = new WeakMap(), _PossiblyExpiredVote__hash = new WeakMap(), _PossiblyExpiredVote__blocksHash = new WeakMap();
-PossiblyExpiredVote.allowedSlop = 60 /* s */ * 1000 /* ms */;
-PossiblyExpiredVote.permanentVoteThreshold = 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */;
-PossiblyExpiredVote.VoteBlocksHash = VoteBlockHash;
 PossiblyExpiredVote.isInstance = (0, helper_1.checkableGenerator)(PossiblyExpiredVote);
 /**
  * A vote is a certificate issued indicating that the issuer "vouches" for the
@@ -75223,6 +76582,26 @@ class Vote extends PossiblyExpiredVote {
 }
 exports.Vote = Vote;
 Vote.isInstance = (0, helper_1.checkableGenerator)(Vote);
+/**
+ * A VoteQuote is a certificate issued indicating what the issuer will charge for fees
+ */
+class VoteQuote extends VoteLikeBase {
+    constructor(vote, options = {}) {
+        super(vote, options);
+        // We add this so both classes have different signatures
+        this.isVoteQuote = true;
+        if (this.expired) {
+            const expirationCheckMomentISO = new Date(this.expirationCheckMoment()).toISOString();
+            throw (new vote_1.default('VOTE_EXPIRED', `VoteQuote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`));
+        }
+        if (!this.quote) {
+            throw (new vote_1.default('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but fee kind is note QUOTE`));
+        }
+    }
+}
+exports.VoteQuote = VoteQuote;
+VoteQuote.expectedQuoteValue = true;
+VoteQuote.isInstance = (0, helper_1.checkableGenerator)(VoteQuote);
 /**
  * A vote staple is a distributable block consisting of one or more blocks
  * and one or more votes.
@@ -75440,8 +76819,11 @@ class VoteBlockBundle {
             votesStapled = (0, helper_1.bufferToArrayBuffer)(votesStapled);
         }
         if (!(util_1.types.isArrayBuffer(votesStapled))) {
-            if (VoteBlockBundle.isValidJSON(votesStapled)) {
-                votesStapled = VoteBlockBundle.fromJSON(votesStapled).toBytes(true);
+            if (votesStapled instanceof VoteBlockBundle) {
+                votesStapled = votesStapled.toBytes(true);
+            }
+            else if (VoteBlockBundle.isValidJSON(votesStapled)) {
+                votesStapled = VoteBlockBundle.fromJSON(votesStapled, voteOptions).toBytes(true);
             }
             else {
                 throw (new vote_1.default('VOTE_STAPLE_INVALID_CONSTRUCTION', 'internal error: votesStapled must be an ArrayBuffer'));
@@ -75648,33 +77030,34 @@ class VoteStaple extends VoteBlockBundle {
 }
 exports.VoteStaple = VoteStaple;
 VoteStaple.isInstance = (0, helper_1.checkableGenerator)(VoteStaple);
-class VoteBuilder {
+class BaseVoteBuilder {
     constructor(account, blocks = [], options) {
-        _VoteBuilder_account.set(this, void 0);
-        _VoteBuilder_blocks.set(this, void 0);
-        _VoteBuilder_fee.set(this, undefined);
+        _BaseVoteBuilder_account.set(this, void 0);
+        _BaseVoteBuilder_blocks.set(this, void 0);
+        _BaseVoteBuilder_fee.set(this, undefined);
+        this.quote = false;
         if (!account_1.default.isInstance(account)) {
             throw (new vote_1.default('VOTE_BUILDER_INVALID_CONSTRUCTION', 'internal error: account must be an Account'));
         }
-        __classPrivateFieldSet(this, _VoteBuilder_account, account, "f");
-        __classPrivateFieldSet(this, _VoteBuilder_blocks, [], "f");
-        __classPrivateFieldSet(this, _VoteBuilder_fee, options?.fee, "f");
+        __classPrivateFieldSet(this, _BaseVoteBuilder_account, account, "f");
+        __classPrivateFieldSet(this, _BaseVoteBuilder_blocks, [], "f");
+        __classPrivateFieldSet(this, _BaseVoteBuilder_fee, options?.fee, "f");
         this.addBlocks(blocks);
     }
     addBlocks(blocks) {
         for (const block of blocks) {
             if (block_1.Block.isInstance(block)) {
-                __classPrivateFieldGet(this, _VoteBuilder_blocks, "f").push(block.hash);
+                __classPrivateFieldGet(this, _BaseVoteBuilder_blocks, "f").push(block.hash);
                 continue;
             }
             if (typeof block === 'string') {
-                __classPrivateFieldGet(this, _VoteBuilder_blocks, "f").push(new block_1.BlockHash(block));
+                __classPrivateFieldGet(this, _BaseVoteBuilder_blocks, "f").push(new block_1.BlockHash(block));
                 continue;
             }
             if (!block_1.BlockHash.isInstance(block)) {
                 throw (new vote_1.default('VOTE_BUILDER_INVALID_BLOCK_TYPE', 'internal error: block must be Block, BlockHash, or string'));
             }
-            __classPrivateFieldGet(this, _VoteBuilder_blocks, "f").push(block);
+            __classPrivateFieldGet(this, _BaseVoteBuilder_blocks, "f").push(block);
         }
     }
     addBlock(block) {
@@ -75691,14 +77074,16 @@ class VoteBuilder {
                 fee.payTo = payTo.assertAccount();
             }
         }
-        const token = account_1.default.toAccount(fee.token);
+        const token = account_1.default.toAccount(feeInput.token);
         if (token !== undefined) {
             if (token.isToken()) {
                 fee.token = token;
             }
-            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN'));
+            else {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN'));
+            }
         }
-        __classPrivateFieldSet(this, _VoteBuilder_fee, fee, "f");
+        __classPrivateFieldSet(this, _BaseVoteBuilder_fee, fee, "f");
     }
     generateVoteData(serial, validTo, validFrom) {
         /**
@@ -75709,8 +77094,9 @@ class VoteBuilder {
          * Whether or not to hash the data we are signing
          */
         let hashData = false;
-        switch (__classPrivateFieldGet(this, _VoteBuilder_account, "f").keyType) {
+        switch (__classPrivateFieldGet(this, _BaseVoteBuilder_account, "f").keyType) {
             case account_1.AccountKeyAlgorithm.ECDSA_SECP256K1:
+            case account_1.AccountKeyAlgorithm.ECDSA_SECP256R1:
                 {
                     /*
                      * Use the default hashing function
@@ -75732,22 +77118,22 @@ class VoteBuilder {
                 break;
         }
         /** Public Key */
-        const publicKey = __classPrivateFieldGet(this, _VoteBuilder_account, "f").publicKey.ASN1.getASN1();
+        const publicKey = __classPrivateFieldGet(this, _BaseVoteBuilder_account, "f").publicKey.ASN1.getASN1();
         /** Signature Information */
         const signatureInfo = [
             { type: 'oid', oid: signatureInfoOID }
         ];
         let feeExtension = undefined;
-        if (__classPrivateFieldGet(this, _VoteBuilder_fee, "f") !== undefined) {
+        if (__classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f") !== undefined) {
             /** Amount for this vote */
-            const feeData = [__classPrivateFieldGet(this, _VoteBuilder_fee, "f").amount];
+            const feeData = [this.quote, __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").amount];
             /** Account to pay the fee too */
-            const payToPublicKey = __classPrivateFieldGet(this, _VoteBuilder_fee, "f").payTo?.publicKeyAndType;
+            const payToPublicKey = __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").payTo?.publicKeyAndType;
             if (payToPublicKey !== undefined) {
                 feeData.push({ type: 'context', value: 0, kind: 'implicit', contains: payToPublicKey });
             }
             /** Token in which to pay the fee */
-            const tokenPublicKey = __classPrivateFieldGet(this, _VoteBuilder_fee, "f").token?.publicKeyAndType;
+            const tokenPublicKey = __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").token?.publicKeyAndType;
             if (tokenPublicKey !== undefined) {
                 feeData.push({ type: 'context', value: 1, kind: 'implicit', contains: tokenPublicKey });
             }
@@ -75784,7 +77170,7 @@ class VoteBuilder {
                         type: 'oid',
                         oid: 'commonName'
                     },
-                    value: { type: 'string', kind: 'utf8', value: __classPrivateFieldGet(this, _VoteBuilder_account, "f").publicKeyString.get() }
+                    value: { type: 'string', kind: 'utf8', value: __classPrivateFieldGet(this, _BaseVoteBuilder_account, "f").publicKeyString.get() }
                 }
             ],
             /** Validity */
@@ -75834,7 +77220,7 @@ class VoteBuilder {
                                 /** Hash algorithm used to hash blocks */
                                 { type: 'oid', oid: hash_1.Hash.functionName },
                                 /** List of block hashes */
-                                __classPrivateFieldGet(this, _VoteBuilder_blocks, "f").map(function (blockhash) {
+                                __classPrivateFieldGet(this, _BaseVoteBuilder_blocks, "f").map(function (blockhash) {
                                     return (blockhash.getBuffer());
                                 })
                             ]
@@ -75858,11 +77244,11 @@ class VoteBuilder {
             signatureInfo: signatureInfo
         });
     }
-    createVote(voteData, tbsCertificate, signatureInfo, signature, voteOptions = {}) {
+    createVote(voteData, tbsCertificate, signatureInfo, signature) {
         /**
          * Double-check that the signature we just created is valid for the data
          */
-        const verification = __classPrivateFieldGet(this, _VoteBuilder_account, "f").verify(voteData, signature, {
+        const verification = __classPrivateFieldGet(this, _BaseVoteBuilder_account, "f").verify(voteData, signature, {
             raw: true,
             forCert: true
         });
@@ -75881,16 +77267,16 @@ class VoteBuilder {
          * Vote: A DER-encoded certificate
          */
         const vote = certificate.toBER(false);
-        return (new Vote(vote, voteOptions));
+        return (vote);
     }
-    async seal(serial, validTo, validFrom, voteOptions = {}) {
+    async generate(serial, validTo, validFrom) {
         if (validFrom === undefined) {
             validFrom = new Date();
         }
         if (typeof serial !== 'bigint') {
             throw (new vote_1.default('VOTE_BUILDER_INVALID_SERIAL', `internal error: serial must be a bigint, instead got ${serial}`));
         }
-        if (validTo === null && __classPrivateFieldGet(this, _VoteBuilder_fee, "f") !== undefined) {
+        if (validTo === null && __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f") !== undefined) {
             throw (new vote_1.default('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'internal error: permanent votes should not have fees'));
         }
         if (validTo === null) {
@@ -75904,20 +77290,48 @@ class VoteBuilder {
         if (!(util_1.types.isDate(validFrom)) || !(util_1.types.isDate(validTo))) {
             throw (new vote_1.default('VOTE_BUILDER_INVALID_VALID_TO_FROM', 'internal error: validFrom must be Date'));
         }
+        if (this.quote && __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f") === undefined) {
+            throw (new vote_1.default('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided'));
+        }
         const { voteData, tbsCertificate, signatureInfo } = this.generateVoteData(serial, validTo, validFrom);
-        const signature = await __classPrivateFieldGet(this, _VoteBuilder_account, "f").sign(voteData, {
+        const signature = await __classPrivateFieldGet(this, _BaseVoteBuilder_account, "f").sign(voteData, {
             raw: true,
             forCert: true
         });
-        const vote = this.createVote(voteData, tbsCertificate, signatureInfo, signature, voteOptions);
+        const voteLike = this.createVote(voteData, tbsCertificate, signatureInfo, signature);
+        return (voteLike);
+    }
+}
+exports.BaseVoteBuilder = BaseVoteBuilder;
+_BaseVoteBuilder_account = new WeakMap(), _BaseVoteBuilder_blocks = new WeakMap(), _BaseVoteBuilder_fee = new WeakMap();
+BaseVoteBuilder.isInstance = (0, helper_1.checkableGenerator)(BaseVoteBuilder);
+class VoteBuilder extends BaseVoteBuilder {
+    async seal(serial, validTo, validFrom, voteOptions = {}) {
+        const vote = await super.generate(serial, validTo, validFrom);
         return (new Vote(vote, voteOptions));
     }
 }
 exports.VoteBuilder = VoteBuilder;
-_VoteBuilder_account = new WeakMap(), _VoteBuilder_blocks = new WeakMap(), _VoteBuilder_fee = new WeakMap();
 VoteBuilder.isInstance = (0, helper_1.checkableGenerator)(VoteBuilder);
-PossiblyExpiredVote.Staple = VoteStaple;
-PossiblyExpiredVote.Builder = VoteBuilder;
+class VoteQuoteBuilder extends BaseVoteBuilder {
+    constructor() {
+        super(...arguments);
+        this.quote = true;
+    }
+    async seal(serial, validTo, validFrom, voteOptions = {}) {
+        const voteQuote = await super.generate(serial, validTo, validFrom);
+        return (new VoteQuote(voteQuote, voteOptions));
+    }
+}
+exports.VoteQuoteBuilder = VoteQuoteBuilder;
+VoteQuoteBuilder.isInstance = (0, helper_1.checkableGenerator)(VoteQuoteBuilder);
+// Add respective builders to each
+VoteLikeBase.Builder = BaseVoteBuilder;
+VoteQuote.Builder = VoteQuoteBuilder;
+Vote.Builder = VoteBuilder;
+// Add to default export
+Vote.Staple = VoteStaple;
+Vote.Quote = VoteQuote;
 exports["default"] = Vote;
 /** @internal */
 exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
@@ -75932,7 +77346,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.12.2+g77a8a16ada9dfab5604b605cbe69d373a414d204';
+exports.version = '0.14.0+g8b0bdc16c0cba85135437a9ffb3a8cea2dae170d';
 exports["default"] = exports.version;
 
 

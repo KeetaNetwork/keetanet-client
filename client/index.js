@@ -64809,37 +64809,18 @@ function ExportBlockOperations(operations) {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return container;
 }
-function assertExplicitContextValueLike(input) {
-    if (typeof input !== 'object' || input === null) {
-        throw (new Error(`Found entry which is not a context ${String(input)}`));
-    }
-    if (!('type' in input) || input.type !== 'context') {
-        throw (new Error(`Found entry which is not a context ${String(input)}`));
-    }
-    if (!('kind' in input) || input.kind !== 'explicit') {
-        throw (new Error(`Found entry which is not an explicit context ${String(input)}`));
-    }
-    if (!('value' in input)) {
-        throw (new Error(`Found entry which is not a numeric explicit context ${String(input)}`));
-    }
-    const typeInput = input.value;
-    if (typeof typeInput !== 'number') {
-        throw (new Error(`Found entry which is not a numeric explicit context ${String(input)}`));
-    }
-    if (!('contains' in input)) {
-        throw (new Error(`Found entry which which lacks contains ${JSON.stringify(input)}`));
-    }
-    if (!Array.isArray(input.contains)) {
-        throw (new Error(`Found entry which is not a Sequence ${input.contains}`));
-    }
-}
 function ImportOperationsASN1(input, network) {
     const retval = [];
     for (const entryWrapper of input) {
         const operation = {};
-        assertExplicitContextValueLike(entryWrapper);
+        if (!asn1_1.ASN1CheckUtilities.isASN1ContextTag(entryWrapper, 'explicit')) {
+            throw (new Error('Invalid createArgs type for CREATE_IDENTIFIER operation'));
+        }
         const type = assertOperationType(entryWrapper.value);
         const entry = entryWrapper.contains;
+        if (!Array.isArray(entry)) {
+            throw (new Error(`Found entry which is not a Sequence ${typeof entry}`));
+        }
         const typeStr = operationTypeToString(type);
         const operationSchema = BlockOperationASN1SchemaBase[typeStr];
         if (!operationSchema) {
@@ -64871,16 +64852,24 @@ function ImportOperationsASN1(input, network) {
                 keyValueOut = newKeyValue;
             }
             else if (key === 'createArguments' && typeStr === 'CREATE_IDENTIFIER') {
-                assertExplicitContextValueLike(keyValueIn);
+                if (!asn1_1.ASN1CheckUtilities.isASN1ContextTag(keyValueIn, 'explicit')) {
+                    throw (new Error('Invalid createArgs type for CREATE_IDENTIFIER operation'));
+                }
                 if (keyValueIn.value !== account_1.AccountKeyAlgorithm.MULTISIG) {
                     throw (new Error('unrecognized type for multisig create arguments'));
                 }
-                if (keyValueIn.contains.length !== 2 || !Array.isArray(keyValueIn.contains[0])) {
+                if (!Array.isArray(keyValueIn.contains) || keyValueIn.contains.length !== 2) {
+                    throw (new Error('Invalid createArgs container'));
+                }
+                if (!Array.isArray(keyValueIn.contains[0])) {
                     throw (new Error('Invalid createArgs container'));
                 }
                 keyValueOut = {
                     type: keyValueIn.value,
                     signers: keyValueIn.contains[0].map(function (value) {
+                        if (!Buffer.isBuffer(value)) {
+                            throw (new Error(`Invalid signer value, expected Buffer, got ${typeof value}`));
+                        }
                         return (account_1.default.fromPublicKeyAndType(value));
                     }),
                     quorum: keyValueIn.contains[1]
@@ -65039,7 +65028,17 @@ const BlockErrorCodes = [
     'DUPLICATE_INCLUDED',
     'ORPHAN_FOUND',
     'CYCLE_FOUND',
-    'SECONDARY_GRAPH'
+    'SECONDARY_GRAPH',
+    'MISSING_FIELD',
+    'SIGNATURE_ALGORITHM_MISMATCH',
+    'SELF_SIGNED_VALIDATION_FAILED',
+    'CHAIN_VERIFICATION_FAILED',
+    'DUPLICATE_EXTENSION',
+    'EXTENSION_NOT_PROCESSED',
+    'INVALID_SIGNATURE_ALGORITHM',
+    'INVALID_GRAPH_COUNT',
+    'MOMENT_INVALID',
+    'INVALID_VERSION'
 ];
 class KeetaNetCertificateError extends _1.KeetaNetError {
     constructor(code, message) {
@@ -65131,6 +65130,7 @@ const _1 = __webpack_require__(5390);
 const helper_1 = __webpack_require__(3208);
 const LedgerErrorType = 'LEDGER';
 const LedgerErrorCodes = [
+    'BLOCK_ALREADY_EXISTS',
     'TRANSACTION_ABORTED',
     'INVALID_CHAIN',
     'INVALID_NETWORK',
@@ -66109,6 +66109,16 @@ class LedgerStorageBase {
         })));
     }
     async preAdjust(input, mayDefer = true, transaction) {
+        const allBlockHeightsToFetch = input.blocks.map(block => {
+            return ({ blockHash: block.hash, account: block.account });
+        });
+        const allBlockHeights = await this.getBlockHeights(transaction, allBlockHeightsToFetch);
+        // Check if any blocks already exist on the ledger that would cause this staple to fail and exit early
+        for (const [blockHash, blockHeight] of Object.entries(allBlockHeights)) {
+            if (blockHeight !== null) {
+                throw (new ledger_1.default('LEDGER_BLOCK_ALREADY_EXISTS', `Block Already Exists: ${blockHash.toString()}`));
+            }
+        }
         const seenBlockHashes = new block_1.BlockHash.Set();
         const blockHeights = {};
         const toFetch = [];
@@ -67180,7 +67190,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_computeFeeFromBlocks, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateLedgerOutcome, _LedgerAtomicInterface_validateBlocksForVote, _LedgerAtomicInterface_voteOrQuoteWithFees, _Ledger_storage, _Ledger_config;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Ledger = exports.LedgerKind = void 0;
+exports.Ledger = exports.LedgerStorageTransactionBase = exports.LedgerKind = void 0;
 const vote_1 = __webpack_require__(1130);
 const block_1 = __webpack_require__(6158);
 const account_1 = __importDefault(__webpack_require__(9415));
@@ -67193,6 +67203,7 @@ const conversion_1 = __webpack_require__(2360);
 const cache_1 = __importDefault(__webpack_require__(5834));
 const timing_1 = __webpack_require__(2895);
 const operations_1 = __webpack_require__(2778);
+const stats_1 = __webpack_require__(2127);
 /**
  * Kind of ledger
  */
@@ -67201,6 +67212,16 @@ var LedgerKind;
     LedgerKind[LedgerKind["REPRESENTATIVE"] = 0] = "REPRESENTATIVE";
     LedgerKind[LedgerKind["ACCOUNT"] = 1] = "ACCOUNT";
 })(LedgerKind || (exports.LedgerKind = LedgerKind = {}));
+class LedgerStorageTransactionBase {
+    constructor(options) {
+        this.node = options.node;
+        this.moment = options.moment ?? new Date();
+        this.identifier = options.identifier;
+        this.readOnly = options.readOnly ?? true;
+        this.statsPending = new stats_1.StatsPending();
+    }
+}
+exports.LedgerStorageTransactionBase = LedgerStorageTransactionBase;
 /**
  * Atomic transactional interface to a storage backend
  */
@@ -67242,6 +67263,7 @@ class LedgerAtomicInterface {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         __classPrivateFieldSet(this, _LedgerAtomicInterface_transaction, null, "f");
         await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").commitTransaction(transaction);
+        __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.stats.merge(transaction.statsPending);
     }
     async abort() {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
@@ -67484,12 +67506,9 @@ class LedgerAtomicInterface {
         /**
          * Add all the block hashes to the node checksum
          */
-        const ourNode = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node;
-        if (ourNode) {
-            for (const staple of voteStaples) {
-                for (const block of staple.blocks) {
-                    ourNode.stats.xor('ledgerChecksum', block.hash);
-                }
+        for (const staple of voteStaples) {
+            for (const block of staple.blocks) {
+                transaction.statsPending.xor('ledgerChecksum', block.hash);
             }
         }
         postambleTiming?.end();
@@ -68253,13 +68272,7 @@ class Ledger {
         return (await this.run(identifier, code, true));
     }
     async beginTransaction(identifier, readOnly = false) {
-        const transactionBase = {
-            node: this.node,
-            moment: new Date(),
-            identifier,
-            readOnly
-        };
-        const transaction = await __classPrivateFieldGet(this, _Ledger_storage, "f").beginTransaction(transactionBase);
+        const transaction = await __classPrivateFieldGet(this, _Ledger_storage, "f").beginTransaction({ node: this.node, moment: new Date(), identifier, readOnly });
         return (new LedgerAtomicInterface(transaction, __classPrivateFieldGet(this, _Ledger_storage, "f"), __classPrivateFieldGet(this, _Ledger_config, "f"), this));
     }
     async vote(...args) {
@@ -68383,7 +68396,7 @@ class Ledger {
         }));
     }
     async getFee(...args) {
-        return (await this.run('db-getFee', async function (transaction) {
+        return (await this.runReadOnly('db-getFee', async function (transaction) {
             return (await transaction.getFee(...args));
         }));
     }
@@ -68934,7 +68947,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _P2PHttpConnection_switch, _P2PWebSocket_underlyingSocket, _P2PWebSocket_socket, _P2PWebSocket_switch, _P2PSwitch_instances, _P2PSwitch_connectedPeersCleanup, _P2PSwitch_connectedPeersRemote, _P2PSwitch_connectedPeersLocal, _P2PSwitch_localNode, _P2PSwitch_manualPeersCheckIntervals, _P2PSwitch_asyncSends, _P2PSwitch_messageFilterCache, _P2PSwitch_connectedPeerConnection, _P2PSwitch_connectedPeers, _P2PSwitch_updateLastSeenPeer, _P2PSwitch_peersCacheSet, _P2PSwitch_peersCached, _P2PSwitch_relayActiveState, _P2PSwitch_performPeerCleanup, _P2PSwitch_getLocalPeerInfo, _P2PSwitch_emitOutgoingGreeting, _P2PSwitch_localNodeKeyOrNull, _P2PSwitch_handleIncomingGreeting, _P2PSwitch_updateConnTimeout, _P2PSwitch_connectToPeer, _P2PSwitch_passesFilter;
+var _P2PHttpConnection_switch, _P2PWebSocket_underlyingSocket, _P2PWebSocket_socket, _P2PWebSocket_switch, _P2PSwitch_instances, _P2PSwitch_connectedPeersCleanup, _P2PSwitch_connectedPeersRemote, _P2PSwitch_connectedPeersLocal, _P2PSwitch_localNode, _P2PSwitch_manualPeersCheckIntervals, _P2PSwitch_asyncSends, _P2PSwitch_messageFilterCache, _P2PSwitch_cachedLocalPeerInfo, _P2PSwitch_cachedLocalPeerSerialized, _P2PSwitch_connectedPeerConnection, _P2PSwitch_connectedPeers, _P2PSwitch_updateLastSeenPeer, _P2PSwitch_peersCacheSet, _P2PSwitch_peersCached, _P2PSwitch_relayActiveState, _P2PSwitch_performPeerCleanup, _P2PSwitch_getLocalPeerInfo, _P2PSwitch_emitOutgoingGreeting, _P2PSwitch_localNodeKeyOrNull, _P2PSwitch_handleIncomingGreeting, _P2PSwitch_updateConnTimeout, _P2PSwitch_connectToPeer, _P2PSwitch_passesFilter;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Testing = exports.P2PSwitch = exports.P2PWebSocket = exports.P2PHttpConnection = void 0;
 exports.generateP2PPeerSigned = generateP2PPeerSigned;
@@ -69628,6 +69641,8 @@ class P2PSwitch {
         _P2PSwitch_manualPeersCheckIntervals.set(this, void 0);
         _P2PSwitch_asyncSends.set(this, []);
         _P2PSwitch_messageFilterCache.set(this, {});
+        _P2PSwitch_cachedLocalPeerInfo.set(this, undefined);
+        _P2PSwitch_cachedLocalPeerSerialized.set(this, undefined);
         /**
          * Write a debug or error message to the connected node.
          *
@@ -69935,11 +69950,14 @@ class P2PSwitch {
         return (await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this));
     }
     async getOutgoingGreetingInfo() {
-        const greetingInfo = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this);
-        if (greetingInfo === null) {
-            throw (new Error('Invalid NodeKind for emitting outgoing greeting'));
+        if (__classPrivateFieldGet(this, _P2PSwitch_cachedLocalPeerSerialized, "f") === undefined) {
+            const greetingInfo = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_getLocalPeerInfo).call(this);
+            if (greetingInfo === null) {
+                throw (new Error('Invalid NodeKind for emitting outgoing greeting'));
+            }
+            __classPrivateFieldSet(this, _P2PSwitch_cachedLocalPeerSerialized, P2PPeerToJSO(greetingInfo), "f");
         }
-        return (P2PPeerToJSO(greetingInfo));
+        return (__classPrivateFieldGet(this, _P2PSwitch_cachedLocalPeerSerialized, "f"));
     }
     /**
      * Receive a message from a connection
@@ -70467,7 +70485,7 @@ class P2PSwitch {
     }
 }
 exports.P2PSwitch = P2PSwitch;
-_P2PSwitch_connectedPeersCleanup = new WeakMap(), _P2PSwitch_connectedPeersRemote = new WeakMap(), _P2PSwitch_connectedPeersLocal = new WeakMap(), _P2PSwitch_localNode = new WeakMap(), _P2PSwitch_manualPeersCheckIntervals = new WeakMap(), _P2PSwitch_asyncSends = new WeakMap(), _P2PSwitch_messageFilterCache = new WeakMap(), _P2PSwitch_peersCacheSet = new WeakMap(), _P2PSwitch_instances = new WeakSet(), _P2PSwitch_connectedPeerConnection = 
+_P2PSwitch_connectedPeersCleanup = new WeakMap(), _P2PSwitch_connectedPeersRemote = new WeakMap(), _P2PSwitch_connectedPeersLocal = new WeakMap(), _P2PSwitch_localNode = new WeakMap(), _P2PSwitch_manualPeersCheckIntervals = new WeakMap(), _P2PSwitch_asyncSends = new WeakMap(), _P2PSwitch_messageFilterCache = new WeakMap(), _P2PSwitch_cachedLocalPeerInfo = new WeakMap(), _P2PSwitch_cachedLocalPeerSerialized = new WeakMap(), _P2PSwitch_peersCacheSet = new WeakMap(), _P2PSwitch_instances = new WeakSet(), _P2PSwitch_connectedPeerConnection = 
 /**
  * Get the connection for a given peer or PeerID
  */
@@ -70608,47 +70626,50 @@ async function _P2PSwitch_relayActiveState(conn) {
      */
     /** XXX:TODO */
 }, _P2PSwitch_getLocalPeerInfo = async function _P2PSwitch_getLocalPeerInfo() {
-    let greetingInfo;
-    switch (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.kind) {
-        case node_1.NodeKind.PARTICIPANT:
-            greetingInfo = {
-                kind: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.kind,
-                id: 'unused'
-            };
-            break;
-        case node_1.NodeKind.REPRESENTATIVE:
-            {
-                if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints === undefined) {
-                    throw (new Error('internal error: Our endpoints are not defined'));
-                }
-                if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.p2p === undefined) {
-                    throw (new Error('internal error: Our endpoint (p2p) is not defined'));
-                }
-                if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.api === undefined) {
-                    throw (new Error('internal error: Our endpoint (api) is not defined'));
-                }
-                if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.ledgerPrivateKey === undefined) {
-                    throw (new Error('internal error: Our ledger key is not defined'));
-                }
-                const greetingInfoSigned = await generateP2PPeerSigned({
+    if (__classPrivateFieldGet(this, _P2PSwitch_cachedLocalPeerInfo, "f") === undefined) {
+        let greetingInfo;
+        switch (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.kind) {
+            case node_1.NodeKind.PARTICIPANT:
+                greetingInfo = {
                     kind: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.kind,
-                    key: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.ledgerPrivateKey,
-                    endpoints: {
-                        p2p: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.p2p,
-                        api: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.api
-                    },
-                    preferUpdates: this.config.useHTTPRepublish ? 'http' : 'websocket'
-                });
-                if (greetingInfoSigned === null) {
-                    throw (new Error('internal error: Could not generate signature'));
-                }
-                greetingInfo = greetingInfoSigned;
+                    id: 'unused'
+                };
                 break;
-            }
-        default:
-            return (null);
+            case node_1.NodeKind.REPRESENTATIVE:
+                {
+                    if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints === undefined) {
+                        throw (new Error('internal error: Our endpoints are not defined'));
+                    }
+                    if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.p2p === undefined) {
+                        throw (new Error('internal error: Our endpoint (p2p) is not defined'));
+                    }
+                    if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.api === undefined) {
+                        throw (new Error('internal error: Our endpoint (api) is not defined'));
+                    }
+                    if (__classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.ledgerPrivateKey === undefined) {
+                        throw (new Error('internal error: Our ledger key is not defined'));
+                    }
+                    const greetingInfoSigned = await generateP2PPeerSigned({
+                        kind: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.kind,
+                        key: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.ledgerPrivateKey,
+                        endpoints: {
+                            p2p: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.p2p,
+                            api: __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").config.endpoints.api
+                        },
+                        preferUpdates: this.config.useHTTPRepublish ? 'http' : 'websocket'
+                    });
+                    if (greetingInfoSigned === null) {
+                        throw (new Error('internal error: Could not generate signature'));
+                    }
+                    greetingInfo = greetingInfoSigned;
+                    break;
+                }
+            default:
+                return (null);
+        }
+        __classPrivateFieldSet(this, _P2PSwitch_cachedLocalPeerInfo, greetingInfo, "f");
     }
-    return (greetingInfo);
+    return (__classPrivateFieldGet(this, _P2PSwitch_cachedLocalPeerInfo, "f"));
 }, _P2PSwitch_emitOutgoingGreeting = async function _P2PSwitch_emitOutgoingGreeting(to) {
     const messageID = uuid.v4();
     const greeting = await this.getOutgoingGreetingInfo();
@@ -71372,9 +71393,9 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Stats_instances, _a, _Stats_localDBIncr, _Stats_localDBXOR, _Stats_syncPromise, _Stats_kv, _Stats_compoundKey, _Stats_assertDurationBreakdowns, _Stats_getDurationRange;
+var _a, _Stats_syncPromise, _Stats_kv, _Stats_assertDurationBreakdowns, _Stats_getDurationRange;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Stats = void 0;
+exports.Stats = exports.StatsPending = void 0;
 const kv_memory_1 = __importDefault(__webpack_require__(1557));
 const buffer_1 = __webpack_require__(3310);
 const hash_1 = __webpack_require__(7908);
@@ -71404,11 +71425,57 @@ const durationRanges = {
     '100000ms': [10001, 100000],
     'ExtraLong': [100000, Number.MAX_SAFE_INTEGER]
 };
-class Stats {
+class StatsPending {
+    constructor() {
+        this.localDBIncr = {};
+        this.localDBXOR = {};
+    }
+    consume() {
+        const incrChanges = this.localDBIncr;
+        this.localDBIncr = {};
+        const xorChanges = this.localDBXOR;
+        this.localDBXOR = {};
+        return ({ incrChanges, xorChanges });
+    }
+    compoundKey(arena, key) {
+        const compoundKey = [arena, key].join('|');
+        return (compoundKey);
+    }
+    incrCompoundKey(compoundKey, change) {
+        if (this.localDBIncr[compoundKey] === undefined) {
+            this.localDBIncr[compoundKey] = 0;
+        }
+        this.localDBIncr[compoundKey] += change;
+    }
+    incr(arena, key, change = 1) {
+        const compoundKey = this.compoundKey(arena, key);
+        this.incrCompoundKey(compoundKey, change);
+    }
+    xor(key, change) {
+        const changeValue = typeof change === 'bigint' ? change : change.toBigInt();
+        const existingValue = this.localDBXOR[key];
+        if (existingValue === undefined) {
+            this.localDBXOR[key] = changeValue;
+            return;
+        }
+        this.localDBXOR[key] ^= changeValue;
+    }
+    merge(pending) {
+        const { incrChanges, xorChanges } = pending.consume();
+        // Merge incr changes
+        for (const [key, value] of Object.entries(incrChanges)) {
+            this.incrCompoundKey(key, value);
+        }
+        // Merge xor changes
+        for (const [key, value] of Object.entries(xorChanges)) {
+            this.xor(key, value);
+        }
+    }
+}
+exports.StatsPending = StatsPending;
+class Stats extends StatsPending {
     constructor(config) {
-        _Stats_instances.add(this);
-        _Stats_localDBIncr.set(this, {});
-        _Stats_localDBXOR.set(this, {});
+        super();
         _Stats_syncPromise.set(this, void 0);
         _Stats_kv.set(this, void 0);
         let kv = config.kv;
@@ -71451,22 +71518,6 @@ class Stats {
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         return ret;
     }
-    incr(arena, key, change = 1) {
-        const compoundKey = __classPrivateFieldGet(this, _Stats_instances, "m", _Stats_compoundKey).call(this, arena, key);
-        if (__classPrivateFieldGet(this, _Stats_localDBIncr, "f")[compoundKey] === undefined) {
-            __classPrivateFieldGet(this, _Stats_localDBIncr, "f")[compoundKey] = 0;
-        }
-        __classPrivateFieldGet(this, _Stats_localDBIncr, "f")[compoundKey] += change;
-    }
-    xor(key, change) {
-        const changeValue = change.toBigInt();
-        const existingValue = __classPrivateFieldGet(this, _Stats_localDBXOR, "f")[key];
-        if (existingValue === undefined) {
-            __classPrivateFieldGet(this, _Stats_localDBXOR, "f")[key] = changeValue;
-            return;
-        }
-        __classPrivateFieldGet(this, _Stats_localDBXOR, "f")[key] ^= changeValue;
-    }
     async getXor(key) {
         await __classPrivateFieldGet(this, _Stats_syncPromise, "f");
         const bufferKey = `@buffer:${key}`;
@@ -71476,8 +71527,8 @@ class Stats {
             base = BigInt(`0x${baseString}`);
         }
         let local = 0n;
-        if (__classPrivateFieldGet(this, _Stats_localDBXOR, "f")[key] !== undefined) {
-            local = __classPrivateFieldGet(this, _Stats_localDBXOR, "f")[key];
+        if (this.localDBXOR[key] !== undefined) {
+            local = this.localDBXOR[key];
         }
         const computed = base ^ local;
         const retval = new buffer_1.BufferStorage(computed, XOR_BUFFER_SIZE);
@@ -71503,7 +71554,7 @@ class Stats {
     }
     async get(arena, key) {
         await __classPrivateFieldGet(this, _Stats_syncPromise, "f");
-        const compoundKey = __classPrivateFieldGet(this, _Stats_instances, "m", _Stats_compoundKey).call(this, arena, key);
+        const compoundKey = this.compoundKey(arena, key);
         let base = await __classPrivateFieldGet(this, _Stats_kv, "f").get('stats', compoundKey);
         if (base === undefined) {
             base = 0;
@@ -71515,8 +71566,8 @@ class Stats {
             throw (new Error('internal error: corrupt data in stats table'));
         }
         let local = 0;
-        if (__classPrivateFieldGet(this, _Stats_localDBIncr, "f")[compoundKey] !== undefined) {
-            local = __classPrivateFieldGet(this, _Stats_localDBIncr, "f")[compoundKey];
+        if (this.localDBIncr[compoundKey] !== undefined) {
+            local = this.localDBIncr[compoundKey];
         }
         return (base + local);
     }
@@ -71544,20 +71595,17 @@ class Stats {
         return (retval);
     }
     async sync() {
-        const localDBIncr = Object.entries(__classPrivateFieldGet(this, _Stats_localDBIncr, "f"));
-        const localDBXOR = Object.entries(__classPrivateFieldGet(this, _Stats_localDBXOR, "f"));
-        __classPrivateFieldSet(this, _Stats_localDBIncr, {}, "f");
-        __classPrivateFieldSet(this, _Stats_localDBXOR, {}, "f");
+        const { incrChanges, xorChanges } = this.consume();
         await __classPrivateFieldGet(this, _Stats_syncPromise, "f");
         __classPrivateFieldSet(this, _Stats_syncPromise, (async () => {
             const updatePromises = [];
-            for (const [key, value] of localDBIncr) {
+            for (const [key, value] of Object.entries(incrChanges)) {
                 if (value === undefined) {
                     continue;
                 }
                 updatePromises.push(__classPrivateFieldGet(this, _Stats_kv, "f").incr('stats', key, value));
             }
-            for (const [key, value] of localDBXOR) {
+            for (const [key, value] of Object.entries(xorChanges)) {
                 if (value === undefined) {
                     continue;
                 }
@@ -71572,10 +71620,7 @@ class Stats {
     }
 }
 exports.Stats = Stats;
-_a = Stats, _Stats_localDBIncr = new WeakMap(), _Stats_localDBXOR = new WeakMap(), _Stats_syncPromise = new WeakMap(), _Stats_kv = new WeakMap(), _Stats_instances = new WeakSet(), _Stats_compoundKey = function _Stats_compoundKey(arena, key) {
-    const compoundKey = [arena, key].join('|');
-    return (compoundKey);
-}, _Stats_assertDurationBreakdowns = function _Stats_assertDurationBreakdowns(durations) {
+_a = Stats, _Stats_syncPromise = new WeakMap(), _Stats_kv = new WeakMap(), _Stats_assertDurationBreakdowns = function _Stats_assertDurationBreakdowns(durations) {
     for (const duration of durations) {
         this.assertDurationBreakdown(duration);
     }
@@ -71637,7 +71682,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _ValidateASN1_schema, _BufferStorageASN1_data;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports._Testing = exports.ASN1BigIntToBuffer = exports.ASN1IntegerToBigInt = exports.JStoASN1 = exports.ASN1toJS = exports.BufferStorageASN1 = exports.ValidateASN1 = exports.asn1 = void 0;
+exports._Testing = exports.ASN1BigIntToBuffer = exports.ASN1IntegerToBigInt = exports.JStoASN1 = exports.ASN1toJS = exports.BufferStorageASN1 = exports.ValidateASN1 = exports.ASN1CheckUtilities = exports.asn1 = void 0;
 exports.isASN1Object = isASN1Object;
 exports.isValidSequenceSchema = isValidSequenceSchema;
 const asn1js = __importStar(__webpack_require__(7813));
@@ -71768,7 +71813,16 @@ function isASN1Set(input) {
     }
     return (true);
 }
-function isASN1ContextTag(input) {
+function isASN1ContextTagKind(input) {
+    if (typeof input !== 'string') {
+        return (false);
+    }
+    if (!(['explicit', 'implicit'].includes(input))) {
+        return (false);
+    }
+    return (true);
+}
+function isASN1ContextTag(input, tagKind) {
     if (!isASN1Object(input)) {
         return (false);
     }
@@ -71779,6 +71833,12 @@ function isASN1ContextTag(input) {
         return (false);
     }
     if (!('contains' in input) || input.contains === undefined) {
+        return (false);
+    }
+    if (!('kind' in input) || !isASN1ContextTagKind(input.kind)) {
+        return (false);
+    }
+    if (tagKind !== undefined && input.kind !== tagKind) {
         return (false);
     }
     return (true);
@@ -71837,6 +71897,15 @@ function isStringValidForKind(input, kind) {
     }
     return (false);
 }
+exports.ASN1CheckUtilities = {
+    isASN1Object,
+    isASN1OID,
+    isASN1String,
+    isASN1Set,
+    isASN1ContextTag,
+    isASN1BitString,
+    isASN1Date
+};
 /**
  * Checks if an ASN.1 sequence is valid based on a provided validation schema.
  */
@@ -73318,7 +73387,7 @@ class CertificateBuilder {
                 case 'sha3-256':
                     return (hashLib.name);
                 default:
-                    throw (new Error(`Unsupported hash algorithm "${hashLib.name}"`));
+                    throw (new Error(`internal error: Unsupported hash algorithm "${hashLib.name}"`));
             }
         }
         const hashName = params.hashParams?.defaults?.[purpose] ?? defaultHashName;
@@ -73337,7 +73406,7 @@ class CertificateBuilder {
         const hashName = this.hashName(params, purpose);
         const hashFunction = params.hashParams.functions?.[hashName];
         if (hashFunction === undefined) {
-            throw (new Error(`Hash function "${hashName}" not found for purpose "${purpose}"`));
+            throw (new Error(`internal error: Hash function "${hashName}" not found for purpose "${purpose}"`));
         }
         return (hashFunction(...data));
     }
@@ -73461,28 +73530,28 @@ class CertificateBuilder {
         /* Validate that required parameters are set */
         const issuer = finalParams.issuer;
         if (issuer === undefined) {
-            throw (new Error('"issuer" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"issuer" not set'));
         }
         const subjectPublicKey = finalParams.subjectPublicKey;
         if (subjectPublicKey === undefined) {
-            throw (new Error('"subject" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"subject" not set'));
         }
         const validFrom = finalParams.validFrom;
         if (validFrom === undefined) {
-            throw (new Error('"validFrom" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"validFrom" not set'));
         }
         const validTo = finalParams.validTo;
         if (validTo === undefined) {
-            throw (new Error('"validTo" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"validTo" not set'));
         }
         const serial = finalParams.serial;
         if (serial === undefined) {
-            throw (new Error('"serialNumber" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"serialNumber" not set'));
         }
         const hashLib = finalParams.hashLib;
         const hashParams = finalParams.hashParams;
         if (hashParams === undefined) {
-            throw (new Error('"hashParams" not set'));
+            throw (new certificate_1.default('CERTIFICATE_MISSING_FIELD', '"hashParams" not set'));
         }
         return ({
             ...finalParams,
@@ -73796,7 +73865,7 @@ class Certificate {
         const tbsCertificate = parts[0];
         const [version, serialNumber, signatureAlgorithmSigned, issuer, [notBefore, notAfter], subject, subjectPublicKey, extensions] = tbsCertificate;
         if (version.contains !== 2n) {
-            throw (new Error('Only X509v3 certificates are supported'));
+            throw (new certificate_1.default('CERTIFICATE_INVALID_VERSION', 'Only X509v3 certificates are supported'));
         }
         const signatureAlgorithm = parts[1];
         /**
@@ -73836,7 +73905,7 @@ class Certificate {
         const signatureAlgorithmSignedBuffer = new ASN1.BufferStorageASN1(signatureAlgorithmSigned).getDERBuffer();
         const signatureAlgorithmBuffer = new ASN1.BufferStorageASN1(signatureAlgorithm).getDERBuffer();
         if (!signatureAlgorithmSignedBuffer.equals(signatureAlgorithmBuffer)) {
-            throw (new Error('Signature algorithm mismatch'));
+            throw (new certificate_1.default('CERTIFICATE_SIGNATURE_ALGORITHM_MISMATCH', 'Signature algorithm mismatch between signature and certificate'));
         }
         /*
          * Process the extensions base extensions, which can be critical for
@@ -73866,7 +73935,7 @@ class Certificate {
                         }
                     });
                     if (!found) {
-                        throw (new Error('Self-signed certificate is not a root CA in the Root CA store'));
+                        throw (new certificate_1.default('CERTIFICATE_SELF_SIGNED_VALIDATION_FAILED', 'Self-signed certificate is not a root CA in the Root CA store'));
                     }
                     this.chain = [this];
                 }
@@ -73875,7 +73944,7 @@ class Certificate {
                 this.chain = [this];
             }
             if (!this.verify(this)) {
-                throw (new Error('Self-signed certificate signature verification failed'));
+                throw (new certificate_1.default('CERTIFICATE_SELF_SIGNED_VALIDATION_FAILED', 'Self-signed certificate signature verification failed'));
             }
         }
         else {
@@ -73885,7 +73954,7 @@ class Certificate {
             if (options?.store !== undefined) {
                 const chain = this.verifyChain(options.store);
                 if (chain === null || chain.length === 0) {
-                    throw (new Error('Certificate chain verification failed'));
+                    throw (new certificate_1.default('CERTIFICATE_CHAIN_VERIFICATION_FAILED', 'Certificate chain verification failed'));
                 }
                 this.chain = chain;
             }
@@ -73950,7 +74019,7 @@ class Certificate {
                 compatibleKeyTypes = [account_1.default.AccountKeyAlgorithm.ED25519];
                 break;
             default:
-                throw (new Error(`Unsupported signature algorithm ${signatureAlgorithm}`));
+                throw (new certificate_1.default('CERTIFICATE_INVALID_SIGNATURE_ALGORITHM', `Unsupported signature algorithm ${signatureAlgorithm}`));
         }
         let hashAlgorithm;
         switch (signatureAlgorithm) {
@@ -73964,7 +74033,7 @@ class Certificate {
                 hashAlgorithm = null;
                 break;
             default:
-                throw (new Error(`Unsupported signature algorithm ${signatureAlgorithm}`));
+                throw (new certificate_1.default('CERTIFICATE_INVALID_SIGNATURE_ALGORITHM', `Unsupported signature algorithm ${signatureAlgorithm}`));
         }
         let accountIsCompatible = false;
         for (const checkCompatibleKeyType of compatibleKeyTypes) {
@@ -73974,7 +74043,7 @@ class Certificate {
             }
         }
         if (!accountIsCompatible) {
-            throw (new Error(`Account does not have a compatible key type for signature algorithm ${signatureAlgorithm}`));
+            throw (new certificate_1.default('CERTIFICATE_INVALID_SIGNATURE_ALGORITHM', `Account does not have a compatible key type for signature algorithm ${signatureAlgorithm}`));
         }
         let dataToVerify;
         if (hashAlgorithm !== null) {
@@ -74001,7 +74070,7 @@ class Certificate {
             return (true);
         }
         if (certificates.size > 10) {
-            throw (new Error('Cannot currently handle more than 10 certificates in a graph'));
+            throw (new certificate_1.default('CERTIFICATE_INVALID_GRAPH_COUNT', 'Cannot currently handle more than 10 certificates in a graph'));
         }
         const issuersFrom = [];
         const issuersTo = [];
@@ -74114,7 +74183,7 @@ class Certificate {
     assertValid(moment) {
         const valid = this.checkValid(moment, true);
         if (!valid.valid) {
-            throw (new Error(`Certificate is not valid: ${valid.reason}`));
+            throw (new certificate_1.default('CERTIFICATE_MOMENT_INVALID', `Certificate is not valid: ${valid.reason}`));
         }
     }
     checkIssued(issuer, reason) {
@@ -74179,7 +74248,7 @@ class Certificate {
     }
     assertConstructed() {
         if (!__classPrivateFieldGet(this, _Certificate_finalizeConstructionCalled, "f")) {
-            throw (new Error('finalizeConstruction not called'));
+            throw (new Error('internal error: finalizeConstruction not called'));
         }
     }
     /**
@@ -74310,7 +74379,7 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
     for (const extension of extensions) {
         const id = extension[0].oid;
         if (seenExtensions.has(id)) {
-            throw (new Error(`Duplicate extension ${id}`));
+            throw (new certificate_1.default('CERTIFICATE_DUPLICATE_EXTENSION', `Duplicate extension ${id}`));
         }
         seenExtensions.add(id);
     }
@@ -74365,7 +74434,7 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
             [id] = extension;
         }
         if (critical && !__classPrivateFieldGet(this, _Certificate_extensionsProcessed, "f").has(id.oid)) {
-            throw (new Error(`Critical extension ${id.oid} not processed`));
+            throw (new certificate_1.default('CERTIFICATE_EXTENSION_NOT_PROCESSED', `Critical extension ${id.oid} not processed`));
         }
     }
 }, _Certificate_checkValid = function _Certificate_checkValid(moment) {
@@ -77346,7 +77415,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.0+g8b0bdc16c0cba85135437a9ffb3a8cea2dae170d';
+exports.version = '0.14.2+g68f40cc8d6fed6135fa06451bd1fb0691868e25f';
 exports["default"] = exports.version;
 
 

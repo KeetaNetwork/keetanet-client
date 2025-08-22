@@ -9,6 +9,7 @@ import type { ComputedEffectOfBlocks } from './effects';
 import type { ACLRow, AccountInfo, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import LedgerRequestCache from './cache';
 import type { CertificateHash } from '../utils/certificate';
+import { StatsPending } from '../stats';
 /**
  * Kind of ledger
  */
@@ -102,11 +103,19 @@ export type GetVotesAfterOptions = {
 /**
  * Each transaction can contain the node object making the request to access things like timing information
  */
-export interface LedgerStorageTransactionBase {
+export interface LedgerStorageTransactionBaseOptions {
+    node?: Node;
+    moment?: Date;
+    identifier: string;
+    readOnly?: boolean;
+}
+export declare class LedgerStorageTransactionBase implements LedgerStorageTransactionBaseOptions {
     node?: Node;
     moment: Date;
     identifier: string;
     readOnly: boolean;
+    statsPending: StatsPending;
+    constructor(options: LedgerStorageTransactionBaseOptions);
 }
 /**
  * Each Ledger Storage backend must implement this interface
@@ -123,7 +132,7 @@ export interface LedgerStorageAPI {
     /**
      * Begin a transaction
      */
-    beginTransaction: (transactionBase: LedgerStorageTransactionBase) => Promise<LedgerStorageTransactionBase>;
+    beginTransaction: (transactionBase: LedgerStorageTransactionBaseOptions) => Promise<LedgerStorageTransactionBase>;
     /**
      * Commit an active transaction
      */

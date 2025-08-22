@@ -37,15 +37,34 @@ export type TimeStats = {
 export type DbStats = {
     retries: number;
 };
-export declare class Stats {
+export declare class StatsPending {
+    protected localDBIncr: {
+        [key: string]: number;
+    };
+    protected localDBXOR: {
+        [key: string]: bigint;
+    };
+    protected consume(): {
+        incrChanges: {
+            [key: string]: number;
+        };
+        xorChanges: {
+            [key: string]: bigint;
+        };
+    };
+    protected compoundKey(arena: string, key: string): string;
+    protected incrCompoundKey(compoundKey: string, change: number): void;
+    incr(arena: string, key: string, change?: number): void;
+    xor(key: string, change: BlockHash | BufferStorage | bigint): void;
+    merge(pending: StatsPending): void;
+}
+export declare class Stats extends StatsPending {
     #private;
     constructor(config: StatsConfig);
     static durationBreakdownList(): DurationBreakdowns[];
     static assertDurationBreakdown(duration: string): asserts duration is DurationBreakdowns;
     static durationBreakdown(duration: number): DurationBreakdowns;
     static placeholderTimingData(): TimeStats;
-    incr(arena: string, key: string, change?: number): void;
-    xor(key: string, change: BlockHash | BufferStorage): void;
     getXor(key: string): Promise<BufferStorage>;
     addTimingPoint(arena: string, category: string, duration: number, returnOnly?: boolean): Parameters<Stats['incr']>;
     addRequestTiming(arena: string, timing: RequestTiming, returnOnly?: boolean): Parameters<Stats['incr']>[];

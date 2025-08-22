@@ -119,7 +119,7 @@ interface CertificateWithIntermediatesResponse {
     certificate: Certificate;
     intermediates: CertificateBundle | null;
 }
-export interface PublishOptions {
+interface PublishOptions {
     /**
      * Client provided function to compute the fee block associated with any transactions
      */

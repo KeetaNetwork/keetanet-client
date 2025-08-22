@@ -1,7 +1,7 @@
 {
 	"name": "@keetanetwork/keetanet-client",
 	"repository": "https://github.com/keetanetwork/node.git",
-	"version": "0.14.0",
+	"version": "0.14.2",
 	"description": "KeetaNet Client TypeScript Reference Implementation",
 	"files": [
 		"**/*.js",

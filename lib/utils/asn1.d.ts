@@ -45,6 +45,23 @@ export interface ASN1String extends ASN1Object {
     value: string;
 }
 export declare function isASN1Object(input: unknown): input is ASN1Object;
+declare function isASN1OID(input: unknown): input is ASN1OID;
+declare function isASN1String(input: unknown): input is ASN1String;
+declare function isASN1Set(input: unknown): input is ASN1Set;
+declare function isASN1ContextTag<T extends ASN1ContextTag['kind']>(input: unknown, tagKind?: T): input is Extract<ASN1ContextTag, {
+    kind: T;
+}>;
+declare function isASN1BitString(input: unknown): input is ASN1BitString;
+declare function isASN1Date(input: unknown): input is ASN1Date;
+export declare const ASN1CheckUtilities: {
+    isASN1Object: typeof isASN1Object;
+    isASN1OID: typeof isASN1OID;
+    isASN1String: typeof isASN1String;
+    isASN1Set: typeof isASN1Set;
+    isASN1ContextTag: typeof isASN1ContextTag;
+    isASN1BitString: typeof isASN1BitString;
+    isASN1Date: typeof isASN1Date;
+};
 /**
  * Validation function for {@link isValidSequenceSchema}
  */
@@ -113,7 +130,7 @@ export declare namespace ValidateASN1 {
         optional: Schema;
     } ? SchemaMap<T['optional']> | undefined : T extends bigint ? T : T extends {
         type: 'context';
-        kind: infer U extends 'implicit' | 'explicit';
+        kind: infer U extends ASN1ContextTag['kind'];
         value: number;
         contains: Schema;
     } ? Omit<ASN1ContextTag, 'contains' | 'value' | 'kind'> & {

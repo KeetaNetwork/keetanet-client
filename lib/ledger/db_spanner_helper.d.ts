@@ -381,7 +381,7 @@ declare const schema: {
         readonly table: "permissions";
         readonly key: readonly [Key, Key];
     };
-    readonly historyVoteBlockHash: {
+    readonly historyVoteBlockHashAccount: {
         readonly type: "INDEX";
         readonly table: "history";
         readonly key: readonly [Key, Key];

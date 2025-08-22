@@ -5,11 +5,13 @@ import { Block } from '../lib/block';
 import { type BlockJSONOperations } from '../lib/block/operations';
 import type { AccountInfo } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
-import type { UserClient, PublishOptions } from '.';
+import type { UserClient, Client } from '.';
 import { Permissions } from '../lib/permissions';
 import { Certificate, CertificateBundle } from '../lib/utils/certificate';
 import type { VoteStaple } from '../lib/vote';
 type GetPrevFunction = (acct: GenericAccount | string) => Promise<BlockHash | string | null | undefined>;
+type PublishOptions = NonNullable<Parameters<Client['transmit']>[1]>;
+/** @expand */
 interface AccountSignerOptions {
     account: GenericAccount;
     signer: Account;
@@ -19,8 +21,11 @@ interface RenderOptions {
     network: bigint;
     getPrevious: GetPrevFunction;
 }
-/** @useDeclaredType */
-type BuilderBlockOptions = Partial<AccountSignerOptions>;
+/** @expand */
+interface BuilderBlockOptions {
+    account?: AccountSignerOptions['account'];
+    signer?: AccountSignerOptions['signer'];
+}
 /**
  * Either a UserClient or an object with a client and network
  *

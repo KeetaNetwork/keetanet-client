@@ -4,15 +4,14 @@ import { BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBase } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import { LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import type { KVStorageProviderAPI } from '../kv';
 import { LedgerStorageBase } from './common';
-import Stats from '../stats';
 import type { Database as GoogleSpannerDatabase } from '@google-cloud/spanner';
 import type { TableColumn, FilteredResponseRow, IndexName, TableName, QueryRow as HelperQueryRow, QueryRows } from './db_spanner_helper';
 import type { ComputedEffectOfBlocks } from './effects';
-import type Node from '../node';
 import type { CertificateHash } from '../utils/certificate';
 type QueryRow<T extends TableName> = HelperQueryRow<T> | QueryRows<T>;
 type ReadOptions = {
@@ -33,15 +32,10 @@ type SpannerReadResponse<T extends TableName, C extends TableColumn<T>[]> = {
 interface SpannerTransactionOptions {
     strongRead?: boolean;
 }
-export declare class SpannerTransaction implements LedgerStorageTransactionBase {
+export declare class SpannerTransaction extends LedgerStorageTransactionBase {
     #private;
-    readonly node: Node | undefined;
-    readonly moment: Date;
-    readonly identifier: string;
-    readonly readOnly: boolean;
     readonly options: SpannerTransactionOptions;
-    readonly statsChanges: Parameters<Stats['incr']>[];
-    constructor(database: GoogleSpannerDatabase, options: SpannerTransactionOptions, transactionBase: LedgerStorageTransactionBase);
+    constructor(database: GoogleSpannerDatabase, options: SpannerTransactionOptions, transactionBase: LedgerStorageTransactionBaseOptions);
     evaluateError(error: any): any;
     beginTransaction(identifier: string, strongRead?: boolean): Promise<void>;
     endTransaction(mode: 'COMMIT' | 'ROLLBACK'): Promise<void>;
@@ -49,7 +43,6 @@ export declare class SpannerTransaction implements LedgerStorageTransactionBase 
     upsert<T extends TableName, R extends QueryRow<T>>(table: T, query: R): void;
     delete<T extends TableName, R extends QueryRow<T>>(table: T, query: R): void;
     read<T extends TableName, I extends IndexName | undefined, C extends TableColumn<T>[], X extends ReadRequest<T>>(table: T, index: I, columns: C, request: X): Promise<SpannerReadResponse<T, C>>;
-    addStatsChange(...changes: Parameters<Stats['incr']>[]): void;
 }
 /**
  * Ledger Configuration for Google Spanner
@@ -69,7 +62,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     constructor();
     init(config: LedgerConfig, ledger: Ledger): void;
     destroy(): Promise<void>;
-    beginTransaction(transactionBase: LedgerStorageTransactionBase): Promise<SpannerTransaction>;
+    beginTransaction(transactionBase: LedgerStorageTransactionBaseOptions): Promise<SpannerTransaction>;
     commitTransaction(transaction: SpannerTransaction): Promise<void>;
     abortTransaction(transaction: SpannerTransaction): Promise<void>;
     evaluateError(error: any): Promise<any>;

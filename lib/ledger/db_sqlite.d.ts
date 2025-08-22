@@ -4,16 +4,18 @@ import type { BlockHash } from '../block';
 import { Block } from '../block';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBase } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import { LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
 import * as sqlite from 'sqlite';
 import type { ComputedEffectOfBlocks } from './effects';
 import type { CertificateHash } from '../utils/certificate';
-interface DBSqliteTransaction extends LedgerStorageTransactionBase {
+declare class DBSqliteTransaction extends LedgerStorageTransactionBase {
     sql: Awaited<ReturnType<typeof sqlite['open']>>;
     release: null | ((value: null | number) => void);
     lock: null | Promise<null | number>;
+    constructor(baseTransaction: LedgerStorageTransactionBaseOptions, db: Awaited<ReturnType<typeof sqlite['open']>>);
 }
 export interface DBSqliteConfig {
     filename: string;
@@ -24,7 +26,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     constructor();
     init(config: LedgerConfig, ledger: Ledger): void;
     destroy(): Promise<void>;
-    beginTransaction(transactionBase: LedgerStorageTransactionBase): Promise<DBSqliteTransaction>;
+    beginTransaction(transactionBase: LedgerStorageTransactionBaseOptions): Promise<DBSqliteTransaction>;
     commitTransaction(transaction: DBSqliteTransaction): Promise<void>;
     abortTransaction(transaction: DBSqliteTransaction): Promise<void>;
     evaluateError(error: any): Promise<any>;
@@ -44,6 +46,12 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     adjust(transaction: DBSqliteTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: DBSqliteTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getBlockHeight(transaction: DBSqliteTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;
+    getBlockHeights(transaction: DBSqliteTransaction, toFetch: {
+        blockHash: BlockHash;
+        account: GenericAccount;
+    }[]): Promise<{
+        [blockHash: string]: bigint | null;
+    }>;
     getVotes(transaction: DBSqliteTransaction, block: BlockHash, from: LedgerSelector): Promise<Vote[] | null>;
     getVoteStaples(transaction: DBSqliteTransaction, voteBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
     getHistory(transaction: DBSqliteTransaction, account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteBlockHash[]>;

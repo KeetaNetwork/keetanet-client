@@ -3,11 +3,11 @@ import { Block, BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBase } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import { LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
 import type { ComputedEffectOfBlocks } from './effects';
-import type Node from '../node';
 import type { CertificateHash } from '../utils/certificate';
 declare const dynamoDBTableNames: readonly ["votes", "voteUIDs", "permissions", "accountInfo", "accountOwners", "accountCertificates", "blocks", "balances", "weight", "heapBlocks", "heapStorage", "chain", "delegation", "serial", "kv"];
 declare const optionalDynamoDbTables: readonly ["kv"];
@@ -22,13 +22,9 @@ export interface DynamoDBConfig {
     transactionSize?: number;
     batchUpdateSize?: number;
 }
-declare class DynamoDBTransaction implements LedgerStorageTransactionBase {
+declare class DynamoDBTransaction extends LedgerStorageTransactionBase {
     #private;
-    readonly node: Node | undefined;
-    readonly moment: Date;
-    readonly identifier: string;
-    readonly readOnly: boolean;
-    constructor(config: DynamoDBConfig, ledger: Ledger, log: LedgerConfig['log'], dbDynamoDB: DBDynamoDB, transactionBase: LedgerStorageTransactionBase);
+    constructor(config: DynamoDBConfig, ledger: Ledger, log: LedgerConfig['log'], dbDynamoDB: DBDynamoDB, transactionBase: LedgerStorageTransactionBaseOptions);
     commit(): Promise<void>;
     abort(): Promise<void>;
     delegatedWeight(rep?: Account | InstanceType<typeof Account.Set>): Promise<bigint>;
@@ -72,7 +68,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
         createTables: (config: DynamoDBConfig) => Promise<void>;
     };
     init(config: LedgerConfig, ledger: Ledger): void;
-    beginTransaction(transactionBase: LedgerStorageTransactionBase): Promise<DynamoDBTransaction>;
+    beginTransaction(transactionBase: LedgerStorageTransactionBaseOptions): Promise<DynamoDBTransaction>;
     commitTransaction(transaction: DynamoDBTransaction): Promise<void>;
     abortTransaction(transaction: DynamoDBTransaction): Promise<void>;
     evaluateError(error: any): Promise<any>;

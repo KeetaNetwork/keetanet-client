@@ -122,7 +122,7 @@ export declare function generateP2PPeerSigned(peer: P2PPeerUnsigned): Promise<P2
 /**
  * Options for the "peers" method
  */
-interface GetPeersOptions {
+export interface GetPeersOptions {
     /**
      * Whether or not to consider ourselves (if we are attached to a
      * representative node) as a peer.  Default is false.

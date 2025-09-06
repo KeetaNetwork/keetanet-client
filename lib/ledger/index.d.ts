@@ -203,6 +203,19 @@ export interface LedgerStorageAPI {
         [blockHash: string]: bigint | null;
     }>;
     /**
+     * Get multiple block hashes and heights for a given set of chains and optional block hashes.
+     * If no block hash is provided it returns the head block of the chain
+     */
+    getAccountsBlockHeightInfo: (transaction: any, toFetch: {
+        account: GenericAccount;
+        blockHash?: BlockHash;
+    }[]) => Promise<{
+        [account: string]: {
+            blockHash: BlockHash;
+            height: bigint | null;
+        } | null;
+    }>;
+    /**
      * Get the votes for a given block
      */
     getVotes: (transaction: any, block: BlockHash, from: LedgerSelector) => Promise<Vote[] | null>;
@@ -311,6 +324,15 @@ declare class LedgerAtomicInterface {
     getAccountRep(account: Account | string): Promise<Account | null>;
     getAccountInfo(account: GenericAccount | string): Promise<AccountInfo>;
     getBlock(blockhash: BlockHash, from?: LedgerSelector): Promise<Block | null>;
+    getAccountsBlockHeightInfo(toFetch: {
+        account: GenericAccount;
+        blockHash?: BlockHash;
+    }[]): Promise<{
+        [account: string]: {
+            blockHash: BlockHash;
+            height: bigint | null;
+        } | null;
+    }>;
     getVoteStaple(stapleBlockHash: VoteBlockHash, from?: LedgerSelector): Promise<VoteStaple | null>;
     getVoteStaples(stapleBlockHashes: VoteBlockHash[], from?: LedgerSelector): Promise<VoteBlockHashMap<VoteStaple | null>>;
     getHistory(account: GenericAccount | null, start: VoteBlockHash | null, limit?: number): Promise<VoteStaple[]>;
@@ -363,6 +385,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getAccountRep(...args: Parameters<LedgerAtomicInterface['getAccountRep']>): ReturnType<LedgerAtomicInterface['getAccountRep']>;
     getAccountInfo(...args: Parameters<LedgerAtomicInterface['getAccountInfo']>): ReturnType<LedgerAtomicInterface['getAccountInfo']>;
     getBlock(...args: Parameters<LedgerAtomicInterface['getBlock']>): ReturnType<LedgerAtomicInterface['getBlock']>;
+    getAccountsBlockHeightInfo(...args: Parameters<LedgerAtomicInterface['getAccountsBlockHeightInfo']>): ReturnType<LedgerAtomicInterface['getAccountsBlockHeightInfo']>;
     getVoteStaple(...args: Parameters<LedgerAtomicInterface['getVoteStaple']>): ReturnType<LedgerAtomicInterface['getVoteStaple']>;
     getVoteStaples(...args: Parameters<LedgerAtomicInterface['getVoteStaples']>): ReturnType<LedgerAtomicInterface['getVoteStaples']>;
     getHistory(...args: Parameters<LedgerAtomicInterface['getHistory']>): ReturnType<LedgerAtomicInterface['getHistory']>;

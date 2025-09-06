@@ -59579,6 +59579,7 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
     return ({
         account: lib_1.default.Account.fromPublicKeyString(accountInfo.account),
         currentHeadBlock: currentHeadBlock,
+        currentHeadBlockHeight: accountInfo.currentHeadBlockHeight,
         representative: currentRepresentative,
         info: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAccountInfo).call(this, accountInfo.info),
         balances: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAllBalances).call(this, accountInfo.balances)
@@ -66097,6 +66098,26 @@ class LedgerStorageBase {
         }));
         return (Object.fromEntries(response));
     }
+    async getAccountsBlockHeightInfo(transaction, toFetch) {
+        const response = await Promise.all(toFetch.map(async ({ blockHash, account }) => {
+            if (blockHash === undefined) {
+                const block = await this.getHeadBlock(transaction, account, 'main');
+                if (block !== null) {
+                    blockHash = block.hash;
+                }
+            }
+            const retval = [];
+            if (blockHash === undefined) {
+                retval.push(...[account.publicKeyString.get(), null]);
+            }
+            else {
+                const height = await this.getBlockHeight(transaction, blockHash, account);
+                retval.push(...[account.publicKeyString.get(), { blockHash, height }]);
+            }
+            return (retval);
+        }));
+        return (Object.fromEntries(response));
+    }
     async getHeadBlockHashes(transaction, accounts) {
         const received = await this.getHeadBlocks(transaction, accounts.toArray(), 'both');
         return (Object.fromEntries(Object.entries(received).map(function ([account, value]) {
@@ -67596,6 +67617,11 @@ class LedgerAtomicInterface {
         const retval = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getBlock(transaction, blockhash, from);
         return (retval);
     }
+    async getAccountsBlockHeightInfo(toFetch) {
+        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+        const retval = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getAccountsBlockHeightInfo(transaction, toFetch);
+        return (retval);
+    }
     async getVoteStaple(stapleBlockHash, from = 'main') {
         __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         const results = await this.getVoteStaples([stapleBlockHash], from);
@@ -68363,6 +68389,11 @@ class Ledger {
     async getBlock(...args) {
         return (await this.runReadOnly('db-getBlock', async function (transaction) {
             return (await transaction.getBlock(...args));
+        }));
+    }
+    async getAccountsBlockHeightInfo(...args) {
+        return (await this.runReadOnly('db-getAccountsBlockHeightInfo', async function (transaction) {
+            return (await transaction.getAccountsBlockHeightInfo(...args));
         }));
     }
     async getVoteStaple(...args) {
@@ -77415,7 +77446,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.2+g68f40cc8d6fed6135fa06451bd1fb0691868e25f';
+exports.version = '0.14.3+gc0f4c96265aa999e6f32e3b21443d294bbf33806';
 exports["default"] = exports.version;
 
 

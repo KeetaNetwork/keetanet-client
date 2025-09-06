@@ -43,6 +43,11 @@ type GetAccountStateAPIResponseFormatted = {
      */
     currentHeadBlock: string | null;
     /**
+     * The current height of the head block for the account, if there is one
+     * this will be null if the account is not open
+     */
+    currentHeadBlockHeight: string | null;
+    /**
      * The current representative for the account, if there is one
      * this will be null if the account is not open or if the
      * account has not yet set a representative

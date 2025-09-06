@@ -105,6 +105,15 @@ export declare abstract class LedgerStorageBase {
     }[]): Promise<{
         [blockHash: string]: bigint | null;
     }>;
+    getAccountsBlockHeightInfo(transaction: any, toFetch: {
+        account: GenericAccount;
+        blockHash?: BlockHash;
+    }[]): Promise<{
+        [account: string]: {
+            blockHash: BlockHash;
+            height: bigint | null;
+        } | null;
+    }>;
     abstract getHeadBlocks(transaction: any, accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [account: string]: Block | null;
     }>;

@@ -28,6 +28,7 @@ interface GetAccountChainAPIResponse {
 interface AccountState {
     account: GenericAccount;
     currentHeadBlock: BlockHash | null;
+    currentHeadBlockHeight: bigint | null;
     representative: Account | null;
     balances: GetAllBalancesResponse;
     info: AccountInfo;

@@ -1,13 +1,14 @@
 {
 	"name": "@keetanetwork/keetanet-client",
 	"repository": "https://github.com/keetanetwork/node.git",
-	"version": "0.14.3",
+	"version": "0.14.4",
 	"description": "KeetaNet Client TypeScript Reference Implementation",
 	"files": [
 		"**/*.js",
 		"**/*.d.ts",
 		"examples/**",
-		"docs/**"
+		"docs/**",
+		"npm-shrinkwrap.json"
 	],
 	"types": "./client/index.d.ts",
 	"author": "Keeta Token Genesis LLC",

@@ -114577,24 +114577,16 @@ function client_fromOffsetArray(setOffsets) {
   return val;
 }
 client_bitfield_defineProperty(src_client_BitField, "isInstance", client_checkableGenerator(client_BitField));
-;// ./src/lib/error/index.ts
-var client_KeetaNetError;
-function client_error_defineProperty(e, r, t) { return (r = client_error_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_error_toPropertyKey(t) { var i = client_error_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_error_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+;// ./src/lib/error/base.ts
+var client_KeetaNetErrorBase;
+function client_base_defineProperty(e, r, t) { return (r = client_base_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_base_toPropertyKey(t) { var i = client_base_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_base_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 
-async function client_ExpectErrorCode(code, test) {
-  await expect(test).rejects.toThrow(expect.objectContaining({
-    code: code
-  }));
-}
-class src_client_KeetaNetError extends Error {
+class src_client_KeetaNetErrorBase extends Error {
   constructor(code, message, validation) {
     super(message);
-    let type = validation === null || validation === void 0 ? void 0 : validation.type;
-    if (!type) {
-      type = 'GENERIC';
-    }
+    const type = (validation === null || validation === void 0 ? void 0 : validation.type) || 'GENERIC';
     if (validation !== undefined) {
       const prefix = `${validation.type}_`;
       const validPrefix = code.startsWith(prefix);
@@ -114607,9 +114599,16 @@ class src_client_KeetaNetError extends Error {
     this.code = code;
     this.type = type;
   }
+  toJSON() {
+    return {
+      type: this.type,
+      code: this.code,
+      message: this.message
+    };
+  }
 }
-client_KeetaNetError = src_client_KeetaNetError;
-client_error_defineProperty(src_client_KeetaNetError, "isInstance", client_checkableGenerator(client_KeetaNetError, false));
+client_KeetaNetErrorBase = src_client_KeetaNetErrorBase;
+client_base_defineProperty(src_client_KeetaNetErrorBase, "isInstance", client_checkableGenerator(client_KeetaNetErrorBase, false));
 ;// ./src/lib/error/permissions.ts
 var client_KeetaNetPermissionsError;
 function client_permissions_defineProperty(e, r, t) { return (r = client_permissions_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -114619,7 +114618,8 @@ function client_permissions_toPrimitive(t, r) { if ("object" != typeof t || !t) 
 
 const client_PermissionsErrorType = 'PERMISSIONS';
 const client_PermissionsErrorCodes = ['CANNOT_MIX_FLAGS_AND_TYPES', 'EXTERNAL_OFFSET_TOO_LARGE', 'INVALID_EXTERNAL_FLAG', 'INVALID_FLAG', 'INVALID_FLAG_ASSERTION'];
-class src_client_KeetaNetPermissionsError extends src_client_KeetaNetError {
+const client_FullPermissionsErrorCodes = client_PermissionsErrorCodes.map(code => `${client_PermissionsErrorType}_${code}`);
+class src_client_KeetaNetPermissionsError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
     super(code, message, {
       type: client_PermissionsErrorType,
@@ -115225,7 +115225,8 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 const client_BlockErrorType = 'BLOCK';
 const client_BlockErrorCodes = ['INVALID_TYPE', 'INVALID_VERSION', 'NO_MULTIPLE_SET_REP', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'CANNOT_SEND_NON_TOKEN', 'TOKEN_RECEIVE_DIFFERS', 'ONLY_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'NO_TOKEN_OP', 'NO_IDENTIFIER_OP', 'INVALID_SIGNER', 'INVALID_PURPOSE_VALIDATION', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'NO_MULTISIG_OP', 'IDENTIFIER_INVALID', 'GENERAL_FIELD_INVALID', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'INVALID_ACCOUNT_TYPE', 'NO_ADMIN_ON_TARGET', 'PREVIOUS_SELF', 'NO_DELEGATE_ADMIN', 'NO_MODIFY_PERMISSION_DUPE', 'CANNOT_FORWARD_TO_SELF', 'EXACT_TRUE_WHEN_FORWARDING', 'CERTIFICATE_SUBJECT_MISMATCH', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_CERTIFICATE_VALUE', 'EXTERNAL_TOO_LONG', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'SUPPLY_INVALID'];
-class src_client_KeetaNetBlockError extends src_client_KeetaNetError {
+const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
+class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
     super(code, message, {
       type: client_BlockErrorType,
@@ -115325,12 +115326,13 @@ function client_certificate_toPrimitive(t, r) { if ("object" != typeof t || !t) 
 
 
 const client_CertificateErrorType = 'CERTIFICATE';
-const client_certificate_BlockErrorCodes = ['DUPLICATE_INCLUDED', 'ORPHAN_FOUND', 'CYCLE_FOUND', 'SECONDARY_GRAPH', 'MISSING_FIELD', 'SIGNATURE_ALGORITHM_MISMATCH', 'SELF_SIGNED_VALIDATION_FAILED', 'CHAIN_VERIFICATION_FAILED', 'DUPLICATE_EXTENSION', 'EXTENSION_NOT_PROCESSED', 'INVALID_SIGNATURE_ALGORITHM', 'INVALID_GRAPH_COUNT', 'MOMENT_INVALID', 'INVALID_VERSION'];
-class src_client_KeetaNetCertificateError extends src_client_KeetaNetError {
+const client_CertificateErrorCodes = ['DUPLICATE_INCLUDED', 'ORPHAN_FOUND', 'CYCLE_FOUND', 'SECONDARY_GRAPH', 'MISSING_FIELD', 'SIGNATURE_ALGORITHM_MISMATCH', 'SELF_SIGNED_VALIDATION_FAILED', 'CHAIN_VERIFICATION_FAILED', 'DUPLICATE_EXTENSION', 'EXTENSION_NOT_PROCESSED', 'INVALID_SIGNATURE_ALGORITHM', 'INVALID_GRAPH_COUNT', 'MOMENT_INVALID', 'INVALID_VERSION'];
+const client_FullCertificateErrorCodes = client_CertificateErrorCodes.map(code => `${client_CertificateErrorType}_${code}`);
+class src_client_KeetaNetCertificateError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
     super(code, message, {
       type: client_CertificateErrorType,
-      codes: client_certificate_BlockErrorCodes
+      codes: client_CertificateErrorCodes
     });
   }
 }
@@ -116736,23 +116738,34 @@ client_utils_certificate_defineProperty(src_client_Certificate, "Hash", src_clie
  */
 client_utils_certificate_defineProperty(src_client_Certificate, "certificateObjectTypeID", '8d05dca5-5f42-4dc9-8bf9-f534c6570994:CERTIFICATE');
 ;// ./src/lib/error/ledger.ts
-var client_KeetaNetLedgerError;
+var client_KeetaNetLedgerError, client_KeetaNetLedgerVoteError;
 function client_ledger_defineProperty(e, r, t) { return (r = client_ledger_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_ledger_toPropertyKey(t) { var i = client_ledger_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
 function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 
 
 const client_LedgerErrorType = 'LEDGER';
-const client_LedgerErrorCodes = ['BLOCK_ALREADY_EXISTS', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'NOT_EMPTY', 'NOT_OPENING', 'NOT_SUCCESSOR', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
+const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
 // Fee Errors
 'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'PERM_VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
-class client_ledger_KeetaNetLedgerError extends src_client_KeetaNetError {
+
+// Errors that can trigger rep sync
+const client_LedgerVoteErrorCodes = ['NOT_SUCCESSOR', 'NOT_OPENING'];
+const client_FullLedgerErrorCodes = [...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes].map(code => `${client_LedgerErrorType}_${code}`);
+const client_FullLedgerBaseErrorCode = client_LedgerBaseErrorCodes.map(code => `${client_LedgerErrorType}_${code}`);
+const client_FullLedgerVoteErrorCodes = client_LedgerVoteErrorCodes.map(code => `${client_LedgerErrorType}_${code}`);
+const client_ledgerBaseErrorCodeSet = new Set(client_FullLedgerBaseErrorCode);
+const client_ledgerVoteErrorCodeSet = new Set(client_FullLedgerVoteErrorCodes);
+class client_ledger_KeetaNetLedgerError extends src_client_KeetaNetErrorBase {
+  static assertValidLedgerErrorCode(code) {
+    return client_ledgerBaseErrorCodeSet.has(code);
+  }
   constructor(code, message) {
     let shouldRetry = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
     let retryDelay = arguments.length > 3 ? arguments[3] : undefined;
     super(code, message, {
       type: client_LedgerErrorType,
-      codes: client_LedgerErrorCodes
+      codes: client_LedgerBaseErrorCodes
     });
     client_ledger_defineProperty(this, "type", client_LedgerErrorType);
     this.shouldRetry = shouldRetry;
@@ -116763,7 +116776,30 @@ class client_ledger_KeetaNetLedgerError extends src_client_KeetaNetError {
 }
 client_KeetaNetLedgerError = client_ledger_KeetaNetLedgerError;
 client_ledger_defineProperty(client_ledger_KeetaNetLedgerError, "isInstance", client_checkableGenerator(client_KeetaNetLedgerError));
-/* harmony default export */ const client_ledger = (client_ledger_KeetaNetLedgerError);
+class src_client_KeetaNetLedgerVoteError extends src_client_KeetaNetErrorBase {
+  static assertValidLedgerErrorCode(code) {
+    return client_ledgerVoteErrorCodeSet.has(code);
+  }
+  constructor(code, message, accounts) {
+    super(code, message, {
+      type: client_LedgerErrorType,
+      codes: client_LedgerVoteErrorCodes
+    });
+    client_ledger_defineProperty(this, "type", client_LedgerErrorType);
+    client_ledger_defineProperty(this, "shouldRetry", false);
+    this.accounts = accounts;
+  }
+  toJSON() {
+    return {
+      ...super.toJSON(),
+      accounts: [...this.accounts.values()].map(function (account) {
+        return account.publicKeyString.get();
+      })
+    };
+  }
+}
+client_KeetaNetLedgerVoteError = src_client_KeetaNetLedgerVoteError;
+client_ledger_defineProperty(src_client_KeetaNetLedgerVoteError, "isInstance", client_checkableGenerator(client_KeetaNetLedgerVoteError));
 ;// ./src/lib/ledger/common.ts
 function client_common_classPrivateMethodInitSpec(e, a) { client_common_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_common_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -120151,7 +120187,8 @@ function client_account_toPrimitive(t, r) { if ("object" != typeof t || !t) retu
 
 const client_AccountErrorType = 'ACCOUNT';
 const client_AccountErrorCodes = ['INVALID_PREFIX', 'INVALID_KEYTYPE', 'INVALID_KEYTYPE_EXTERNAL', 'PASSPHRASE_WEAK', 'INVALID_CONSTRUCTION', 'NO_IDENTIFIER_SIGN', 'NO_IDENTIFIER_VERIFY', 'INVALID_IDENTIFIER_CONSTRUCTION', 'SEED_INDEX_UNDEFINED', 'SEED_INDEX_NEGATIVE', 'SEED_INDEX_NOT_INT', 'SEED_INDEX_TOO_LARGE', 'ENCRYPTION_NOT_SUPPORTED'];
-class src_client_KeetaNetAccountError extends src_client_KeetaNetError {
+const client_FullAccountErrorCodes = client_AccountErrorCodes.map(code => `${client_AccountErrorType}_${code}`);
+class src_client_KeetaNetAccountError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
     super(code, message, {
       type: client_AccountErrorType,
@@ -122282,7 +122319,8 @@ const client_VoteErrorCodes = [
 'MALFORMED_FEES_AMOUNT', 'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', 'MALFORMED_FEES_IN_PERMANENT_VOTE', 'MALFORMED_FEES_PAY_TO_INVALID', 'MALFORMED_FEES_TOKEN_NOT_TOKEN',
 // Fee Quote Errors
 'FEE_IS_QUOTE', 'FEE_QUOTE_MISSING_FEES', 'FEE_NOT_QUOTE', 'MALFORMED_FEES_KIND_MISSING', 'MALFORMED_FEES_QUOTE_INVALID'];
-class src_client_KeetaNetVoteError extends src_client_KeetaNetError {
+const client_FullVoteErrorCodes = client_VoteErrorCodes.map(code => `${client_VoteErrorType}_${code}`);
+class src_client_KeetaNetVoteError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
     super(code, message, {
       type: client_VoteErrorType,
@@ -125572,7 +125610,7 @@ var client_kind = /*#__PURE__*/new WeakMap();
 var client_ledger_privateKey = /*#__PURE__*/new WeakMap();
 var client_computeFeeFromBlocks = /*#__PURE__*/new WeakMap();
 var client_ledger_storage = /*#__PURE__*/new WeakMap();
-var src_client_ledger = /*#__PURE__*/new WeakMap();
+var client_ledger = /*#__PURE__*/new WeakMap();
 var src_client_cache = /*#__PURE__*/new WeakMap();
 var client_transaction = /*#__PURE__*/new WeakMap();
 var client_LedgerAtomicInterface_brand = /*#__PURE__*/new WeakSet();
@@ -125588,7 +125626,7 @@ class client_LedgerAtomicInterface {
     client_ledger_classPrivateFieldInitSpec(this, client_ledger_privateKey, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_computeFeeFromBlocks, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_ledger_storage, void 0);
-    client_ledger_classPrivateFieldInitSpec(this, src_client_ledger, void 0);
+    client_ledger_classPrivateFieldInitSpec(this, client_ledger, void 0);
     client_ledger_classPrivateFieldInitSpec(this, src_client_cache, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_transaction, void 0);
     client_ledger_classPrivateFieldSet(client_network, this, config.network);
@@ -125596,7 +125634,7 @@ class client_LedgerAtomicInterface {
     client_ledger_classPrivateFieldSet(client_kind, this, config.kind);
     client_ledger_classPrivateFieldSet(client_ledger_privateKey, this, config.privateKey);
     client_ledger_classPrivateFieldSet(client_computeFeeFromBlocks, this, config.computeFeeFromBlocks);
-    client_ledger_classPrivateFieldSet(src_client_ledger, this, ledger);
+    client_ledger_classPrivateFieldSet(client_ledger, this, ledger);
     client_ledger_classPrivateFieldSet(client_ledger_storage, this, storage);
     client_ledger_classPrivateFieldSet(client_transaction, this, _transaction2);
 
@@ -125618,7 +125656,7 @@ class client_LedgerAtomicInterface {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
     client_ledger_classPrivateFieldSet(client_transaction, this, null);
     await client_ledger_classPrivateFieldGet(client_ledger_storage, this).commitTransaction(transaction);
-    (_classPrivateFieldGet2 = client_ledger_classPrivateFieldGet(src_client_ledger, this).node) === null || _classPrivateFieldGet2 === void 0 || _classPrivateFieldGet2.stats.merge(transaction.statsPending);
+    (_classPrivateFieldGet2 = client_ledger_classPrivateFieldGet(client_ledger, this).node) === null || _classPrivateFieldGet2 === void 0 || _classPrivateFieldGet2.stats.merge(transaction.statsPending);
   }
   async abort() {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
@@ -125627,22 +125665,22 @@ class client_LedgerAtomicInterface {
   }
   async vote(blocks, otherVotes, quote) {
     if (blocks.length === 0) {
-      throw new client_ledger('LEDGER_MISSING_BLOCKS', 'At least one block is required to issue a vote');
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_BLOCKS', 'At least one block is required to issue a vote');
     }
     if (!client_ledger_classPrivateFieldGet(client_ledger_privateKey, this)) {
       throw new Error('Cannot vote on block, no private key loaded');
     }
-    if (client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode !== 'read-write') {
-      throw new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode} mode`);
+    if (client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode !== 'read-write') {
+      throw new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode} mode`);
     }
     const privateKey = client_ledger_classPrivateFieldGet(client_ledger_privateKey, this);
     const ledgerPubKey = privateKey.publicKeyString.get();
     if (quote !== undefined) {
       if (otherVotes !== undefined) {
-        throw new client_ledger('LEDGER_PERM_VOTE_WITH_QUOTE', 'Quote should not be included when requesting permanent votes');
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_PERM_VOTE_WITH_QUOTE', 'Quote should not be included when requesting permanent votes');
       }
       if (!quote.issuer.comparePublicKey(ledgerPubKey)) {
-        throw new client_ledger('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key');
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key');
       }
     }
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
@@ -125652,13 +125690,13 @@ class client_LedgerAtomicInterface {
      * us and the blocks are in the same order as the set of
      * blocks we are voting on now
      */
+    let hasFeeBlock = false;
     if (otherVotes !== undefined) {
       let foundOurVote = false;
       const seenVoteUIDs = new Set();
       const seenVoteIssuers = new client_lib_account.Set();
-      const possibleFeeBlock = blocks.at(-1);
-      let hasFeeBlock = false;
       let blockCount = blocks.length;
+      const possibleFeeBlock = blocks.at(-1);
       if ((possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.purpose) === client_BlockPurpose.FEE) {
         hasFeeBlock = true;
         blockCount--;
@@ -125666,13 +125704,13 @@ class client_LedgerAtomicInterface {
       const requiredFees = new Map();
       for (const checkVote of otherVotes) {
         if (checkVote.quote === true) {
-          throw new client_ledger('LEDGER_PERM_VOTE_WITH_QUOTE', 'Cannot request permanent votes with quotes');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_PERM_VOTE_WITH_QUOTE', 'Cannot request permanent votes with quotes');
         }
         if (seenVoteUIDs.has(checkVote.$id)) {
-          throw new client_ledger('LEDGER_DUPLICATE_VOTE_FOUND', 'Duplicate vote UID found');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_DUPLICATE_VOTE_FOUND', 'Duplicate vote UID found');
         }
         if (seenVoteIssuers.has(checkVote.issuer)) {
-          throw new client_ledger('LEDGER_DUPLICATE_VOTE_ISSUER_FOUND', 'Multiple votes found from same issuer');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_DUPLICATE_VOTE_ISSUER_FOUND', 'Multiple votes found from same issuer');
         }
         seenVoteIssuers.add(checkVote.issuer);
         seenVoteUIDs.add(checkVote.$id);
@@ -125680,7 +125718,7 @@ class client_LedgerAtomicInterface {
           requiredFees.set(checkVote.issuer, checkVote.fee);
         }
         if (checkVote.$permanent) {
-          throw new client_ledger('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote for a permanent vote');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote for a permanent vote');
         }
         let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blockCount;
 
@@ -125694,7 +125732,7 @@ class client_LedgerAtomicInterface {
           }
         }
         if (blocksDifferFromVoteBlocks) {
-          throw new client_ledger('LEDGER_BLOCKS_DIFFER_FROM_VOTED_ON', 'Asked to exchange different number of blocks for a permanent vote');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_BLOCKS_DIFFER_FROM_VOTED_ON', 'Asked to exchange different number of blocks for a permanent vote');
         }
         if (checkVote.issuer.comparePublicKey(ledgerPubKey)) {
           foundOurVote = true;
@@ -125702,10 +125740,10 @@ class client_LedgerAtomicInterface {
       }
       if (requiredFees.size > 0) {
         if (!hasFeeBlock) {
-          throw new client_ledger('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it');
         }
         if (requiredFees.size !== (possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length)) {
-          throw new client_ledger('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees');
         }
       }
 
@@ -125714,13 +125752,13 @@ class client_LedgerAtomicInterface {
         const foundFee = possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.find(operation => {
           var _fee$payTo, _fee$token;
           const expectedPayTo = (_fee$payTo = fee.payTo) !== null && _fee$payTo !== void 0 ? _fee$payTo : issuer;
-          const expectedToken = (_fee$token = fee.token) !== null && _fee$token !== void 0 ? _fee$token : client_ledger_classPrivateFieldGet(src_client_ledger, this).baseToken;
+          const expectedToken = (_fee$token = fee.token) !== null && _fee$token !== void 0 ? _fee$token : client_ledger_classPrivateFieldGet(client_ledger, this).baseToken;
           if (operation.type === client_OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
             if (operation.amount !== fee.amount) {
-              throw new client_ledger('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`);
+              throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`);
             }
             if (!operation.token.comparePublicKey(expectedToken)) {
-              throw new client_ledger('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`);
+              throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`);
             }
             return true;
           }
@@ -125728,11 +125766,11 @@ class client_LedgerAtomicInterface {
         });
         if (foundFee === undefined) {
           var _fee$payTo$publicKeyS, _fee$payTo2;
-          throw new client_ledger('LEDGER_FEE_MISSING', `Missing Required Fee for ${(_fee$payTo$publicKeyS = (_fee$payTo2 = fee.payTo) === null || _fee$payTo2 === void 0 ? void 0 : _fee$payTo2.publicKeyString.get()) !== null && _fee$payTo$publicKeyS !== void 0 ? _fee$payTo$publicKeyS : issuer.publicKeyString.get()}`);
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${(_fee$payTo$publicKeyS = (_fee$payTo2 = fee.payTo) === null || _fee$payTo2 === void 0 ? void 0 : _fee$payTo2.publicKeyString.get()) !== null && _fee$payTo$publicKeyS !== void 0 ? _fee$payTo$publicKeyS : issuer.publicKeyString.get()}`);
         }
       }
       if (!foundOurVote) {
-        throw new client_ledger('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us');
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us');
       }
     }
     const allLedgerHeads = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlocksForVote).call(this, blocks);
@@ -125742,15 +125780,15 @@ class client_LedgerAtomicInterface {
       const accountHead = allHeads[account.publicKeyString.get()];
       if (accountHead === null) {
         if (!expectedBlock.$opening) {
-          throw new client_ledger('LEDGER_NOT_OPENING', 'Cannot vote on non-opening block for an empty account');
+          throw new src_client_KeetaNetLedgerVoteError('LEDGER_NOT_OPENING', 'Cannot vote on non-opening block for an empty account', needToGetHeadFor);
         }
         continue;
       }
       if (expectedBlock.$opening) {
-        throw new client_ledger('LEDGER_NOT_EMPTY', 'Cannot vote on opening block for a non-empty account');
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_NOT_EMPTY', 'Cannot vote on opening block for a non-empty account');
       }
       if (expectedBlock.previous.toString() !== accountHead.toString()) {
-        throw new client_ledger('LEDGER_NOT_SUCCESSOR', 'The block is not the successor to the account head block');
+        throw new src_client_KeetaNetLedgerVoteError('LEDGER_NOT_SUCCESSOR', 'The block is not the successor to the account head block', needToGetHeadFor);
       }
     }
 
@@ -125776,7 +125814,7 @@ class client_LedgerAtomicInterface {
           mayReplace = !ourVote.$permanent && ourVote.issuer.comparePublicKey(ledgerPubKey);
         }
         if (!mayReplace) {
-          throw new client_ledger('LEDGER_SUCCESSOR_VOTE_EXISTS', `We cannot vote for this block (hash=${block.hash.toString()}), we have an existing vote for a successor (previous votes = ${JSON.stringify(client_toJSONSerializable(previousVotes))})`);
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_SUCCESSOR_VOTE_EXISTS', `We cannot vote for this block (hash=${block.hash.toString()}), we have an existing vote for a successor (previous votes = ${JSON.stringify(client_toJSONSerializable(previousVotes))})`);
         }
       }
     }
@@ -125792,12 +125830,19 @@ class client_LedgerAtomicInterface {
     }
 
     /**
+     * Validate ledger outcome again before permanent votes if blocks includes a fee block
+     */
+    if (hasFeeBlock) {
+      await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateLedgerOutcome).call(this, blocks);
+    }
+
+    /**
      * Validate the votes are sufficient weight and grant
      * our permanent vote
      */
     const votesSufficient = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateVotingWeight).call(this, otherVotes);
     if (votesSufficient !== true) {
-      throw new client_ledger('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Unable to create a vote from these votes, they do not represent enough voting power');
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Unable to create a vote from these votes, they do not represent enough voting power');
     }
 
     /**
@@ -125826,7 +125871,7 @@ class client_LedgerAtomicInterface {
   async add(votesAndBlocks, from) {
     var _classPrivateFieldGet3, _classPrivateFieldGet4, _classPrivateFieldGet5, _classPrivateFieldGet6;
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
-    switch (client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode) {
+    switch (client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode) {
       case 'read-only':
         throw new Error('Cannot add blocks to a read-only ledger');
       case 'bootstrap-only':
@@ -125838,7 +125883,7 @@ class client_LedgerAtomicInterface {
       case 'no-voting':
         break;
       default:
-        throw new Error(`internal error: invalid ledger write mode: ${client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode}`);
+        throw new Error(`internal error: invalid ledger write mode: ${client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode}`);
     }
     const {
       votes,
@@ -125860,19 +125905,19 @@ class client_LedgerAtomicInterface {
         throw new Error('Can only insert permanent votes');
       }
     }
-    const weightTiming = (_classPrivateFieldGet3 = client_ledger_classPrivateFieldGet(src_client_ledger, this).node) === null || _classPrivateFieldGet3 === void 0 ? void 0 : _classPrivateFieldGet3.timing.startTime('db-add/getWeight');
+    const weightTiming = (_classPrivateFieldGet3 = client_ledger_classPrivateFieldGet(client_ledger, this).node) === null || _classPrivateFieldGet3 === void 0 ? void 0 : _classPrivateFieldGet3.timing.startTime('db-add/getWeight');
     const votesSufficient = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateVotingWeight).call(this, votesAndBlocks.votes);
     if (votesSufficient !== true) {
-      throw new client_ledger('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Votes attached do not represent enough voting power');
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Votes attached do not represent enough voting power');
     }
     weightTiming === null || weightTiming === void 0 || weightTiming.end();
-    const changesTiming = (_classPrivateFieldGet4 = client_ledger_classPrivateFieldGet(src_client_ledger, this).node) === null || _classPrivateFieldGet4 === void 0 ? void 0 : _classPrivateFieldGet4.timing.startTime('db-add/computeEffectOfBlocks');
-    const changes = client_computeEffectOfBlocks(votesAndBlocks.blocks, client_ledger_classPrivateFieldGet(src_client_ledger, this));
+    const changesTiming = (_classPrivateFieldGet4 = client_ledger_classPrivateFieldGet(client_ledger, this).node) === null || _classPrivateFieldGet4 === void 0 ? void 0 : _classPrivateFieldGet4.timing.startTime('db-add/computeEffectOfBlocks');
+    const changes = client_computeEffectOfBlocks(votesAndBlocks.blocks, client_ledger_classPrivateFieldGet(client_ledger, this));
     changesTiming === null || changesTiming === void 0 || changesTiming.end();
-    const adjustTiming = (_classPrivateFieldGet5 = client_ledger_classPrivateFieldGet(src_client_ledger, this).node) === null || _classPrivateFieldGet5 === void 0 ? void 0 : _classPrivateFieldGet5.timing.startTime('db-add/adjust');
+    const adjustTiming = (_classPrivateFieldGet5 = client_ledger_classPrivateFieldGet(client_ledger, this).node) === null || _classPrivateFieldGet5 === void 0 ? void 0 : _classPrivateFieldGet5.timing.startTime('db-add/adjust');
     const voteStaples = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).adjust(transaction, votesAndBlocks, changes);
     adjustTiming === null || adjustTiming === void 0 || adjustTiming.end();
-    const postambleTiming = (_classPrivateFieldGet6 = client_ledger_classPrivateFieldGet(src_client_ledger, this).node) === null || _classPrivateFieldGet6 === void 0 ? void 0 : _classPrivateFieldGet6.timing.startTime('db-add/postamble');
+    const postambleTiming = (_classPrivateFieldGet6 = client_ledger_classPrivateFieldGet(client_ledger, this).node) === null || _classPrivateFieldGet6 === void 0 ? void 0 : _classPrivateFieldGet6.timing.startTime('db-add/postamble');
     /**
      * Add all the block hashes to the node checksum
      */
@@ -126180,8 +126225,8 @@ class client_LedgerAtomicInterface {
     return await client_ledger_classPrivateFieldGet(client_ledger_storage, this).gc(transaction, timeLimitMS);
   }
   async getFee(blocks, effectsInput) {
-    const effects = effectsInput !== null && effectsInput !== void 0 ? effectsInput : client_computeEffectOfBlocks(blocks, client_ledger_classPrivateFieldGet(src_client_ledger, this));
-    return client_ledger_classPrivateFieldGet(client_computeFeeFromBlocks, this).call(this, client_ledger_classPrivateFieldGet(src_client_ledger, this), blocks, effects);
+    const effects = effectsInput !== null && effectsInput !== void 0 ? effectsInput : client_computeEffectOfBlocks(blocks, client_ledger_classPrivateFieldGet(client_ledger, this));
+    return client_ledger_classPrivateFieldGet(client_computeFeeFromBlocks, this).call(this, client_ledger_classPrivateFieldGet(client_ledger, this), blocks, effects);
   }
   async _testingRunStorageFunction(code) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
@@ -126209,7 +126254,7 @@ async function client_validateVotingWeight(votes) {
    */
   if (totalVotingPower === 0n) {
     const foundTrustedVote = votes.find(vote => {
-      return vote.issuer.comparePublicKey(client_ledger_classPrivateFieldGet(src_client_ledger, this).initialTrustedAccount);
+      return vote.issuer.comparePublicKey(client_ledger_classPrivateFieldGet(client_ledger, this).initialTrustedAccount);
     });
     return foundTrustedVote !== undefined;
   }
@@ -126262,7 +126307,7 @@ async function client_checkSingleAccountPermissions(account, requirements, accou
       const baseFlagsStr = requirement.permissions.base.flags.join(', ');
       const externalOffsetsStr = requirement.permissions.external.trueOffsets.join(', ');
       const reqTargetKey = (_requirement$target = requirement.target) === null || _requirement$target === void 0 ? void 0 : _requirement$target.publicKeyString.get();
-      throw new client_ledger('LEDGER_INVALID_PERMISSIONS', `${accountPubKey} does not have required permissions to perform action on ${reqEntityKey}/${reqTargetKey} -- needs [${baseFlagsStr}]/[${externalOffsetsStr}]`);
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_PERMISSIONS', `${accountPubKey} does not have required permissions to perform action on ${reqEntityKey}/${reqTargetKey} -- needs [${baseFlagsStr}]/[${externalOffsetsStr}]`);
     }
   }
 }
@@ -126321,7 +126366,7 @@ async function client_checkPermissionRequirements(effects) {
       throw new Error(`Multisig quorum not found for ${multisigPubKey}`);
     }
     if (foundInfo.multisigQuorum > foundSingerLength) {
-      throw new client_ledger('LEDGER_INVALID_PERMISSIONS', `Quorum of ${foundInfo.multisigQuorum} not reached for ${multisigPubKey} -- got ${foundSingerLength}`);
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_PERMISSIONS', `Quorum of ${foundInfo.multisigQuorum} not reached for ${multisigPubKey} -- got ${foundSingerLength}`);
     }
   }
   const checkPromises = [];
@@ -126370,7 +126415,7 @@ async function client_validateLedgerOutcome(blocks) {
         break;
     }
   };
-  const effects = client_computeEffectOfBlocks(blocks, client_ledger_classPrivateFieldGet(src_client_ledger, this));
+  const effects = client_computeEffectOfBlocks(blocks, client_ledger_classPrivateFieldGet(client_ledger, this));
   const accountEffects = effects.accounts;
   const allAccountsChanges = Object.values(accountEffects);
 
@@ -126442,13 +126487,13 @@ async function client_validateLedgerOutcome(blocks) {
     if (ownerLength === 1) {
       continue;
     }
-    throw new client_ledger('LEDGER_INVALID_OWNER_COUNT', `Invalid number of owners for ${identifierPubKey} - Got ${ownerLength}/1`);
+    throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_OWNER_COUNT', `Invalid number of owners for ${identifierPubKey} - Got ${ownerLength}/1`);
   }
   const {
     balances
   } = await client_computeLedgerEffect({
     checkRangeConstraints: true,
-    baseToken: client_ledger_classPrivateFieldGet(src_client_ledger, this).baseToken
+    baseToken: client_ledger_classPrivateFieldGet(client_ledger, this).baseToken
   }, accountEffects, client_ledger_classPrivateFieldGet(client_ledger_storage, this), client_ledger_classPrivateFieldGet(client_network, this), client_ledger_classPrivateFieldGet(client_transaction, this));
   for (const accountPubKey in balances) {
     const acctBalanceChanges = balances[accountPubKey];
@@ -126459,10 +126504,10 @@ async function client_validateLedgerOutcome(blocks) {
         receiveValidated
       } = acctBalanceChanges[tokenPubKey];
       if (fellNegative) {
-        throw new client_ledger('LEDGER_INVALID_BALANCE', `Resulting balance becomes negative at one+ point(s) during this transaction for account/token ${accountPubKey}/${tokenPubKey}: change ${change}`);
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_BALANCE', `Resulting balance becomes negative at one+ point(s) during this transaction for account/token ${accountPubKey}/${tokenPubKey}: change ${change}`);
       }
       if (receiveValidated === false) {
-        throw new client_ledger('LEDGER_RECEIVE_NOT_MET', `${accountPubKey}/${tokenPubKey} did not receive enough of requested token. change: ${change}`);
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_RECEIVE_NOT_MET', `${accountPubKey}/${tokenPubKey} did not receive enough of requested token. change: ${change}`);
       }
     }
   }
@@ -126483,13 +126528,13 @@ async function client_validateBlocksForVote(blocks) {
     const prevBlockHash = block.previous;
     seenBlockHashes.add(block.hash);
     if (block.network !== client_ledger_classPrivateFieldGet(client_network, this)) {
-      throw new client_ledger('LEDGER_INVALID_NETWORK', 'Cannot vote on block for a different network');
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_NETWORK', 'Cannot vote on block for a different network');
     }
     if (block.subnet !== client_ledger_classPrivateFieldGet(client_subnet, this)) {
-      throw new client_ledger('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet');
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet');
     }
     if (usedPreviousBlockHashes.has(prevBlockHash)) {
-      throw new client_ledger('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`);
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`);
     }
     usedPreviousBlockHashes.add(prevBlockHash);
 
@@ -126505,10 +126550,10 @@ async function client_validateBlocksForVote(blocks) {
       if (prevBlock !== undefined) {
         predecessorBeingVotedOn = true;
         if (!prevBlock.account.comparePublicKey(block.account)) {
-          throw new client_ledger('LEDGER_INVALID_CHAIN', 'Invalid chain, changes accounts');
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_CHAIN', 'Invalid chain, changes accounts');
         }
         if (!seenBlockHashes.has(prevBlockHash)) {
-          throw new client_ledger('LEDGER_PREVIOUS_NOT_SEEN', `Invalid reference to block, out-of-order: ${prevBlockHash} has not already been seen`);
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_PREVIOUS_NOT_SEEN', `Invalid reference to block, out-of-order: ${prevBlockHash} has not already been seen`);
         }
       }
     }
@@ -126520,8 +126565,8 @@ async function client_validateBlocksForVote(blocks) {
 }
 async function client_voteOrQuoteWithFees(blocks, type, quote) {
   var _quote$fee;
-  if (client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode !== 'read-write') {
-    throw new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(src_client_ledger, this).ledgerWriteMode} mode`);
+  if (client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode !== 'read-write') {
+    throw new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode} mode`);
   }
   if (!client_ledger_classPrivateFieldGet(client_ledger_privateKey, this)) {
     throw new Error('Cannot vote on block, no private key loaded');
@@ -126701,7 +126746,7 @@ class src_client_Ledger {
             shouldTryToRetry = now - startTime < retryConfig.timeout;
           }
           if (shouldTryToRetry) {
-            if (client_ledger.isInstance(txnError)) {
+            if (client_ledger_KeetaNetLedgerError.isInstance(txnError)) {
               if (txnError.shouldRetry) {
                 let retryDelay = 20;
                 if (txnError.retryDelay) {
@@ -126970,11 +127015,11 @@ class src_client_Ledger {
 client_Ledger = src_client_Ledger;
 client_lib_ledger_defineProperty(src_client_Ledger, "Kind", client_LedgerKind);
 client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkableGenerator(client_Ledger));
-/* harmony default export */ const client_lib_ledger = (src_client_Ledger);
+/* harmony default export */ const src_client_ledger = (src_client_Ledger);
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.3+gc0f4c96265aa999e6f32e3b21443d294bbf33806';
+const client_version = '0.14.4+g6020a42a3e7fdf7cae2d3783e939f895ae1be911';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -129039,13 +129084,13 @@ class src_client_Node {
     this.baseToken = baseToken;
 
     /* XXX:TODO: Compute ledger kind from node kind */
-    const ledgerKind = client_lib_ledger.Kind.REPRESENTATIVE;
+    const ledgerKind = src_client_ledger.Kind.REPRESENTATIVE;
     this.config = config;
     const initialTrustedAccount = config.initialTrustedAccount;
     if (initialTrustedAccount.hasPrivateKey) {
       throw new Error('There is no reason for us to have the private key in setup of the initialTrustedAccount');
     }
-    this.ledger = new client_lib_ledger({
+    this.ledger = new src_client_ledger({
       privateKey: config.ledgerPrivateKey,
       network: config.network,
       subnet: config.subnet,
@@ -129197,6 +129242,144 @@ client_Node = src_client_Node;
 client_node_defineProperty(src_client_Node, "Kind", client_node_NodeKind);
 client_node_defineProperty(src_client_Node, "isInstance", client_checkableGenerator(client_Node));
 /* harmony default export */ const client_node = (src_client_Node);
+;// ./src/lib/error/api.ts
+var client_KeetaNetAPIError;
+function client_api_defineProperty(e, r, t) { return (r = client_api_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_api_toPropertyKey(t) { var i = client_api_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_api_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
+const client_APIErrorType = 'API';
+const client_APIErrorCodes = ['INVALID_LIMIT', 'INVALID_SIDE', 'INVALID_START', 'LIMIT_NOT_NUMBER', 'LIMIT_NOT_GREATER_THAN_ZERO', 'REP_MISSING', 'START_MISSING'];
+const client_FullAPIErrorCodes = client_APIErrorCodes.map(code => `${client_APIErrorType}_${code}`);
+class src_client_KeetaNetAPIError extends src_client_KeetaNetErrorBase {
+  constructor(code, message) {
+    super(code, message, {
+      type: client_APIErrorType,
+      codes: client_APIErrorCodes
+    });
+  }
+}
+client_KeetaNetAPIError = src_client_KeetaNetAPIError;
+client_api_defineProperty(src_client_KeetaNetAPIError, "isInstance", client_checkableGenerator(client_KeetaNetAPIError));
+;// ./src/lib/error/client.ts
+var client_KeetaNetClientError;
+function client_client_defineProperty(e, r, t) { return (r = client_client_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_client_toPropertyKey(t) { var i = client_client_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
+const client_ClientErrorType = 'CLIENT';
+const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY'];
+const client_FullClientErrorCodes = client_ClientErrorCodes.map(code => `${client_ClientErrorType}_${code}`);
+class src_client_KeetaNetClientError extends src_client_KeetaNetErrorBase {
+  constructor(code, message) {
+    super(code, message, {
+      type: client_ClientErrorType,
+      codes: client_ClientErrorCodes
+    });
+  }
+}
+client_KeetaNetClientError = src_client_KeetaNetClientError;
+client_client_defineProperty(src_client_KeetaNetClientError, "isInstance", client_checkableGenerator(client_KeetaNetClientError));
+;// ./src/lib/error/kv.ts
+var client_KeetaNetKVError;
+function client_error_kv_defineProperty(e, r, t) { return (r = client_error_kv_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_error_kv_toPropertyKey(t) { var i = client_error_kv_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_error_kv_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
+const client_KVErrorType = 'KV';
+const client_KVErrorCodes = ['TTL_NOT_SUPPORTED', 'KEY_ALREADY_EXISTS'];
+const client_FullKVErrorCodes = client_KVErrorCodes.map(code => `${client_KVErrorType}_${code}`);
+class src_client_KeetaNetKVError extends src_client_KeetaNetErrorBase {
+  constructor(code, message) {
+    super(code, message, {
+      type: client_KVErrorType,
+      codes: client_KVErrorCodes
+    });
+  }
+}
+client_KeetaNetKVError = src_client_KeetaNetKVError;
+client_error_kv_defineProperty(src_client_KeetaNetKVError, "isInstance", client_checkableGenerator(client_KeetaNetKVError));
+;// ./src/lib/error/index.ts
+
+
+
+
+
+
+
+
+
+
+
+const client_allErrorCodesWithoutPrefix = [...client_AccountErrorCodes, ...client_APIErrorCodes, ...client_BlockErrorCodes, ...client_CertificateErrorCodes, ...client_ClientErrorCodes, ...client_KVErrorCodes, ...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes, ...client_PermissionsErrorCodes, ...client_VoteErrorCodes];
+const client_allFullErrorCodes = [...client_FullAccountErrorCodes, ...client_FullAPIErrorCodes, ...client_FullBlockErrorCodes, ...client_FullCertificateErrorCodes, ...client_FullClientErrorCodes, ...client_FullKVErrorCodes, ...client_FullLedgerErrorCodes, ...client_FullPermissionsErrorCodes, ...client_FullVoteErrorCodes];
+const client_errorCodeSet = new Set(client_allFullErrorCodes);
+async function client_ExpectErrorCode(code, test) {
+  await expect(test).rejects.toThrow(expect.objectContaining({
+    code: code
+  }));
+}
+class client_KeetaNetError extends src_client_KeetaNetErrorBase {
+  static assertValidErrorCode(code) {
+    return client_errorCodeSet.has(code);
+  }
+  static fromJSON(json) {
+    if (typeof json === 'object' && json !== null && 'type' in json && 'code' in json && 'message' in json) {
+      const {
+        type,
+        code,
+        message
+      } = json;
+      if (typeof type !== 'string' || typeof code !== 'string' || typeof message !== 'string') {
+        return new Error('Invalid JSON for KeetaNetError (bad type or code or message)');
+      }
+      if (type === 'LEDGER') {
+        let shouldRetry;
+        let retryDelay;
+        if ('shouldRetry' in json) {
+          if (typeof json.shouldRetry !== 'boolean') {
+            return new Error('Invalid JSON for KeetaNetLedgerError (bad shouldRetry)');
+          }
+          shouldRetry = json.shouldRetry;
+        }
+        if ('retryDelay' in json) {
+          if (typeof json.retryDelay !== 'number') {
+            return new Error('Invalid JSON for KeetaNetLedgerError (bad retryDelay)');
+          }
+          retryDelay = json.retryDelay;
+        }
+        if (src_client_KeetaNetLedgerVoteError.assertValidLedgerErrorCode(code)) {
+          if (!('accounts' in json) || !Array.isArray(json.accounts)) {
+            return new Error('Invalid JSON for KeetaNetLedgerVoteError (bad accounts)');
+          }
+          const accountsArray = json.accounts.map(account => {
+            return client_lib_account.fromPublicKeyString(account);
+          });
+          const accounts = new client_lib_account.Set(accountsArray);
+          return new src_client_KeetaNetLedgerVoteError(code, message, accounts);
+        } else if (client_ledger_KeetaNetLedgerError.assertValidLedgerErrorCode(code)) {
+          return new client_ledger_KeetaNetLedgerError(code, message, shouldRetry, retryDelay);
+        }
+      }
+      if (this.assertValidErrorCode(code)) {
+        return new client_KeetaNetError(code, message, {
+          type,
+          codes: client_allErrorCodesWithoutPrefix
+        });
+      }
+    }
+    if (typeof json === 'object' && json !== null && 'message' in json) {
+      if (typeof json.message !== 'string') {
+        return new Error('Invalid JSON for KeetaNetError (bad message)');
+      }
+      return new Error(json.message);
+    }
+    return new Error('Unknown error');
+  }
+}
 // EXTERNAL MODULE: ./node_modules/bloom-filters/dist/api.js
 var client_api = __webpack_require__(5652);
 ;// ./src/lib/utils/bloom.ts
@@ -129270,6 +129453,7 @@ function client_deserializeBloomFilter(input) {
 // Blocks that will return from generateInitialVoteStaple if you are adding supply
 
 async function client_generateInitialVoteStaple(options) {
+  var _options$baseTokenInf, _options$baseTokenInf2, _options$baseTokenInf3, _options$baseTokenInf4;
   const {
     network,
     initialTrustedAccount,
@@ -129330,9 +129514,11 @@ async function client_generateInitialVoteStaple(options) {
       permissions: new client_permissions_Permissions(['OWNER'])
     }, {
       type: client_lib_block.Builder.OperationType.SET_INFO,
-      name: '',
-      description: '',
-      metadata: '',
+      name: (_options$baseTokenInf = (_options$baseTokenInf2 = options.baseTokenInfo) === null || _options$baseTokenInf2 === void 0 ? void 0 : _options$baseTokenInf2.currencyCode) !== null && _options$baseTokenInf !== void 0 ? _options$baseTokenInf : '',
+      description: (_options$baseTokenInf3 = (_options$baseTokenInf4 = options.baseTokenInfo) === null || _options$baseTokenInf4 === void 0 ? void 0 : _options$baseTokenInf4.name) !== null && _options$baseTokenInf3 !== void 0 ? _options$baseTokenInf3 : '',
+      metadata: options.baseTokenInfo ? btoa(JSON.stringify({
+        decimalPlaces: options.baseTokenInfo.decimalPlaces
+      })) : '',
       defaultPermission: new client_permissions_Permissions(['ACCESS'])
     }, ...additionalBaseTokenOperations]
   }).seal();
@@ -129412,8 +129598,8 @@ async function client_generateInitialVoteStaple(options) {
    */
   Account: client_lib_account,
   Block: client_lib_block,
-  Error: src_client_KeetaNetError,
-  Ledger: client_lib_ledger,
+  Error: client_KeetaNetError,
+  Ledger: src_client_ledger,
   Node: client_node,
   P2P: client_p2p,
   Permissions: client_permissions_Permissions,
@@ -129430,25 +129616,6 @@ async function client_generateInitialVoteStaple(options) {
     Certificate: client_utils_certificate_namespaceObject
   }
 });
-;// ./src/lib/error/client.ts
-var client_KeetaNetClientError;
-function client_client_defineProperty(e, r, t) { return (r = client_client_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_client_toPropertyKey(t) { var i = client_client_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-
-
-const client_ClientErrorType = 'CLIENT';
-const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY'];
-class src_client_KeetaNetClientError extends src_client_KeetaNetError {
-  constructor(code, message) {
-    super(code, message, {
-      type: client_ClientErrorType,
-      codes: client_ClientErrorCodes
-    });
-  }
-}
-client_KeetaNetClientError = src_client_KeetaNetClientError;
-client_client_defineProperty(src_client_KeetaNetClientError, "isInstance", client_checkableGenerator(client_KeetaNetClientError));
 ;// ./src/client/builder.ts
 /* provided dependency */ var client_builder_Buffer = __webpack_require__(8287)["Buffer"];
 var client_PendingAccount, client_UserClientBuilder;
@@ -130431,6 +130598,7 @@ function client_client_assertClassBrand(e, t, n) { if ("function" == typeof e ? 
 
 
 
+
 /*
  * Turn the nested API tree into a flat structure
  */
@@ -130807,9 +130975,10 @@ class src_client_Client {
    * @return The account information
    */
   async getAccountInfo(account) {
+    let rep = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'ANY';
     account = client_lib_account.toAccount(account);
     const accountPubKey = account.publicKeyString.get();
-    const result = await client_client_assertClassBrand(client_Client_brand, this, src_client_api).call(this, 'ANY', 'GET /node/ledger/account/:account', {
+    const result = await client_client_assertClassBrand(client_Client_brand, this, src_client_api).call(this, rep, 'GET /node/ledger/account/:account', {
       args: {
         account: accountPubKey
       }
@@ -131699,6 +131868,64 @@ class src_client_Client {
     }
     return voteStaple;
   }
+
+  /**
+   * Sync any partially-published account artifacts
+   *
+   * @param account Account to sync
+   * @param publish Publish the synced staple to the network (default is true)
+   */
+  async syncAccount(account) {
+    let publish = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+    let reps = arguments.length > 2 ? arguments[2] : undefined;
+    await client_client_classPrivateFieldGet(client_updateRepsPromise, this);
+    if (reps === undefined) {
+      reps = this.representatives;
+    }
+    const repAccountInfoPromises = [];
+    for (const rep of reps) {
+      repAccountInfoPromises.push((async () => {
+        const info = await this.getAccountInfo(account, rep);
+        return {
+          rep,
+          info
+        };
+      })());
+    }
+    const accountInfoSettled = await Promise.allSettled(repAccountInfoPromises);
+    const accountInfo = [];
+    for (const info of accountInfoSettled) {
+      if (info.status === 'fulfilled') {
+        accountInfo.push(info.value);
+      }
+    }
+    const accountInfoSorted = accountInfo.sort(function (a, b) {
+      var _a$info$currentHeadBl, _b$info$currentHeadBl;
+      return Number(BigInt((_a$info$currentHeadBl = a.info.currentHeadBlockHeight) !== null && _a$info$currentHeadBl !== void 0 ? _a$info$currentHeadBl : -1) - BigInt((_b$info$currentHeadBl = b.info.currentHeadBlockHeight) !== null && _b$info$currentHeadBl !== void 0 ? _b$info$currentHeadBl : -1));
+    });
+    if (accountInfoSorted[0].info.currentHeadBlockHeight === accountInfoSorted[accountInfoSorted.length - 1].info.currentHeadBlockHeight) {
+      // Block Heights match so return
+      return null;
+    }
+    let lowestHead = accountInfoSorted[0].info.currentHeadBlock;
+    if (lowestHead === null) {
+      lowestHead = client_lib_block.getAccountOpeningHash(account).toString();
+    }
+
+    // Get the missing successor block and vote staple from the rep with the highest block height
+    const successorBlock = await this.getSuccessorBlock(lowestHead, accountInfoSorted[accountInfoSorted.length - 1].rep);
+    if (successorBlock === null) {
+      return null;
+    }
+    const successorStaple = await this.getVoteStaple(successorBlock.hash, 'main', accountInfoSorted[accountInfoSorted.length - 1].rep);
+    if (successorStaple === null) {
+      return null;
+    }
+    if (publish === true) {
+      await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
+    }
+    return successorStaple;
+  }
   async getVoteQuotes(blocks) {
     return await client_client_assertClassBrand(client_Client_brand, this, client_requestQuotes).call(this, blocks);
   }
@@ -131730,7 +131957,8 @@ async function client_apiRaw(rep, api, method) {
     ...options
   };
   let delay = 1;
-  let result, resultThrow;
+  let result;
+  let resultThrow;
   for (let retry = 0; retry < Number.MAX_SAFE_INTEGER; retry++) {
     if (rep === 'ANY') {
       var _classPrivateFieldGet4;
@@ -131787,7 +132015,18 @@ async function client_apiRaw(rep, api, method) {
         try {
           const errorInfo = await response.json();
           if (errorInfo.error === true) {
-            resultThrow = errorInfo;
+            const keetaNetError = client_KeetaNetError.fromJSON(errorInfo);
+            try {
+              if (src_client_KeetaNetLedgerVoteError.isInstance(keetaNetError)) {
+                for (const account of keetaNetError.accounts) {
+                  await this.syncAccount(account);
+                }
+                continue;
+              }
+            } catch {
+              // ignored error parsing KeetaNet Error just return original
+            }
+            resultThrow = keetaNetError;
             break;
           }
         } catch (errorResponse) {
@@ -131849,13 +132088,8 @@ async function client_apiRaw(rep, api, method) {
     break;
   }
   if (resultThrow) {
-    if (resultThrow.code && resultThrow.type) {
-      const error = new src_client_KeetaNetError(resultThrow.code, resultThrow.message);
-      error.type = resultThrow.type;
-      throw error;
-    } else {
-      throw new Error(resultThrow.message);
-    }
+    const toThrow = client_KeetaNetError.fromJSON(resultThrow);
+    throw toThrow;
   }
   return result;
 }
@@ -132436,7 +132670,8 @@ class src_client_UserClient {
     const {
       delegateTo = this.client.representatives[0].key,
       addSupplyAmount,
-      voteSerial = 0n
+      voteSerial = 0n,
+      baseTokenInfo
     } = initOpts;
     if (this.signer === null) {
       throw new Error('May not initialize chain with a read-only UserClient (signer is null)');
@@ -132452,7 +132687,8 @@ class src_client_UserClient {
         delegateTo: delegateTo,
         recipient: client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options).assertAccount(),
         amount: addSupplyAmount
-      }
+      },
+      baseTokenInfo
     });
     return await this.client.transmitStaple(voteStaple);
   }
@@ -132557,9 +132793,10 @@ class src_client_UserClient {
    * @return The vote staple that was generated and whether it was able to be published
    */
   async publishBuilder(builder) {
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
-      generateFeeBlock: client_client_classPrivateFieldGet(client_client_config, this).generateFeeBlock
-    };
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    if (options.generateFeeBlock === undefined) {
+      options.generateFeeBlock = client_client_classPrivateFieldGet(client_client_config, this).generateFeeBlock;
+    }
     if (!client_client_classPrivateFieldGet(client_client_config, this).usePublishAid) {
       return await client_client_classPrivateFieldGet(client_client, this).transmitBuilder(builder, this.network, options);
     }
@@ -132678,15 +132915,18 @@ class src_client_UserClient {
     try {
       const builder = this.initBuilder(options);
       builder.send(client_lib_account.toAccount(to), BigInt(amount), client_lib_account.toAccount(token), external);
-      return await this.publishBuilder(builder);
+      const publish = await this.publishBuilder(builder);
+      return publish;
     } catch (transmitError) {
       let error = true;
       if (retries < 2) {
-        if (src_client_KeetaNetError.isInstance(transmitError) && transmitError.code === 'LEDGER_SUCCESSOR_VOTE_EXISTS') {
-          const staple = await this.recover(true, options);
-          if (staple) {
-            error = false;
-            return await this.send(to, amount, token, external, options, retries + 1);
+        if (client_KeetaNetError.isInstance(transmitError)) {
+          if (transmitError.code === 'LEDGER_SUCCESSOR_VOTE_EXISTS') {
+            const staple = await this.recover(true, options);
+            if (staple) {
+              error = false;
+              return await this.send(to, amount, token, external, options, retries + 1);
+            }
           }
         }
       }
@@ -132927,6 +133167,18 @@ class src_client_UserClient {
   }
 
   /**
+   * Sync any partially-published account artifacts
+   *
+   * @param publish Publish the recovered staple to the network
+   *        (default: true)
+   * @param options User client options (common options)
+   */
+  async sync(publish) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    return await client_client_classPrivateFieldGet(client_client, this).syncAccount(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), publish);
+  }
+
+  /**
    * Register a callback for change messages and set up a websocket filtered to our account only.
    * Also set up long timeout polling for changes in case the websocket misses a change update
    * Check that parameters of function complies with respective event function
@@ -133147,7 +133399,7 @@ async function client_publishWithPublishAid(blocks) {
       publish: json.publish
     };
   } catch (publishError) {
-    if (src_client_KeetaNetError.isInstance(publishError)) {
+    if (client_KeetaNetError.isInstance(publishError)) {
       throw publishError;
     } else if (publishError instanceof Error) {
       throw new src_client_KeetaNetClientError('CLIENT_PUBLISH_AID_NOT_AVAILABLE', `Publish Aid not available: ${publishError.message}`);

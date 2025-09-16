@@ -1,9 +1,8 @@
-import { KeetaNetError } from '.';
-declare const CertificateErrorType: "CERTIFICATE";
-declare const BlockErrorCodes: readonly ["DUPLICATE_INCLUDED", "ORPHAN_FOUND", "CYCLE_FOUND", "SECONDARY_GRAPH", "MISSING_FIELD", "SIGNATURE_ALGORITHM_MISMATCH", "SELF_SIGNED_VALIDATION_FAILED", "CHAIN_VERIFICATION_FAILED", "DUPLICATE_EXTENSION", "EXTENSION_NOT_PROCESSED", "INVALID_SIGNATURE_ALGORITHM", "INVALID_GRAPH_COUNT", "MOMENT_INVALID", "INVALID_VERSION"];
-export type CertificateErrorCode = `${typeof CertificateErrorType}_${typeof BlockErrorCodes[number]}`;
-export default class KeetaNetCertificateError extends KeetaNetError {
-    static isInstance: (obj: any, strict?: boolean) => obj is KeetaNetCertificateError;
+import { KeetaNetErrorBase } from './base';
+export declare const CertificateErrorCodes: readonly ["DUPLICATE_INCLUDED", "ORPHAN_FOUND", "CYCLE_FOUND", "SECONDARY_GRAPH", "MISSING_FIELD", "SIGNATURE_ALGORITHM_MISMATCH", "SELF_SIGNED_VALIDATION_FAILED", "CHAIN_VERIFICATION_FAILED", "DUPLICATE_EXTENSION", "EXTENSION_NOT_PROCESSED", "INVALID_SIGNATURE_ALGORITHM", "INVALID_GRAPH_COUNT", "MOMENT_INVALID", "INVALID_VERSION"];
+export declare const FullCertificateErrorCodes: ("CERTIFICATE_INVALID_VERSION" | "CERTIFICATE_DUPLICATE_INCLUDED" | "CERTIFICATE_ORPHAN_FOUND" | "CERTIFICATE_CYCLE_FOUND" | "CERTIFICATE_SECONDARY_GRAPH" | "CERTIFICATE_MISSING_FIELD" | "CERTIFICATE_SIGNATURE_ALGORITHM_MISMATCH" | "CERTIFICATE_SELF_SIGNED_VALIDATION_FAILED" | "CERTIFICATE_CHAIN_VERIFICATION_FAILED" | "CERTIFICATE_DUPLICATE_EXTENSION" | "CERTIFICATE_EXTENSION_NOT_PROCESSED" | "CERTIFICATE_INVALID_SIGNATURE_ALGORITHM" | "CERTIFICATE_INVALID_GRAPH_COUNT" | "CERTIFICATE_MOMENT_INVALID")[];
+export type CertificateErrorCode = typeof FullCertificateErrorCodes[number];
+export default class KeetaNetCertificateError extends KeetaNetErrorBase<CertificateErrorCode> {
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is KeetaNetCertificateError;
     constructor(code: CertificateErrorCode, message: string);
 }
-export {};

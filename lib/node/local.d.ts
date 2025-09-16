@@ -3,7 +3,6 @@ import type { NodeConfig } from './';
 import { Node } from './';
 import type { BootstrapConfig } from '../bootstrap';
 import { BootstrapClient } from '../bootstrap';
-import type { ErrorCode } from '../error';
 export type LocalNodeConfig = Omit<NodeConfig, 'nodeOptions'> & {
     bootstrap?: BootstrapConfig;
     invokeSecret?: string;
@@ -18,7 +17,7 @@ export type ApiErrorResponse = {
     error: boolean;
     message: string;
     type?: string | null;
-    code?: ErrorCode | null;
+    code?: string | null;
 };
 type LocalNodeRunOptions = {
     startWebSocketServer?: boolean;

@@ -15,6 +15,7 @@ import type { AdjustMethod } from '../lib/block';
 import Block, { BlockHash } from '../lib/block';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import * as Config from '../config';
+import type { BaseTokenInfo } from '../lib/utils/initial';
 import type { BuilderOptions, ManageCertificateMethod } from './builder';
 import { UserClientBuilder } from './builder';
 import { KeetaNetError } from '../lib/error';
@@ -408,7 +409,7 @@ export declare class Client {
      * @param account The account to fetch the information for
      * @return The account information
      */
-    getAccountInfo(account: GenericAccount | string): Promise<GetAccountStateAPIResponseFormatted>;
+    getAccountInfo(account: GenericAccount | string, rep?: ClientRepresentative | 'ANY'): Promise<GetAccountStateAPIResponseFormatted>;
     /**
      * Fetch the account information for multiple accounts.  This will return
      * the account information including the current head block, representative,
@@ -726,6 +727,13 @@ export declare class Client {
      * @param publish Publish the recovered staple to the network (default is true)
      */
     recoverAccount(account: GenericAccount, publish?: boolean): Promise<VoteStaple | null>;
+    /**
+     * Sync any partially-published account artifacts
+     *
+     * @param account Account to sync
+     * @param publish Publish the synced staple to the network (default is true)
+     */
+    syncAccount(account: GenericAccount, publish?: boolean, reps?: ClientRepresentative[]): Promise<VoteStaple | null>;
     getVoteQuotes(blocks: Block[]): Promise<VoteQuote[]>;
     /** Work in progress */
     getLedgerChecksum(rep?: ClientRepresentative | 'ANY'): Promise<{
@@ -881,6 +889,7 @@ export declare class UserClient {
         addSupplyAmount: bigint;
         delegateTo?: Account;
         voteSerial?: bigint;
+        baseTokenInfo: BaseTokenInfo;
     }, options?: UserClientOptions): Promise<{
         voteStaple: VoteStaple;
         publish: boolean;
@@ -1192,6 +1201,14 @@ export declare class UserClient {
      * @param options User client options (common options)
      */
     recover(publish?: boolean, options?: UserClientOptions): Promise<VoteStaple | null>;
+    /**
+     * Sync any partially-published account artifacts
+     *
+     * @param publish Publish the recovered staple to the network
+     *        (default: true)
+     * @param options User client options (common options)
+     */
+    sync(publish?: boolean, options?: UserClientOptions): Promise<VoteStaple | null>;
     /**
      * Register a callback for change messages and set up a websocket filtered to our account only.
      * Also set up long timeout polling for changes in case the websocket misses a change update

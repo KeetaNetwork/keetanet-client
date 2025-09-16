@@ -1,10 +1,16 @@
 import Account from '../account';
 import Block from '../block';
 import type { VoteStaple } from '../vote';
+export interface BaseTokenInfo {
+    name: string;
+    currencyCode: string;
+    decimalPlaces: number;
+}
 interface BaseGenerationConfig {
     network: bigint;
     initialTrustedAccount: Account;
     voteSerial?: bigint;
+    baseTokenInfo?: BaseTokenInfo;
 }
 interface InitialConfigSupply extends BaseGenerationConfig {
     addSupply: {

@@ -67,6 +67,13 @@ export interface LedgerConfig {
      * Logging method
      */
     log?: (...args: any[]) => any;
+    /**
+     * Operation specific parameters
+     */
+    operations?: {
+        setRep?: (account: GenericAccount, rep: Account | null) => Promise<boolean>;
+        enableTokenAdminModifyBalance?: boolean;
+    };
 }
 /**
  * Which ledger to store this data in

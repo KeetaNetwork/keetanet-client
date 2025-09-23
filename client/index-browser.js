@@ -114301,13 +114301,11 @@ const client_Testing = {
 /**
  * Known Networks that exist in the configuration database
  */
-const client_networksArray = ['production', 'staging', 'beta', 'test', 'test2', 'dev'];
+const client_networksArray = ['main', 'staging', 'test', 'dev'];
 const client_NetworkIDs = {
-  'production': BigInt('0x19294EEAD74C'),
-  'staging': BigInt('0x42455441D74C'),
-  'beta': BigInt('0x42455441'),
+  'main': BigInt('0x5382'),
+  'staging': BigInt('0x538201'),
   'test': BigInt('0x54455354'),
-  'test2': BigInt('0x54455355'),
   'dev': BigInt('0x444556')
 };
 
@@ -114382,11 +114380,9 @@ function client_getValidation(networkOrID) {
   }
   const networkAlias = client_getNetworkAlias(networkOrID);
   switch (networkAlias) {
-    case 'production':
+    case 'main':
     case 'staging':
-    case 'beta':
     case 'test':
-    case 'test2':
     case 'dev':
       return client_baseValidationConfig;
     default:
@@ -114404,60 +114400,45 @@ function client_getDefaultConfig(network) {
   const representatives = [];
   let publishAidURL = `https://publish-aid.${network}.api.keeta.com/api/publish`;
   switch (network) {
-    case 'production':
-      initialTrustedAccount = 'keeta_aabnshntrnip6r5g5m7rwlltj7hbkjaj7zx2tl7fdf2ycac32dxfhttjsshebni';
-      representatives.push({
-        key: client_lib_account.fromPublicKeyString('keeta_aabanlfwxv3yddwkl4t3fwkmzuqh2czprkwoy63vwtmy5soll6ocknaajjwz5ra'),
-        endpoints: {
-          api: 'https://rep1.production.network.api.keeta.com/api',
-          p2p: 'wss://rep1.production.network.api.keeta.com/p2p'
-        }
-      });
-      break;
-    case 'staging':
-      initialTrustedAccount = 'keeta_aabivlxod37q5uno7dkaze4c2ch3m7nkoy4sqzkvrpjh35jiznlmuaj7kqdfo2y';
-      representatives.push({
-        key: client_lib_account.fromPublicKeyString('keeta_aabdpxhsnphfbewgcwkqitrwx5rhxo3fvr2t66hpdvv5tvtqeuqclqwezl5phza'),
-        endpoints: {
-          api: 'https://rep1.staging.network.api.keeta.com/api',
-          p2p: 'wss://rep1.staging.network.api.keeta.com/p2p'
-        }
-      });
-      break;
-    case 'beta':
-      initialTrustedAccount = 'keeta_aab4dfditzmfyj33a6hkergc24zntjr44w4364yd3azl5munzlkbxekrkwztpwy';
-      representatives.push({
-        key: client_lib_account.fromPublicKeyString('keeta_aab6eers2xhzonls6icxszm4dsx3olc7sleuiwaovoualadecaplfv5qdmrivua'),
-        endpoints: {
-          api: 'https://rep1.beta.api.keeta.com/api',
-          p2p: 'wss://rep1.beta.api.keeta.com/p2p'
-        }
-      });
-      break;
-    case 'test':
+    case 'main':
       {
-        initialTrustedAccount = 'keeta_aabmvemiol5wrs67e4rfiyibopwav4e77sleiqaqvbdprbuxrifn7fgg4cchhia';
-        publishAidURL = `https://publish-aid.${network}.network.api.keeta.com/api/publish`;
-        const reps = ['keeta_aabi4bd3f7jrt67mxcq44ozj65bh4bp2mygmrkedxggu2rxwn2ztuw3b6exivbq', 'keeta_aabf7dz5asq2n2lrldct33x2ww65cophxp7egfiixbb7tbyat5r3kcbcez7ftpi', 'keeta_aab3cxegizwhtim3zlyuwjhiqd5ikkhxg42smhwc3wx6yn7ep2t6lwo6emvw4wa', 'keeta_aabznoicrzvte6ql5rxbgugmfrjqubbnjuo5l6ivopowy4rpkqgs5fco3oaezcq'];
+        initialTrustedAccount = 'keeta_aabk62tezl4whordlviamlx3zrdgux6lk63cghay45vkzdatyemzvqqjuj5resa';
+        const reps = ['keeta_aabwip6zeo2fnzfxp5hssrrqtascs2277w2zk7vqd6d3k3m4dkt2flcbca2mqki', 'keeta_aabvmwxttv4q56gbfveighwfwp3yvitlrdfsacic3ckqc7lqelsspvmhc7oldmq', 'keeta_aabwqf5fnta4t2v2atieis545b3rqoq6z7x5w3geugiilqlz5jdsb5og2rmxvdq', 'keeta_aablpogflko72eusdhuuqgsto2rwcvy2m5mo5snmvrmbacz3qczwjtwpmzf5ufq'];
         for (let index = 0; index < reps.length; index++) {
           const repID = index + 1;
           const repKey = reps[index];
           representatives.push({
             key: client_lib_account.fromPublicKeyString(repKey).assertAccount(),
             endpoints: {
-              api: `https://rep${repID}.${network}.network.api.keeta.com/api`,
-              p2p: `wss://rep${repID}.${network}.network.api.keeta.com/p2p`
+              api: `https://rep${repID}.main.network.api.keeta.com/api`,
+              p2p: `wss://rep${repID}.main.network.api.keeta.com/p2p`
             }
           });
         }
       }
       break;
-    case 'test2':
+    case 'staging':
       {
-        // 17C75845AC5D1D5C82BB554D80A32EF678EE7C0C8FD508E60004435C899F411C
-        initialTrustedAccount = 'keeta_aabhf4ythez6zaytjuea3552sc7ydjwqqzhkigejfbiyx2qwmty2v63hxibl32i';
+        initialTrustedAccount = 'keeta_aabhtbqmg7whgpvbgii6twdjlyq5vlrtwaa47nb5b2gj6an5kvjbwvvw2mdwjjy';
+        const reps = ['keeta_aabaagdrwrwnkzox4u3qh6uukre6lckax6kb5fwyxd4vtpua6vrjc6nuhb75fji', 'keeta_aabgizanf4agmioyrswbg4wsl7nmjlrakwd4piuks7cqagfccnxc2fscm25hw7i', 'keeta_aab2gw2zmtazqgtromyfmhjn5h67ep23676zq62obgtqaw65x5l5krn252w57ma', 'keeta_aabue4mdj22i5o6774tlszcxy2sxyvpninbm54nfhxn6dkmsvtryd7oha4bzh2i'];
+        for (let index = 0; index < reps.length; index++) {
+          const repID = index + 1;
+          const repKey = reps[index];
+          representatives.push({
+            key: client_lib_account.fromPublicKeyString(repKey).assertAccount(),
+            endpoints: {
+              api: `https://rep${repID}.staging.network.api.keeta.com/api`,
+              p2p: `wss://rep${repID}.staging.network.api.keeta.com/p2p`
+            }
+          });
+        }
+      }
+      break;
+    case 'test':
+      {
+        initialTrustedAccount = 'keeta_aabmvemiol5wrs67e4rfiyibopwav4e77sleiqaqvbdprbuxrifn7fgg4cchhia';
         publishAidURL = `https://publish-aid.${network}.network.api.keeta.com/api/publish`;
-        const reps = ['keeta_aabczuvy3x3mpaspn57ooinuz2yh2hnz65rcrvpnbmkeqj4qu7exfiha4dauosi', 'keeta_aabavwgipwruhomnvhsdiuzs5gfkffl75iml6hce42jbygin2wnjm7mqds7v7aa', 'keeta_aabw2oh264q76rwaz6nd6hrkongwh6hauxiwtvijapctdunotkmdmm34kmcwypi', 'keeta_aab2k5gz2dxqmz3mm3jaxgjthkl3uqffnoovjrzjbzsicpeejhmp3rxe4st3uca'];
+        const reps = ['keeta_aabi4bd3f7jrt67mxcq44ozj65bh4bp2mygmrkedxggu2rxwn2ztuw3b6exivbq', 'keeta_aabf7dz5asq2n2lrldct33x2ww65cophxp7egfiixbb7tbyat5r3kcbcez7ftpi', 'keeta_aab3cxegizwhtim3zlyuwjhiqd5ikkhxg42smhwc3wx6yn7ep2t6lwo6emvw4wa', 'keeta_aabznoicrzvte6ql5rxbgugmfrjqubbnjuo5l6ivopowy4rpkqgs5fco3oaezcq'];
         for (let index = 0; index < reps.length; index++) {
           const repID = index + 1;
           const repKey = reps[index];
@@ -116745,7 +116726,7 @@ function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_LedgerErrorType = 'LEDGER';
-const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
+const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
 // Fee Errors
 'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'PERM_VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
 
@@ -124420,6 +124401,7 @@ function client_computeEffectOfOperationCREATE_IDENTIFIER(state, block, operatio
       multisigQuorum: operation.createArguments.quorum
     });
     for (const multisigSigner of operation.createArguments.signers) {
+      state.possibleNewAccounts.add(multisigSigner);
       client_addPermission(state, {
         principal: multisigSigner,
         entity: operation.identifier,
@@ -125612,6 +125594,7 @@ var client_computeFeeFromBlocks = /*#__PURE__*/new WeakMap();
 var client_ledger_storage = /*#__PURE__*/new WeakMap();
 var client_ledger = /*#__PURE__*/new WeakMap();
 var src_client_cache = /*#__PURE__*/new WeakMap();
+var client_operations = /*#__PURE__*/new WeakMap();
 var client_transaction = /*#__PURE__*/new WeakMap();
 var client_LedgerAtomicInterface_brand = /*#__PURE__*/new WeakSet();
 /**
@@ -125619,6 +125602,7 @@ var client_LedgerAtomicInterface_brand = /*#__PURE__*/new WeakSet();
  */
 class client_LedgerAtomicInterface {
   constructor(_transaction2, storage, config, ledger) {
+    var _config$operations;
     client_ledger_classPrivateMethodInitSpec(this, client_LedgerAtomicInterface_brand);
     client_ledger_classPrivateFieldInitSpec(this, client_network, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_subnet, void 0);
@@ -125628,12 +125612,16 @@ class client_LedgerAtomicInterface {
     client_ledger_classPrivateFieldInitSpec(this, client_ledger_storage, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_ledger, void 0);
     client_ledger_classPrivateFieldInitSpec(this, src_client_cache, void 0);
+    client_ledger_classPrivateFieldInitSpec(this, client_operations, void 0);
     client_ledger_classPrivateFieldInitSpec(this, client_transaction, void 0);
     client_ledger_classPrivateFieldSet(client_network, this, config.network);
     client_ledger_classPrivateFieldSet(client_subnet, this, config.subnet);
     client_ledger_classPrivateFieldSet(client_kind, this, config.kind);
     client_ledger_classPrivateFieldSet(client_ledger_privateKey, this, config.privateKey);
     client_ledger_classPrivateFieldSet(client_computeFeeFromBlocks, this, config.computeFeeFromBlocks);
+    client_ledger_classPrivateFieldSet(client_operations, this, (_config$operations = config.operations) !== null && _config$operations !== void 0 ? _config$operations : {
+      enableTokenAdminModifyBalance: false
+    });
     client_ledger_classPrivateFieldSet(client_ledger, this, ledger);
     client_ledger_classPrivateFieldSet(client_ledger_storage, this, storage);
     client_ledger_classPrivateFieldSet(client_transaction, this, _transaction2);
@@ -126380,6 +126368,32 @@ async function client_checkPermissionRequirements(effects) {
     newOwners
   };
 }
+async function client_validateBlockOperations(blocks) {
+  if (client_ledger_classPrivateFieldGet(client_operations, this) === undefined) {
+    return;
+  }
+  for (const block of blocks) {
+    for (const operation of block.operations) {
+      switch (operation.type) {
+        case src_client_Block.OperationType.SET_REP:
+          if (client_ledger_classPrivateFieldGet(client_operations, this).setRep !== undefined) {
+            const validRep = await client_ledger_classPrivateFieldGet(client_operations, this).setRep(block.account, operation.to);
+            if (!validRep) {
+              throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_SET_REP', `${operation.to.publicKeyString.get()} is not a valid representative`);
+            }
+          }
+          break;
+        case src_client_Block.OperationType.TOKEN_ADMIN_MODIFY_BALANCE:
+          if (!client_ledger_classPrivateFieldGet(client_operations, this).enableTokenAdminModifyBalance) {
+            throw new client_ledger_KeetaNetLedgerError('LEDGER_OPERATION_NOT_SUPPORTED', 'TOKEN_ADMIN_MODIFY_BALANCE operation not supported');
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+}
 /**
  * Ensure all parts of a transaction do not have a negative outcome
  * Balance/Supply cannot fall negative at any point in transaction
@@ -126388,6 +126402,7 @@ async function client_checkPermissionRequirements(effects) {
  */
 async function client_validateLedgerOutcome(blocks) {
   const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
+  await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlockOperations).call(this, blocks);
   const ownersByIdentifier = {};
 
   // 'ADD' or 'REMOVE' an owner from ownersByIdentifier
@@ -127019,7 +127034,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.4+g6020a42a3e7fdf7cae2d3783e939f895ae1be911';
+const client_version = '0.14.5+g7ab6fd7b04246202abe16df362295a3a022d514a';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -129270,7 +129285,7 @@ function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_ClientErrorType = 'CLIENT';
-const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY'];
+const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED'];
 const client_FullClientErrorCodes = client_ClientErrorCodes.map(code => `${client_ClientErrorType}_${code}`);
 class src_client_KeetaNetClientError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -131923,6 +131938,10 @@ class src_client_Client {
     }
     if (publish === true) {
       await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
+    }
+    const updatedAccountInfo = await this.getAccountInfo(account, accountInfoSorted[0].rep);
+    if (updatedAccountInfo.currentHeadBlockHeight === accountInfoSorted[0].info.currentHeadBlockHeight) {
+      throw new src_client_KeetaNetClientError('CLIENT_SYNC_PUBLISH_FAILED', `Client sync found a missing staple: ${successorStaple.blocksHash}, but it could not be published to rep: ${accountInfoSorted[0].rep.key.publicKeyString.get()}`);
     }
     return successorStaple;
   }

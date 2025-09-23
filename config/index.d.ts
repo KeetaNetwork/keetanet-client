@@ -2,7 +2,7 @@ import Account from '../lib/account';
 /**
  * Known Networks that exist in the configuration database
  */
-export declare const networksArray: readonly ["production", "staging", "beta", "test", "test2", "dev"];
+export declare const networksArray: readonly ["main", "staging", "test", "dev"];
 export type Networks = typeof networksArray[number];
 export type NetworkOrID = Networks | bigint;
 export declare const NetworkIDs: {

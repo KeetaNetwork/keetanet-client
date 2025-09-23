@@ -59237,6 +59237,10 @@ class Client {
         if (publish === true) {
             await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
         }
+        const updatedAccountInfo = await this.getAccountInfo(account, accountInfoSorted[0].rep);
+        if (updatedAccountInfo.currentHeadBlockHeight === accountInfoSorted[0].info.currentHeadBlockHeight) {
+            throw (new client_1.default('CLIENT_SYNC_PUBLISH_FAILED', `Client sync found a missing staple: ${successorStaple.blocksHash}, but it could not be published to rep: ${accountInfoSorted[0].rep.key.publicKeyString.get()}`));
+        }
         return (successorStaple);
     }
     async getVoteQuotes(blocks) {
@@ -60713,13 +60717,11 @@ const never_1 = __webpack_require__(8692);
 /**
  * Known Networks that exist in the configuration database
  */
-exports.networksArray = ['production', 'staging', 'beta', 'test', 'test2', 'dev'];
+exports.networksArray = ['main', 'staging', 'test', 'dev'];
 exports.NetworkIDs = {
-    'production': BigInt('0x19294EEAD74C'),
-    'staging': BigInt('0x42455441D74C'),
-    'beta': BigInt('0x42455441'),
+    'main': BigInt('0x5382'),
+    'staging': BigInt('0x538201'),
     'test': BigInt('0x54455354'),
-    'test2': BigInt('0x54455355'),
     'dev': BigInt('0x444556')
 };
 exports.baseValidationConfig = {
@@ -60773,11 +60775,9 @@ function getValidation(networkOrID) {
     }
     const networkAlias = getNetworkAlias(networkOrID);
     switch (networkAlias) {
-        case 'production':
+        case 'main':
         case 'staging':
-        case 'beta':
         case 'test':
-        case 'test2':
         case 'dev':
             return (exports.baseValidationConfig);
         default:
@@ -60794,35 +60794,49 @@ function getDefaultConfig(network) {
     const representatives = [];
     let publishAidURL = `https://publish-aid.${network}.api.keeta.com/api/publish`;
     switch (network) {
-        case 'production':
-            initialTrustedAccount = 'keeta_aabnshntrnip6r5g5m7rwlltj7hbkjaj7zx2tl7fdf2ycac32dxfhttjsshebni';
-            representatives.push({
-                key: account_1.default.fromPublicKeyString('keeta_aabanlfwxv3yddwkl4t3fwkmzuqh2czprkwoy63vwtmy5soll6ocknaajjwz5ra'),
-                endpoints: {
-                    api: 'https://rep1.production.network.api.keeta.com/api',
-                    p2p: 'wss://rep1.production.network.api.keeta.com/p2p'
+        case 'main':
+            {
+                initialTrustedAccount = 'keeta_aabk62tezl4whordlviamlx3zrdgux6lk63cghay45vkzdatyemzvqqjuj5resa';
+                const reps = [
+                    'keeta_aabwip6zeo2fnzfxp5hssrrqtascs2277w2zk7vqd6d3k3m4dkt2flcbca2mqki',
+                    'keeta_aabvmwxttv4q56gbfveighwfwp3yvitlrdfsacic3ckqc7lqelsspvmhc7oldmq',
+                    'keeta_aabwqf5fnta4t2v2atieis545b3rqoq6z7x5w3geugiilqlz5jdsb5og2rmxvdq',
+                    'keeta_aablpogflko72eusdhuuqgsto2rwcvy2m5mo5snmvrmbacz3qczwjtwpmzf5ufq'
+                ];
+                for (let index = 0; index < reps.length; index++) {
+                    const repID = index + 1;
+                    const repKey = reps[index];
+                    representatives.push({
+                        key: account_1.default.fromPublicKeyString(repKey).assertAccount(),
+                        endpoints: {
+                            api: `https://rep${repID}.main.network.api.keeta.com/api`,
+                            p2p: `wss://rep${repID}.main.network.api.keeta.com/p2p`
+                        }
+                    });
                 }
-            });
+            }
             break;
         case 'staging':
-            initialTrustedAccount = 'keeta_aabivlxod37q5uno7dkaze4c2ch3m7nkoy4sqzkvrpjh35jiznlmuaj7kqdfo2y';
-            representatives.push({
-                key: account_1.default.fromPublicKeyString('keeta_aabdpxhsnphfbewgcwkqitrwx5rhxo3fvr2t66hpdvv5tvtqeuqclqwezl5phza'),
-                endpoints: {
-                    api: 'https://rep1.staging.network.api.keeta.com/api',
-                    p2p: 'wss://rep1.staging.network.api.keeta.com/p2p'
+            {
+                initialTrustedAccount = 'keeta_aabhtbqmg7whgpvbgii6twdjlyq5vlrtwaa47nb5b2gj6an5kvjbwvvw2mdwjjy';
+                const reps = [
+                    'keeta_aabaagdrwrwnkzox4u3qh6uukre6lckax6kb5fwyxd4vtpua6vrjc6nuhb75fji',
+                    'keeta_aabgizanf4agmioyrswbg4wsl7nmjlrakwd4piuks7cqagfccnxc2fscm25hw7i',
+                    'keeta_aab2gw2zmtazqgtromyfmhjn5h67ep23676zq62obgtqaw65x5l5krn252w57ma',
+                    'keeta_aabue4mdj22i5o6774tlszcxy2sxyvpninbm54nfhxn6dkmsvtryd7oha4bzh2i'
+                ];
+                for (let index = 0; index < reps.length; index++) {
+                    const repID = index + 1;
+                    const repKey = reps[index];
+                    representatives.push({
+                        key: account_1.default.fromPublicKeyString(repKey).assertAccount(),
+                        endpoints: {
+                            api: `https://rep${repID}.staging.network.api.keeta.com/api`,
+                            p2p: `wss://rep${repID}.staging.network.api.keeta.com/p2p`
+                        }
+                    });
                 }
-            });
-            break;
-        case 'beta':
-            initialTrustedAccount = 'keeta_aab4dfditzmfyj33a6hkergc24zntjr44w4364yd3azl5munzlkbxekrkwztpwy';
-            representatives.push({
-                key: account_1.default.fromPublicKeyString('keeta_aab6eers2xhzonls6icxszm4dsx3olc7sleuiwaovoualadecaplfv5qdmrivua'),
-                endpoints: {
-                    api: 'https://rep1.beta.api.keeta.com/api',
-                    p2p: 'wss://rep1.beta.api.keeta.com/p2p'
-                }
-            });
+            }
             break;
         case 'test':
             {
@@ -60833,30 +60847,6 @@ function getDefaultConfig(network) {
                     'keeta_aabf7dz5asq2n2lrldct33x2ww65cophxp7egfiixbb7tbyat5r3kcbcez7ftpi',
                     'keeta_aab3cxegizwhtim3zlyuwjhiqd5ikkhxg42smhwc3wx6yn7ep2t6lwo6emvw4wa',
                     'keeta_aabznoicrzvte6ql5rxbgugmfrjqubbnjuo5l6ivopowy4rpkqgs5fco3oaezcq'
-                ];
-                for (let index = 0; index < reps.length; index++) {
-                    const repID = index + 1;
-                    const repKey = reps[index];
-                    representatives.push({
-                        key: account_1.default.fromPublicKeyString(repKey).assertAccount(),
-                        endpoints: {
-                            api: `https://rep${repID}.${network}.network.api.keeta.com/api`,
-                            p2p: `wss://rep${repID}.${network}.network.api.keeta.com/p2p`
-                        }
-                    });
-                }
-            }
-            break;
-        case 'test2':
-            {
-                // 17C75845AC5D1D5C82BB554D80A32EF678EE7C0C8FD508E60004435C899F411C
-                initialTrustedAccount = 'keeta_aabhf4ythez6zaytjuea3552sc7ydjwqqzhkigejfbiyx2qwmty2v63hxibl32i';
-                publishAidURL = `https://publish-aid.${network}.network.api.keeta.com/api/publish`;
-                const reps = [
-                    'keeta_aabczuvy3x3mpaspn57ooinuz2yh2hnz65rcrvpnbmkeqj4qu7exfiha4dauosi',
-                    'keeta_aabavwgipwruhomnvhsdiuzs5gfkffl75iml6hce42jbygin2wnjm7mqds7v7aa',
-                    'keeta_aabw2oh264q76rwaz6nd6hrkongwh6hauxiwtvijapctdunotkmdmm34kmcwypi',
-                    'keeta_aab2k5gz2dxqmz3mm3jaxgjthkl3uqffnoovjrzjbzsicpeejhmp3rxe4st3uca'
                 ];
                 for (let index = 0; index < reps.length; index++) {
                     const repID = index + 1;
@@ -65221,7 +65211,8 @@ exports.ClientErrorCodes = [
     'BUILDER_REQUIRES_PRIVATE_KEY',
     'BUILDER_USER_CLIENT_REQUIRED',
     'PUBLISH_AID_NOT_AVAILABLE',
-    'SIGNER_REQUIRES_PRIVATE_KEY'
+    'SIGNER_REQUIRES_PRIVATE_KEY',
+    'SYNC_PUBLISH_FAILED'
 ];
 exports.FullClientErrorCodes = exports.ClientErrorCodes.map(code => `${ClientErrorType}_${code}`);
 class KeetaNetClientError extends base_1.KeetaNetErrorBase {
@@ -65388,6 +65379,8 @@ exports.LedgerBaseErrorCodes = [
     'INVALID_PERMISSIONS',
     'INVALID_OWNER_COUNT',
     'INVALID_BALANCE',
+    'INVALID_SET_REP',
+    'OPERATION_NOT_SUPPORTED',
     'NOT_EMPTY',
     'PREVIOUS_ALREADY_USED',
     'PREVIOUS_NOT_SEEN',
@@ -66970,6 +66963,7 @@ function computeEffectOfOperationCREATE_IDENTIFIER(state, block, operation, cont
         }
         updateAccountInfoInState(state, operation.identifier, { multisigQuorum: operation.createArguments.quorum });
         for (const multisigSigner of operation.createArguments.signers) {
+            state.possibleNewAccounts.add(multisigSigner);
             addPermission(state, {
                 principal: multisigSigner,
                 entity: operation.identifier,
@@ -67493,7 +67487,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_computeFeeFromBlocks, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateLedgerOutcome, _LedgerAtomicInterface_validateBlocksForVote, _LedgerAtomicInterface_voteOrQuoteWithFees, _Ledger_storage, _Ledger_config;
+var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_computeFeeFromBlocks, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_operations, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateBlockOperations, _LedgerAtomicInterface_validateLedgerOutcome, _LedgerAtomicInterface_validateBlocksForVote, _LedgerAtomicInterface_voteOrQuoteWithFees, _Ledger_storage, _Ledger_config;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Ledger = exports.LedgerStorageTransactionBase = exports.LedgerKind = void 0;
 const vote_1 = __webpack_require__(1130);
@@ -67541,12 +67535,14 @@ class LedgerAtomicInterface {
         _LedgerAtomicInterface_storage.set(this, void 0);
         _LedgerAtomicInterface_ledger.set(this, void 0);
         _LedgerAtomicInterface_cache.set(this, void 0);
+        _LedgerAtomicInterface_operations.set(this, void 0);
         _LedgerAtomicInterface_transaction.set(this, void 0);
         __classPrivateFieldSet(this, _LedgerAtomicInterface_network, config.network, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_subnet, config.subnet, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_kind, config.kind, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_privateKey, config.privateKey, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_computeFeeFromBlocks, config.computeFeeFromBlocks, "f");
+        __classPrivateFieldSet(this, _LedgerAtomicInterface_operations, config.operations ?? { enableTokenAdminModifyBalance: false }, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_ledger, ledger, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_storage, storage, "f");
         __classPrivateFieldSet(this, _LedgerAtomicInterface_transaction, transaction, "f");
@@ -68103,7 +68099,7 @@ class LedgerAtomicInterface {
         return (retval);
     }
 }
-_LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = new WeakMap(), _LedgerAtomicInterface_kind = new WeakMap(), _LedgerAtomicInterface_privateKey = new WeakMap(), _LedgerAtomicInterface_computeFeeFromBlocks = new WeakMap(), _LedgerAtomicInterface_storage = new WeakMap(), _LedgerAtomicInterface_ledger = new WeakMap(), _LedgerAtomicInterface_cache = new WeakMap(), _LedgerAtomicInterface_transaction = new WeakMap(), _LedgerAtomicInterface_instances = new WeakSet(), _LedgerAtomicInterface_assertTransaction = function _LedgerAtomicInterface_assertTransaction() {
+_LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = new WeakMap(), _LedgerAtomicInterface_kind = new WeakMap(), _LedgerAtomicInterface_privateKey = new WeakMap(), _LedgerAtomicInterface_computeFeeFromBlocks = new WeakMap(), _LedgerAtomicInterface_storage = new WeakMap(), _LedgerAtomicInterface_ledger = new WeakMap(), _LedgerAtomicInterface_cache = new WeakMap(), _LedgerAtomicInterface_operations = new WeakMap(), _LedgerAtomicInterface_transaction = new WeakMap(), _LedgerAtomicInterface_instances = new WeakSet(), _LedgerAtomicInterface_assertTransaction = function _LedgerAtomicInterface_assertTransaction() {
     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_transaction, "f") === null) {
         throw (new Error('Attempt to use closed transaction'));
     }
@@ -68228,6 +68224,31 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
     }
     await Promise.all(checkPromises);
     return ({ newOwners });
+}, _LedgerAtomicInterface_validateBlockOperations = async function _LedgerAtomicInterface_validateBlockOperations(blocks) {
+    if (__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f") === undefined) {
+        return;
+    }
+    for (const block of blocks) {
+        for (const operation of block.operations) {
+            switch (operation.type) {
+                case block_1.Block.OperationType.SET_REP:
+                    if (__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").setRep !== undefined) {
+                        const validRep = await __classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").setRep(block.account, operation.to);
+                        if (!validRep) {
+                            throw (new ledger_1.KeetaNetLedgerError('LEDGER_INVALID_SET_REP', `${operation.to.publicKeyString.get()} is not a valid representative`));
+                        }
+                    }
+                    break;
+                case block_1.Block.OperationType.TOKEN_ADMIN_MODIFY_BALANCE:
+                    if (!__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").enableTokenAdminModifyBalance) {
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_OPERATION_NOT_SUPPORTED', 'TOKEN_ADMIN_MODIFY_BALANCE operation not supported'));
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 }, _LedgerAtomicInterface_validateLedgerOutcome = 
 /**
  * Ensure all parts of a transaction do not have a negative outcome
@@ -68237,6 +68258,7 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
  */
 async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+    await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateBlockOperations).call(this, blocks);
     const ownersByIdentifier = {};
     // 'ADD' or 'REMOVE' an owner from ownersByIdentifier
     const modifyOwners = (method, entity, principal) => {
@@ -77738,7 +77760,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.4+g6020a42a3e7fdf7cae2d3783e939f895ae1be911';
+exports.version = '0.14.5+g7ab6fd7b04246202abe16df362295a3a022d514a';
 exports["default"] = exports.version;
 
 

@@ -6,4 +6,5 @@ export declare function getConfigFromEnv(type: 'local' | 'lambda'): Partial<Omit
 export declare function getFeeConfigFromEnv(type: 'local' | 'lambda'): {
     feeAccounts: (Account | StorageAddress)[];
     feeToken: TokenAddress | undefined;
+    feeFunction: NodeConfig['ledger']['computeFeeFromBlocks'] | undefined;
 };

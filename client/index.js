@@ -59436,8 +59436,7 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
         break;
     }
     if (resultThrow) {
-        const toThrow = error_1.KeetaNetError.fromJSON(resultThrow);
-        throw (toThrow);
+        throw (resultThrow);
     }
     return (result);
 }, _Client_api = async function _Client_api(rep, api, options = {}) {
@@ -65405,7 +65404,22 @@ async function ExpectErrorCode(code, test) {
     }));
 }
 class KeetaNetError extends base_1.KeetaNetErrorBase {
-    static assertValidErrorCode(code) {
+    static isInstance(error) {
+        if (typeof error !== 'object' || error === null) {
+            return (false);
+        }
+        if (!('code' in error)) {
+            return (false);
+        }
+        if (typeof error.code !== 'string') {
+            return (false);
+        }
+        if (!KeetaNetError.isValidErrorCode(error.code)) {
+            return (false);
+        }
+        return (true);
+    }
+    static isValidErrorCode(code) {
         return (errorCodeSet.has(code));
     }
     static fromJSON(json) {
@@ -65473,7 +65487,7 @@ class KeetaNetError extends base_1.KeetaNetErrorBase {
                     return (new ledger_1.KeetaNetLedgerError(code, message, shouldRetry, retryDelay));
                 }
             }
-            if (this.assertValidErrorCode(code)) {
+            if (this.isValidErrorCode(code)) {
                 return (new KeetaNetError(code, message, { type, codes: allErrorCodesWithoutPrefix }));
             }
         }
@@ -78531,7 +78545,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.6+g5aa6231eec357d1f519f0844be54694bedc01505';
+exports.version = '0.14.7+gc361cc93bcd5918c1bfac43f60a0a68020a0ecb1';
 exports["default"] = exports.version;
 
 

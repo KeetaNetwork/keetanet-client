@@ -127291,7 +127291,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.6+g5aa6231eec357d1f519f0844be54694bedc01505';
+const client_version = '0.14.7+gc361cc93bcd5918c1bfac43f60a0a68020a0ecb1';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -130120,7 +130120,22 @@ async function client_ExpectErrorCode(code, test) {
   }));
 }
 class client_KeetaNetError extends src_client_KeetaNetErrorBase {
-  static assertValidErrorCode(code) {
+  static isInstance(error) {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+    if (!('code' in error)) {
+      return false;
+    }
+    if (typeof error.code !== 'string') {
+      return false;
+    }
+    if (!client_KeetaNetError.isValidErrorCode(error.code)) {
+      return false;
+    }
+    return true;
+  }
+  static isValidErrorCode(code) {
     return client_errorCodeSet.has(code);
   }
   static fromJSON(json) {
@@ -130189,7 +130204,7 @@ class client_KeetaNetError extends src_client_KeetaNetErrorBase {
           return new client_ledger_KeetaNetLedgerError(code, message, shouldRetry, retryDelay);
         }
       }
-      if (this.assertValidErrorCode(code)) {
+      if (this.isValidErrorCode(code)) {
         return new client_KeetaNetError(code, message, {
           type,
           codes: client_allErrorCodesWithoutPrefix
@@ -132951,8 +132966,7 @@ async function client_apiRaw(rep, api, method) {
     break;
   }
   if (resultThrow) {
-    const toThrow = client_KeetaNetError.fromJSON(resultThrow);
-    throw toThrow;
+    throw resultThrow;
   }
   return result;
 }

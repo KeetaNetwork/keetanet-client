@@ -2,6 +2,7 @@ import type { KVStorageProviderAPI, KVSetOptionsType, KVGenericOptionsType } fro
 import { KVStorageProviderBase } from './';
 import type { JSONSerializable } from '../utils/conversion';
 import type { BufferStorage } from '../utils/buffer';
+import type { Logger } from '../log';
 export type KVStorageProviderRedisConfig = {
     host: string;
     password: string;
@@ -11,8 +12,8 @@ export type KVStorageProviderRedisConfig = {
 };
 export declare class KVStorageProviderRedis extends KVStorageProviderBase implements KVStorageProviderAPI {
     #private;
-    static defaultLogger: Pick<typeof console, 'debug' | 'error'>;
-    log: Pick<Console, "debug" | "error">;
+    static defaultLogger: Logger;
+    log: Logger;
     constructor(config: KVStorageProviderRedisConfig);
     private node;
     destroy(options?: KVGenericOptionsType): Promise<void>;

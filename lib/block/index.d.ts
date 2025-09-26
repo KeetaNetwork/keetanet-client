@@ -21,8 +21,8 @@ type BlockHashString = string & {
  * Block hash
  */
 export declare class BlockHash extends BufferStorage {
-    static isInstance: (obj: any, strict?: boolean) => obj is BlockHash;
-    static Set: import("../utils/helper").InstanceSetConstructor<BlockHash, BlockHashString>;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is BlockHash;
+    static readonly Set: import("../utils/helper").InstanceSetConstructor<BlockHash, BlockHashString>;
     static getAccountOpeningHash(account: GenericAccount): BlockHash;
     fromData(data: Buffer): BlockHash;
     get hashFunctionName(): string;
@@ -39,6 +39,10 @@ type NetworkID = bigint;
  */
 type SubnetID = bigint;
 /**
+ * Idempotent Key
+ */
+type UserIdempotentKey = Buffer;
+/**
  * Block signature
  */
 type BlockSignature = Buffer;
@@ -47,15 +51,16 @@ type BlockSignature = Buffer;
  */
 export interface BlockV1JSON {
     version: 1;
-    purpose?: BlockPurpose.GENERIC;
-    date: string | Date;
-    previous: string | BlockHash;
     network: string | NetworkID;
     subnet?: string | SubnetID;
-    account: string | GenericAccount;
+    idempotent?: string | UserIdempotentKey;
+    date: string | Date;
     signer: string | Account;
-    signature: string | BlockSignature;
+    account: string | GenericAccount;
+    previous: string | BlockHash;
     operations: Operations.BlockJSONOperations[] | Operations.BlockOperations[];
+    signature: string | BlockSignature;
+    purpose?: BlockPurpose.GENERIC;
 }
 export type BlockV1JSONIncomplete = Partial<BlockV1JSON>;
 /**
@@ -66,15 +71,16 @@ export type BlockV1JSONIncomplete = Partial<BlockV1JSON>;
  */
 export interface BlockV2JSON {
     version: 2;
-    purpose: BlockPurpose;
-    date: string | Date;
-    previous: string | BlockHash;
     network: string | NetworkID;
     subnet?: string | SubnetID;
+    idempotent?: string | UserIdempotentKey;
+    date: string | Date;
+    purpose: BlockPurpose;
     account: string | GenericAccount;
     signer: BlockSignerFieldJSON;
-    signatures: (string | BlockSignature)[];
+    previous: string | BlockHash;
     operations: (Operations.BlockJSONOperations | Operations.BlockOperations)[];
+    signatures: (string | BlockSignature)[];
 }
 export type BlockV2JSONIncomplete = Partial<BlockV2JSON>;
 export type BlockJSONOutput = ReturnType<Block['toJSON']>;
@@ -89,13 +95,14 @@ export type BlockJSONIncomplete = Partial<BlockJSON>;
  */
 interface BlockV1UnsignedCanonical {
     version: 1;
-    date: Date;
-    previous: BlockHash;
-    account: GenericAccount;
-    signer: Account;
-    operations: Operations.BlockOperations[];
     network: NetworkID;
     subnet: SubnetID | undefined;
+    idempotent: UserIdempotentKey | undefined;
+    date: Date;
+    signer: Account;
+    account: GenericAccount;
+    previous: BlockHash;
+    operations: Operations.BlockOperations[];
     signature?: never;
 }
 interface BlockV1Canonical extends Omit<BlockV1UnsignedCanonical, 'signature'> {
@@ -103,14 +110,15 @@ interface BlockV1Canonical extends Omit<BlockV1UnsignedCanonical, 'signature'> {
 }
 interface BlockV2UnsignedCanonical {
     version: 2;
-    date: Date;
-    purpose: BlockPurpose;
-    previous: BlockHash;
-    account: GenericAccount;
-    signer: BlockSignerField;
-    operations: Operations.BlockOperations[];
     network: NetworkID;
     subnet: SubnetID | undefined;
+    idempotent: UserIdempotentKey | undefined;
+    date: Date;
+    purpose: BlockPurpose;
+    account: GenericAccount;
+    signer: BlockSignerField;
+    previous: BlockHash;
+    operations: Operations.BlockOperations[];
     signatures?: never;
 }
 interface BlockV2Canonical extends Omit<BlockV2UnsignedCanonical, 'signatures'> {
@@ -137,9 +145,9 @@ type BlockSignatureField = [BlockSignature, ...BlockSignature[]];
 export declare class Block implements Omit<BlockV2Canonical, 'version'> {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is Block;
-    static Hash: typeof BlockHash;
-    static OperationType: typeof Operations.OperationType;
-    static Operation: {
+    static readonly Hash: typeof BlockHash;
+    static readonly OperationType: typeof Operations.OperationType;
+    static readonly Operation: {
         SEND: typeof Operations.BlockOperationSEND;
         SET_REP: typeof Operations.BlockOperationSET_REP;
         SET_INFO: typeof Operations.BlockOperationSET_INFO;
@@ -150,12 +158,13 @@ export declare class Block implements Omit<BlockV2Canonical, 'version'> {
         RECEIVE: typeof Operations.BlockOperationRECEIVE;
         MANAGE_CERTIFICATE: typeof Operations.BlockOperationMANAGE_CERTIFICATE;
     };
-    static NO_PREVIOUS: string;
-    static AdjustMethod: typeof AdjustMethod;
-    static Purpose: typeof BlockPurpose;
+    static readonly NO_PREVIOUS = "9bd05fa2-8e59-42a2-8153-26d8e8c10143:NO_PREVIOUS";
+    static readonly AdjustMethod: typeof AdjustMethod;
+    static readonly Purpose: typeof BlockPurpose;
     static Builder: typeof BlockBuilder;
     readonly version: 1 | 2;
     readonly purpose: BlockPurpose;
+    readonly idempotent: UserIdempotentKey | undefined;
     readonly date: Date;
     readonly previous: BlockHash;
     readonly account: GenericAccount;
@@ -182,6 +191,7 @@ export declare class Block implements Omit<BlockV2Canonical, 'version'> {
         signature?: string;
         signatures?: string[];
         version: 1 | 2;
+        idempotent: string | undefined;
         date: Date;
         previous: BlockHash;
         account: GenericAccount;
@@ -229,6 +239,7 @@ export declare class BlockBuilder {
         signature?: string;
         signatures?: string[];
         version: 1 | 2;
+        idempotent: string | undefined;
         date: Date;
         previous: BlockHash;
         account: GenericAccount;
@@ -241,6 +252,7 @@ export declare class BlockBuilder {
         $opening: boolean;
     } | {
         version: number | undefined;
+        idempotent: string | undefined;
         date: Date | undefined;
         previous: BlockHash | undefined;
         account: GenericAccount | undefined;
@@ -263,6 +275,8 @@ export declare class BlockBuilder {
     set previous(blockhash: string | BlockHash | undefined);
     get previous(): BlockHash | undefined;
     get $opening(): boolean | undefined;
+    set idempotent(idempotent: string | ArrayBuffer | Buffer);
+    get idempotent(): string | undefined;
     set date(date: Date | string | undefined);
     get date(): Date | undefined;
     set version(version: number | undefined);

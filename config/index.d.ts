@@ -73,6 +73,9 @@ export interface ValidationConfig {
     blockOperations: {
         external: TextValidationRule;
     };
+    idempotentKey: {
+        maxByteLength: number;
+    };
 }
 export declare const baseValidationConfig: ValidationConfig;
 export declare function getNetworkAlias(networkOrID: bigint | Networks): Networks;

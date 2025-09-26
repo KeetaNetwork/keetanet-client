@@ -59243,6 +59243,36 @@ class Client {
         }
         return (successorStaple);
     }
+    /**
+     * Fetch a block from a given idempotent key
+     * @param account The account associated with the idempotent key
+     * @param idempotent The idempotent key to check
+     */
+    async getBlockFromIdempotent(account, idempotent, side = 'main', rep = 'ANY') {
+        account = account_1.default.toAccount(account);
+        const accountPubKey = account.publicKeyString.get();
+        const query = {
+            side: (0, common_1.assertLedgerStorage)(side)
+        };
+        let idempotentBase64;
+        if (typeof idempotent === 'string') {
+            idempotentBase64 = idempotent;
+        }
+        else {
+            idempotentBase64 = Buffer.from(idempotent).toString('base64');
+        }
+        const result = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'GET /node/ledger/account/:account/idempotent/:idempotent', {
+            queryParams: query,
+            args: {
+                account: accountPubKey,
+                idempotent: idempotentBase64
+            }
+        });
+        if (result.block === null) {
+            return (null);
+        }
+        return (new block_1.default(result.block));
+    }
     async getVoteQuotes(blocks) {
         return (await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestQuotes).call(this, blocks));
     }
@@ -59624,6 +59654,9 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
     if (raw.defaultPermission !== undefined) {
         info.defaultPermission = __classPrivateFieldGet(this, _Client_instances, "m", _Client_parseResponsePermissions).call(this, raw.defaultPermission);
     }
+    if (raw.multisigQuorum !== undefined) {
+        info.multisigQuorum = BigInt(raw.multisigQuorum);
+    }
     return (info);
 }, _Client_parseAccountInfo = function _Client_parseAccountInfo(account, accountInfo) {
     account = account_1.default.toAccount(account);
@@ -59938,7 +59971,7 @@ class UserClient {
      * @returns The vote staple that was generated and whether it was able to be published
      */
     async initializeNetwork(initOpts, options = {}) {
-        const { delegateTo = this.client.representatives[0].key, addSupplyAmount, voteSerial = 0n, baseTokenInfo } = initOpts;
+        const { delegateTo = this.client.representatives[0].key, addSupplyAmount, voteSerial = 0n, baseTokenInfo, baseNetworkInfo } = initOpts;
         if (this.signer === null) {
             throw (new Error('May not initialize chain with a read-only UserClient (signer is null)'));
         }
@@ -59952,7 +59985,8 @@ class UserClient {
                 recipient: __classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options).assertAccount(),
                 amount: addSupplyAmount
             },
-            baseTokenInfo
+            baseTokenInfo,
+            baseNetworkInfo
         });
         return (await this.client.transmitStaple(voteStaple));
     }
@@ -60318,6 +60352,14 @@ class UserClient {
      */
     async recover(publish, options = {}) {
         return (await __classPrivateFieldGet(this, _UserClient_client, "f").recoverAccount(__classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options), publish));
+    }
+    /**
+     * Fetch a block from a given idempotent key
+     * @param idempotent The idempotent key to check
+     * @param options User client options (common options)
+     */
+    async getBlockFromIdempotent(idempotent, options = {}) {
+        return (await __classPrivateFieldGet(this, _UserClient_client, "f").getBlockFromIdempotent(__classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options), idempotent));
     }
     /**
      * Sync any partially-published account artifacts
@@ -60754,6 +60796,9 @@ exports.baseValidationConfig = {
             regex: /^[-_A-Za-z0-9+/= ]+$/,
             canBeEmpty: true
         }
+    },
+    idempotentKey: {
+        maxByteLength: 32
     }
 };
 function getNetworkAlias(networkOrID) {
@@ -62523,6 +62568,7 @@ const util_1 = __webpack_require__(9023);
 const Operations = __importStar(__webpack_require__(2778));
 const block_1 = __importDefault(__webpack_require__(7412));
 const common_1 = __webpack_require__(5663);
+const config_1 = __webpack_require__(1491);
 const NO_PREVIOUS = '9bd05fa2-8e59-42a2-8153-26d8e8c10143:NO_PREVIOUS';
 var BlockPurpose;
 (function (BlockPurpose) {
@@ -62605,6 +62651,7 @@ const BlockV1ASN1Schema = [
     0n,
     ASN1.BufferStorageASN1.Validate.IsInteger,
     { choice: [ASN1.BufferStorageASN1.Validate.IsInteger, ASN1.BufferStorageASN1.Validate.IsNull] },
+    { optional: ASN1.BufferStorageASN1.Validate.IsOctetString },
     { type: 'date', kind: 'general' },
     ASN1.BufferStorageASN1.Validate.IsOctetString,
     { choice: [ASN1.BufferStorageASN1.Validate.IsOctetString, ASN1.BufferStorageASN1.Validate.IsNull] },
@@ -62690,6 +62737,7 @@ const BlockV2ASN1Schema = {
     contains: [
         ASN1.BufferStorageASN1.Validate.IsInteger,
         { optional: ASN1.BufferStorageASN1.Validate.IsInteger },
+        { optional: ASN1.BufferStorageASN1.Validate.IsOctetString },
         { type: 'date', kind: 'general' },
         ASN1.BufferStorageASN1.Validate.IsInteger,
         ASN1.BufferStorageASN1.Validate.IsOctetString,
@@ -62759,12 +62807,56 @@ function _ignore_static_checks() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _ignore_check_blockasn1v2_reverse_2 = _ignore_check_blockasn1v2_reverse_1;
 }
+function parseBlockIdempotent(input, network) {
+    let output;
+    if (Buffer.isBuffer(input)) {
+        output = input;
+    }
+    else {
+        try {
+            output = (0, helper_1.validateBase64ToBuffer)(input);
+        }
+        catch (base64Error) {
+            throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse base64 Block idempotent'));
+        }
+    }
+    if (output === undefined) {
+        throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent'));
+    }
+    if (network !== undefined) {
+        const idempotentValidationConfig = (0, config_1.getValidation)(network).idempotentKey;
+        if (output.length > idempotentValidationConfig.maxByteLength) {
+            throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${output.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`));
+        }
+    }
+    return (output);
+}
 function MapV1InputValues(input) {
     const output = {};
     if (input.version !== 1) {
         throw (new Error('MapInputValues should not be called with version != 1'));
     }
     output.version = input.version;
+    /*
+     * Import network
+     */
+    if (input.network !== undefined) {
+        if (typeof input.network === 'bigint') {
+            output.network = input.network;
+        }
+        else {
+            output.network = BigInt(input.network);
+        }
+    }
+    /*
+     * Import idempotent key
+     */
+    if (input.idempotent !== undefined) {
+        output.idempotent = parseBlockIdempotent(input.idempotent, output.network);
+    }
+    /*
+     * Import date
+     */
     if (input.date !== undefined) {
         output.date = new Date(input.date);
     }
@@ -62796,17 +62888,6 @@ function MapV1InputValues(input) {
         }
     }
     /*
-     * Import network
-     */
-    if (input.network !== undefined) {
-        if (typeof input.network === 'bigint') {
-            output.network = input.network;
-        }
-        else {
-            output.network = BigInt(input.network);
-        }
-    }
-    /*
      * Import Subnet
      */
     if (input.subnet !== undefined) {
@@ -62834,6 +62915,21 @@ function MapV2InputValues(input) {
     }
     output.version = input.version;
     output.purpose = input.purpose;
+    /*
+     * Import network
+     */
+    if (input.network !== undefined) {
+        output.network = BigInt(input.network);
+    }
+    /*
+     * Import idempotent key
+     */
+    if (input.idempotent !== undefined) {
+        output.idempotent = parseBlockIdempotent(input.idempotent, output.network);
+    }
+    /*
+     * Import date
+     */
     if (input.date !== undefined) {
         output.date = new Date(input.date);
     }
@@ -62856,12 +62952,6 @@ function MapV2InputValues(input) {
         else {
             output.previous = new BlockHash(input.previous);
         }
-    }
-    /*
-     * Import network
-     */
-    if (input.network !== undefined) {
-        output.network = BigInt(input.network);
     }
     /*
      * Import Subnet
@@ -62977,10 +63067,11 @@ class Block {
                 this.purpose = BlockPurpose.GENERIC;
                 this.network = data[1];
                 this.subnet = data[2] ?? undefined;
-                this.date = data[3].date;
-                const signerContainer = data[4];
+                this.idempotent = data[3] ?? undefined;
+                this.date = data[4].date;
+                const signerContainer = data[5];
                 this.signer = account_1.default.fromPublicKeyAndType(signerContainer).assertAccount();
-                const acctItem = data[5];
+                const acctItem = data[6];
                 if (acctItem === null) {
                     this.account = this.signer;
                 }
@@ -62990,20 +63081,21 @@ class Block {
                         throw (new Error('Account should not be in block when it is same as signer, we cannot use this block'));
                     }
                 }
-                const prevHashBuf = data[6];
+                const prevHashBuf = data[7];
                 this.previous = new BlockHash(prevHashBuf);
-                this.operations = Operations.ImportOperationsASN1(data[7], this.network);
-                this.signatures = [data[8]];
+                this.operations = Operations.ImportOperationsASN1(data[8], this.network);
+                this.signatures = [data[9]];
             }
             else if (data.value === 1) {
                 this.version = 2;
                 const container = data.contains;
                 this.network = container[0];
                 this.subnet = container[1] ?? undefined;
-                this.date = container[2].date;
-                this.purpose = toBlockPurpose(container[3]);
-                this.account = account_1.default.fromPublicKeyAndType(container[4]);
-                const signersContainer = container[5];
+                this.idempotent = container[2] ?? undefined;
+                this.date = container[3].date;
+                this.purpose = toBlockPurpose(container[4]);
+                this.account = account_1.default.fromPublicKeyAndType(container[5]);
+                const signersContainer = container[6];
                 if (signersContainer === null) {
                     this.signer = this.account.assertAccount();
                 }
@@ -63016,9 +63108,9 @@ class Block {
                 else {
                     this.signer = parseBlockSignerFieldContainer(signersContainer).parsed;
                 }
-                this.previous = new BlockHash(container[6]);
-                this.operations = Operations.ImportOperationsASN1(container[7], this.network);
-                const signatureContainer = container[8];
+                this.previous = new BlockHash(container[7]);
+                this.operations = Operations.ImportOperationsASN1(container[8], this.network);
+                const signatureContainer = container[9];
                 if (Buffer.isBuffer(signatureContainer)) {
                     this.signatures = [signatureContainer];
                 }
@@ -63039,6 +63131,7 @@ class Block {
             if (_a.isInstance(input)) {
                 this.version = input.version;
                 this.purpose = input.purpose;
+                this.idempotent = input.idempotent;
                 this.date = input.date;
                 this.previous = input.previous;
                 this.network = input.network;
@@ -63052,9 +63145,10 @@ class Block {
                 /*
                 * Map input to our values
                 */
-                const { version, date, previous, network, subnet, account, operations, signer } = MapV1InputValues(input);
+                const { version, idempotent, date, previous, network, subnet, account, operations, signer } = MapV1InputValues(input);
                 this.version = version;
                 this.purpose = BlockPurpose.GENERIC;
+                this.idempotent = idempotent;
                 this.date = date;
                 this.previous = previous;
                 this.network = network;
@@ -63083,9 +63177,10 @@ class Block {
                 /*
                 * Map input to our values
                 */
-                const { version, date, previous, network, subnet, account, operations, signer, purpose } = MapV2InputValues(input);
+                const { version, idempotent, date, previous, network, subnet, account, operations, signer, purpose } = MapV2InputValues(input);
                 this.version = version;
                 this.purpose = purpose;
+                this.idempotent = idempotent;
                 this.date = date;
                 this.previous = previous;
                 this.network = network;
@@ -63156,7 +63251,8 @@ class Block {
             account: this.account,
             network: this.network,
             subnet: this.subnet,
-            date: this.date
+            date: this.date,
+            idempotent: this.idempotent
         };
         let container;
         if (this.version === 1) {
@@ -63229,6 +63325,7 @@ class Block {
             0n,
             input.network,
             input.subnet ?? null,
+            input.idempotent,
             { type: 'date', kind: 'general', date: input.date },
             input.signer.publicKeyAndType,
             outputAccount,
@@ -63253,6 +63350,7 @@ class Block {
         return ([
             input.network,
             input.subnet,
+            input.idempotent,
             { type: 'date', kind: 'general', date: input.date },
             BigInt(input.purpose),
             input.account.publicKeyAndType,
@@ -63293,6 +63391,7 @@ class Block {
         }
         return ({
             version: this.version,
+            idempotent: this.idempotent?.toString('base64'),
             date: this.date,
             previous: this.previous,
             account: this.account,
@@ -63489,6 +63588,7 @@ class BlockBuilder {
         }
         return ({
             version: this.version,
+            idempotent: this.idempotent,
             date: this.date,
             previous: this.previous,
             account: this.account,
@@ -63523,6 +63623,7 @@ class BlockBuilder {
         if (Block.isInstance(__classPrivateFieldGet(this, _BlockBuilder_block, "f"))) {
             __classPrivateFieldSet(this, _BlockBuilder_block, {
                 version: __classPrivateFieldGet(this, _BlockBuilder_block, "f").version,
+                idempotent: __classPrivateFieldGet(this, _BlockBuilder_block, "f").idempotent,
                 date: __classPrivateFieldGet(this, _BlockBuilder_block, "f").date,
                 previous: __classPrivateFieldGet(this, _BlockBuilder_block, "f").previous,
                 account: __classPrivateFieldGet(this, _BlockBuilder_block, "f").account,
@@ -63620,7 +63721,7 @@ class BlockBuilder {
     get previous() {
         const block = this.currentBlock;
         if (block === undefined) {
-            return;
+            return (undefined);
         }
         const previous = block.previous;
         if (previous === undefined) {
@@ -63656,6 +63757,28 @@ class BlockBuilder {
         const sentinel = Block.getAccountOpeningHash(account);
         return (sentinel.compareHexString(previous));
     }
+    set idempotent(idempotent) {
+        if (typeof idempotent === 'string') {
+            try {
+                this.currentWIP.idempotent = (0, helper_1.validateBase64ToBuffer)(idempotent);
+            }
+            catch (decodeError) {
+                throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent'));
+            }
+        }
+        else {
+            this.currentWIP.idempotent = Buffer.from(idempotent);
+        }
+    }
+    get idempotent() {
+        if (this.currentBlock.idempotent === undefined) {
+            return (undefined);
+        }
+        if (Buffer.isBuffer(this.currentBlock.idempotent)) {
+            return (this.currentBlock.idempotent.toString('base64'));
+        }
+        return (this.currentBlock.idempotent);
+    }
     set date(date) {
         if (date === undefined) {
             this.currentWIP.date = undefined;
@@ -63669,7 +63792,7 @@ class BlockBuilder {
     }
     get date() {
         if (this.currentBlock.date === undefined) {
-            return;
+            return (undefined);
         }
         return (new Date(this.currentBlock.date));
     }
@@ -65143,7 +65266,9 @@ exports.BlockErrorCodes = [
     'EXTERNAL_TOO_LONG',
     'EXTERNAL_INVALID',
     'EXTERNAL_MISSING',
-    'SUPPLY_INVALID'
+    'SUPPLY_INVALID',
+    'INVALID_IDEMPOTENT_FORMAT',
+    'INVALID_IDEMPOTENT_LENGTH'
 ];
 exports.FullBlockErrorCodes = exports.BlockErrorCodes.map(code => `${BlockErrorType}_${code}`);
 class KeetaNetBlockError extends base_1.KeetaNetErrorBase {
@@ -65238,20 +65363,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.KeetaNetError = void 0;
 exports.ExpectErrorCode = ExpectErrorCode;
 const account_1 = __importDefault(__webpack_require__(9415));
+const block_1 = __webpack_require__(6158);
 const account_2 = __webpack_require__(4642);
 const api_1 = __webpack_require__(7533);
 const base_1 = __webpack_require__(1096);
-const block_1 = __webpack_require__(7412);
+const block_2 = __webpack_require__(7412);
 const certificate_1 = __webpack_require__(9890);
 const client_1 = __webpack_require__(3642);
 const kv_1 = __webpack_require__(9272);
 const ledger_1 = __webpack_require__(452);
 const permissions_1 = __webpack_require__(2105);
 const vote_1 = __webpack_require__(3689);
+const helper_1 = __webpack_require__(3208);
 const allErrorCodesWithoutPrefix = [
     ...account_2.AccountErrorCodes,
     ...api_1.APIErrorCodes,
-    ...block_1.BlockErrorCodes,
+    ...block_2.BlockErrorCodes,
     ...certificate_1.CertificateErrorCodes,
     ...client_1.ClientErrorCodes,
     ...kv_1.KVErrorCodes,
@@ -65263,7 +65390,7 @@ const allErrorCodesWithoutPrefix = [
 const allFullErrorCodes = [
     ...account_2.FullAccountErrorCodes,
     ...api_1.FullAPIErrorCodes,
-    ...block_1.FullBlockErrorCodes,
+    ...block_2.FullBlockErrorCodes,
     ...certificate_1.FullCertificateErrorCodes,
     ...client_1.FullClientErrorCodes,
     ...kv_1.FullKVErrorCodes,
@@ -65302,7 +65429,37 @@ class KeetaNetError extends base_1.KeetaNetErrorBase {
                     }
                     retryDelay = json.retryDelay;
                 }
-                if (ledger_1.KeetaNetLedgerVoteError.assertValidLedgerErrorCode(code)) {
+                if (ledger_1.KeetaNetLedgerIdempotentKeyError.assertValidLedgerErrorCode(code)) {
+                    let account;
+                    let idempotentKey;
+                    if ('account' in json) {
+                        if (typeof json.account !== 'string') {
+                            return (new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad account)'));
+                        }
+                        account = account_1.default.fromPublicKeyString(json.account);
+                    }
+                    if ('idempotentKey' in json) {
+                        if (typeof json.idempotentKey !== 'string') {
+                            return (new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad idempotentKey)'));
+                        }
+                        try {
+                            idempotentKey = (0, helper_1.bufferToArrayBuffer)((0, helper_1.validateBase64ToBuffer)(json.idempotentKey));
+                        }
+                        catch {
+                            return (new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad idempotentKey)'));
+                        }
+                    }
+                    if (!('blockhash' in json) || typeof json.blockhash !== 'string') {
+                        return (new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad blockhash)'));
+                    }
+                    if (!('existingBlockhash' in json) || typeof json.existingBlockhash !== 'string') {
+                        return (new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad existingBlockhash)'));
+                    }
+                    const blockhash = new block_1.BlockHash(json.blockhash);
+                    const existingBlockhash = new block_1.BlockHash(json.existingBlockhash);
+                    return (new ledger_1.KeetaNetLedgerIdempotentKeyError(code, blockhash, existingBlockhash, account, idempotentKey));
+                }
+                else if (ledger_1.KeetaNetLedgerVoteError.assertValidLedgerErrorCode(code)) {
                     if (!('accounts' in json) || !Array.isArray(json.accounts)) {
                         return (new Error('Invalid JSON for KeetaNetLedgerVoteError (bad accounts)'));
                     }
@@ -65366,7 +65523,7 @@ exports["default"] = KeetaNetKVError;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.KeetaNetLedgerVoteError = exports.KeetaNetLedgerError = exports.FullLedgerVoteErrorCodes = exports.FullLedgerBaseErrorCode = exports.FullLedgerErrorCodes = exports.LedgerVoteErrorCodes = exports.LedgerBaseErrorCodes = void 0;
+exports.KeetaNetLedgerIdempotentKeyError = exports.KeetaNetLedgerVoteError = exports.KeetaNetLedgerError = exports.FullLedgerIdempotentKeyErrorCodes = exports.FullLedgerVoteErrorCodes = exports.FullLedgerBaseErrorCode = exports.FullLedgerErrorCodes = exports.LedgerIdempotentKeyErrorCodes = exports.LedgerVoteErrorCodes = exports.LedgerBaseErrorCodes = void 0;
 const base_1 = __webpack_require__(1096);
 const helper_1 = __webpack_require__(3208);
 const LedgerErrorType = 'LEDGER';
@@ -65409,11 +65566,16 @@ exports.LedgerVoteErrorCodes = [
     'NOT_SUCCESSOR',
     'NOT_OPENING'
 ];
-exports.FullLedgerErrorCodes = [...exports.LedgerBaseErrorCodes, ...exports.LedgerVoteErrorCodes].map(code => `${LedgerErrorType}_${code}`);
+exports.LedgerIdempotentKeyErrorCodes = [
+    'IDEMPOTENT_KEY_EXISTS'
+];
+exports.FullLedgerErrorCodes = [...exports.LedgerBaseErrorCodes, ...exports.LedgerVoteErrorCodes, ...exports.LedgerIdempotentKeyErrorCodes].map(code => `${LedgerErrorType}_${code}`);
 exports.FullLedgerBaseErrorCode = exports.LedgerBaseErrorCodes.map(code => `${LedgerErrorType}_${code}`);
 exports.FullLedgerVoteErrorCodes = exports.LedgerVoteErrorCodes.map(code => `${LedgerErrorType}_${code}`);
+exports.FullLedgerIdempotentKeyErrorCodes = exports.LedgerIdempotentKeyErrorCodes.map(code => `${LedgerErrorType}_${code}`);
 const ledgerBaseErrorCodeSet = new Set(exports.FullLedgerBaseErrorCode);
 const ledgerVoteErrorCodeSet = new Set(exports.FullLedgerVoteErrorCodes);
+const ledgerIdempotentKeyErrorCodeSet = new Set(exports.FullLedgerIdempotentKeyErrorCodes);
 class KeetaNetLedgerError extends base_1.KeetaNetErrorBase {
     static assertValidLedgerErrorCode(code) {
         return (ledgerBaseErrorCodeSet.has(code));
@@ -65450,6 +65612,56 @@ class KeetaNetLedgerVoteError extends base_1.KeetaNetErrorBase {
 }
 exports.KeetaNetLedgerVoteError = KeetaNetLedgerVoteError;
 KeetaNetLedgerVoteError.isInstance = (0, helper_1.checkableGenerator)(KeetaNetLedgerVoteError);
+class KeetaNetLedgerIdempotentKeyError extends base_1.KeetaNetErrorBase {
+    static assertValidLedgerErrorCode(code) {
+        return (ledgerIdempotentKeyErrorCodeSet.has(code));
+    }
+    constructor(code, blockhash, existingBlockhash, account, idempotentKey) {
+        let messageIdempotentKey = '<unknown>';
+        if (idempotentKey) {
+            messageIdempotentKey = Buffer.from(idempotentKey).toString('base64');
+        }
+        let messageAccount = '<unknown>';
+        if (account) {
+            messageAccount = account.publicKeyString.get();
+        }
+        const message = `Idempotent key (${messageIdempotentKey}) for account (${messageAccount}) already exists for blockhash ${existingBlockhash.toString()}`;
+        super(code, message, { type: LedgerErrorType, codes: exports.LedgerIdempotentKeyErrorCodes });
+        this.type = LedgerErrorType;
+        this.shouldRetry = false;
+        this.blockhash = blockhash;
+        this.existingBlockhash = existingBlockhash;
+        if (account) {
+            this.account = account;
+        }
+        if (idempotentKey) {
+            if (Buffer.isBuffer(idempotentKey)) {
+                this.idempotentKey = (0, helper_1.bufferToArrayBuffer)(idempotentKey);
+            }
+            else {
+                this.idempotentKey = idempotentKey;
+            }
+        }
+    }
+    toJSON() {
+        const jsonOptional = {};
+        if (this.account) {
+            jsonOptional.account = this.account.publicKeyString.get();
+        }
+        if (this.idempotentKey) {
+            jsonOptional.idempotentKey = Buffer.from(this.idempotentKey).toString('base64');
+        }
+        const json = {
+            ...super.toJSON(),
+            ...jsonOptional,
+            blockhash: this.blockhash.toString(),
+            existingBlockhash: this.existingBlockhash.toString()
+        };
+        return (json);
+    }
+}
+exports.KeetaNetLedgerIdempotentKeyError = KeetaNetLedgerIdempotentKeyError;
+KeetaNetLedgerIdempotentKeyError.isInstance = (0, helper_1.checkableGenerator)(KeetaNetLedgerIdempotentKeyError);
 
 
 /***/ }),
@@ -65630,6 +65842,7 @@ const p2p_1 = __importDefault(__webpack_require__(7074));
 const stats_1 = __importDefault(__webpack_require__(2127));
 const permissions_1 = __webpack_require__(5860);
 const vote_1 = __importDefault(__webpack_require__(1130));
+const log_1 = __importDefault(__webpack_require__(9));
 const error_1 = __webpack_require__(5390);
 const ASN1 = __importStar(__webpack_require__(6045));
 const Bloom = __importStar(__webpack_require__(7313));
@@ -65648,6 +65861,7 @@ exports["default"] = {
     Block: block_1.default,
     Error: error_1.KeetaNetError,
     Ledger: ledger_1.default,
+    Log: log_1.default,
     Node: node_1.default,
     P2P: p2p_1.default,
     Permissions: permissions_1.Permissions,
@@ -66562,11 +66776,7 @@ class LedgerStorageBase {
 }
 exports.LedgerStorageBase = LedgerStorageBase;
 _LedgerStorageBase_instances = new WeakSet(), _LedgerStorageBase_log = function _LedgerStorageBase_log(...args) {
-    if (this.config !== null) {
-        if (this.config.log !== undefined) {
-            this.config.log(...args);
-        }
-    }
+    this.config?.log?.debug('ledger', ...args);
 };
 function assertLedgerStorage(value) {
     if (value === 'main' || value === 'side') {
@@ -67489,7 +67699,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _LedgerAtomicInterface_instances, _LedgerAtomicInterface_network, _LedgerAtomicInterface_subnet, _LedgerAtomicInterface_kind, _LedgerAtomicInterface_privateKey, _LedgerAtomicInterface_computeFeeFromBlocks, _LedgerAtomicInterface_storage, _LedgerAtomicInterface_ledger, _LedgerAtomicInterface_cache, _LedgerAtomicInterface_operations, _LedgerAtomicInterface_transaction, _LedgerAtomicInterface_assertTransaction, _LedgerAtomicInterface_validateVotingWeight, _LedgerAtomicInterface_listAccountInfo, _LedgerAtomicInterface_checkSingleAccountPermissions, _LedgerAtomicInterface_checkPermissionRequirements, _LedgerAtomicInterface_validateBlockOperations, _LedgerAtomicInterface_validateLedgerOutcome, _LedgerAtomicInterface_validateBlocksForVote, _LedgerAtomicInterface_voteOrQuoteWithFees, _Ledger_storage, _Ledger_config;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Ledger = exports.LedgerStorageTransactionBase = exports.LedgerKind = void 0;
+exports.Ledger = exports.LedgerStorageTransactionBase = exports.IdempotentKey = exports.LedgerKind = void 0;
 const vote_1 = __webpack_require__(1130);
 const block_1 = __webpack_require__(6158);
 const account_1 = __importDefault(__webpack_require__(9415));
@@ -67503,6 +67713,8 @@ const cache_1 = __importDefault(__webpack_require__(5834));
 const timing_1 = __webpack_require__(2895);
 const operations_1 = __webpack_require__(2778);
 const stats_1 = __webpack_require__(2127);
+const buffer_1 = __webpack_require__(3310);
+const hash_1 = __webpack_require__(7908);
 /**
  * Kind of ledger
  */
@@ -67511,6 +67723,41 @@ var LedgerKind;
     LedgerKind[LedgerKind["REPRESENTATIVE"] = 0] = "REPRESENTATIVE";
     LedgerKind[LedgerKind["ACCOUNT"] = 1] = "ACCOUNT";
 })(LedgerKind || (exports.LedgerKind = LedgerKind = {}));
+/**
+ * Idempotent Key
+ */
+class IdempotentKey extends buffer_1.BufferStorage {
+    static fromAccountAndIdempotent(account, idempotent) {
+        let idempotentBuffer;
+        if (typeof idempotent === 'string') {
+            idempotentBuffer = Buffer.from(idempotent, 'base64');
+        }
+        else {
+            idempotentBuffer = idempotent;
+        }
+        const data = Buffer.concat([account.publicKeyAndType, idempotentBuffer]);
+        return (new IdempotentKey((0, hash_1.Hash)(data), account, idempotentBuffer));
+    }
+    constructor(idempotentKey, account, idempotent) {
+        super(idempotentKey, 32);
+        this.account = account;
+        this.userIdempotent = idempotent;
+    }
+    toJSON() {
+        return (this.toString());
+    }
+    toString() {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return super.toString('hex');
+    }
+}
+exports.IdempotentKey = IdempotentKey;
+IdempotentKey.isInstance = (0, helper_1.checkableGenerator)(IdempotentKey);
+IdempotentKey.Set = (0, helper_1.setGenerator)(IdempotentKey, function (value) {
+    return (value.toString());
+}, function (value) {
+    return (new IdempotentKey(Buffer.from(value, 'hex')));
+});
 class LedgerStorageTransactionBase {
     constructor(options) {
         this.node = options.node;
@@ -67676,7 +67923,13 @@ class LedgerAtomicInterface {
                 throw (new ledger_1.KeetaNetLedgerError('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us'));
             }
         }
-        const allLedgerHeads = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateBlocksForVote).call(this, blocks);
+        const { allLedgerHeads, allLedgerIdempotentKeys } = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateBlocksForVote).call(this, blocks);
+        for (const [blockHash, key] of allLedgerIdempotentKeys) {
+            const foundBlockHash = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getIdempotentBlockHash(transaction, key, 'both', blockHash);
+            if (foundBlockHash !== null) {
+                throw (new ledger_1.KeetaNetLedgerIdempotentKeyError('LEDGER_IDEMPOTENT_KEY_EXISTS', blockHash, foundBlockHash, key.account, key.userIdempotent));
+            }
+        }
         const needToGetHeadFor = new account_1.default.Set(allLedgerHeads.keys());
         const allHeads = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getHeadBlockHashes(transaction, needToGetHeadFor);
         for (const [account, expectedBlock] of allLedgerHeads.entries()) {
@@ -68093,6 +68346,20 @@ class LedgerAtomicInterface {
         const effects = effectsInput ?? (0, effects_1.computeEffectOfBlocks)(blocks, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"));
         return (__classPrivateFieldGet(this, _LedgerAtomicInterface_computeFeeFromBlocks, "f").call(this, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"), blocks, effects));
     }
+    async getIdempotentBlockHash(account, idempotent, from = 'both', excludeBlockHash) {
+        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+        const idempotentKey = IdempotentKey.fromAccountAndIdempotent(account, idempotent);
+        const blockHash = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getIdempotentBlockHash(transaction, idempotentKey, from, excludeBlockHash);
+        return (blockHash);
+    }
+    async getBlockFromIdempotent(account, idempotent, from = 'both', excludeBlockHash) {
+        const blockHash = await this.getIdempotentBlockHash(account, idempotent, from, excludeBlockHash);
+        if (blockHash === null) {
+            return (null);
+        }
+        const block = await this.getBlock(blockHash, from);
+        return (block);
+    }
     async _testingRunStorageFunction(code) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         const retval = await code(__classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f"), transaction);
@@ -68367,6 +68634,8 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     const seenBlockHashes = new block_1.BlockHash.Set();
     const usedPreviousBlockHashes = new block_1.BlockHash.Set();
     const allLedgerHeads = new Map();
+    const allLedgerIdempotentKeys = new Map();
+    const allLedgerIdempotentKeysReverse = new Map();
     for (const block of blocks) {
         const prevBlockHash = block.previous;
         seenBlockHashes.add(block.hash);
@@ -68375,6 +68644,19 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
         }
         if (block.subnet !== __classPrivateFieldGet(this, _LedgerAtomicInterface_subnet, "f")) {
             throw (new ledger_1.KeetaNetLedgerError('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet'));
+        }
+        /*
+         * Verify that no other blocks in this set of blocks have the same idempotent key
+         */
+        if (block.idempotent !== undefined) {
+            const idempotentKey = IdempotentKey.fromAccountAndIdempotent(block.account, block.idempotent);
+            const idempotentKeyString = idempotentKey.toString();
+            const existingBlockHash = allLedgerIdempotentKeysReverse.get(idempotentKeyString);
+            if (existingBlockHash !== undefined) {
+                throw (new ledger_1.KeetaNetLedgerIdempotentKeyError('LEDGER_IDEMPOTENT_KEY_EXISTS', block.hash, existingBlockHash, block.account, block.idempotent));
+            }
+            allLedgerIdempotentKeys.set(block.hash, idempotentKey);
+            allLedgerIdempotentKeysReverse.set(idempotentKeyString, block.hash);
         }
         if (usedPreviousBlockHashes.has(prevBlockHash)) {
             throw (new ledger_1.KeetaNetLedgerError('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`));
@@ -68403,7 +68685,10 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
             allLedgerHeads.set(block.account, block);
         }
     }
-    return (allLedgerHeads);
+    return ({
+        allLedgerHeads,
+        allLedgerIdempotentKeys
+    });
 }, _LedgerAtomicInterface_voteOrQuoteWithFees = async function _LedgerAtomicInterface_voteOrQuoteWithFees(blocks, type, quote) {
     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
         throw (new Error(`May not issue votes in read-only mode, in ${__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
@@ -68743,6 +69028,16 @@ class Ledger {
             return (await transaction.getFee(...args));
         }));
     }
+    async getIdempotentBlockHash(...args) {
+        return (await this.runReadOnly('db-getIdempotentBlockHash', async function (transaction) {
+            return (await transaction.getIdempotentBlockHash(...args));
+        }));
+    }
+    async getBlockFromIdempotent(...args) {
+        return (await this.runReadOnly('db-getBlockFromIdempotent', async function (transaction) {
+            return (await transaction.getBlockFromIdempotent(...args));
+        }));
+    }
     async stats() {
         const env_2 = { stack: [], error: void 0, hasError: false };
         try {
@@ -68769,6 +69064,518 @@ _Ledger_storage = new WeakMap(), _Ledger_config = new WeakMap();
 Ledger.Kind = LedgerKind;
 Ledger.isInstance = (0, helper_1.checkableGenerator)(Ledger);
 exports["default"] = Ledger;
+
+
+/***/ }),
+
+/***/ 7364:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.canLogForLevel = canLogForLevel;
+exports.canLogForTargetLevel = canLogForTargetLevel;
+exports.filterLog = filterLog;
+const numericLogLevels = {
+    DEBUG: 0,
+    INFO: 1,
+    WARN: 2,
+    ERROR: 3
+};
+function canLogForLevel(level, currentLevel) {
+    return (numericLogLevels[level] >= numericLogLevels[currentLevel]);
+}
+function canLogForTargetLevel(level, targetLevel) {
+    if (targetLevel === 'ALL') {
+        return (true);
+    }
+    if (targetLevel === 'NONE') {
+        return (false);
+    }
+    return (canLogForLevel(level, targetLevel));
+}
+function filterLog(target, message) {
+    if (!canLogForTargetLevel(message.level, target.logLevel)) {
+        return (null);
+    }
+    if (target.filter && !target.filter.test(message.from)) {
+        return (null);
+    }
+    return ({
+        ...message,
+        options: {
+            userVisible: message.options.userVisible ?? true,
+            currentRequestInfo: {
+                id: message.options.currentRequestInfo?.id ?? '<NO_REQUEST_ID>',
+                ...message.options.currentRequestInfo
+            },
+            ...message.options
+        }
+    });
+}
+
+
+/***/ }),
+
+/***/ 5910:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.assertLogTargetLevel = exports.assertLogOptionsParam = void 0;
+const __typia_transform__assertGuard = __importStar(__webpack_require__(7422));
+const typia_1 = __webpack_require__(1608);
+exports.assertLogOptionsParam = (() => { const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo)); const _io1 = input => "string" === typeof input.id; const _ao0 = (input, _path, _exceptionable = true) => (undefined === input.userVisible || "boolean" === typeof input.userVisible || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".userVisible",
+    expected: "(boolean | undefined)",
+    value: input.userVisible
+}, _errorFactory)) && (undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".currentRequestInfo",
+    expected: "(LogCurrentRequest | undefined)",
+    value: input.currentRequestInfo
+}, _errorFactory)) && _ao1(input.currentRequestInfo, _path + ".currentRequestInfo",  true && _exceptionable) || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".currentRequestInfo",
+    expected: "(LogCurrentRequest | undefined)",
+    value: input.currentRequestInfo
+}, _errorFactory)); const _ao1 = (input, _path, _exceptionable = true) => "string" === typeof input.id || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".id",
+    expected: "string",
+    value: input.id
+}, _errorFactory); const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input); let _errorFactory; return (input, errorFactory) => {
+    if (false === __is(input)) {
+        _errorFactory = errorFactory;
+        ((input, _path, _exceptionable = true) => ("object" === typeof input && null !== input && false === Array.isArray(input) || __typia_transform__assertGuard._assertGuard(true, {
+            method: "createAssert",
+            path: _path + "",
+            expected: "__type",
+            value: input
+        }, _errorFactory)) && _ao0(input, _path + "", true) || __typia_transform__assertGuard._assertGuard(true, {
+            method: "createAssert",
+            path: _path + "",
+            expected: "__type",
+            value: input
+        }, _errorFactory))(input, "$input", true);
+    }
+    return input;
+}; })();
+exports.assertLogTargetLevel = (() => { const __is = input => "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input; let _errorFactory; return (input, errorFactory) => {
+    if (false === __is(input)) {
+        _errorFactory = errorFactory;
+        ((input, _path, _exceptionable = true) => "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input || __typia_transform__assertGuard._assertGuard(true, {
+            method: "createAssert",
+            path: _path + "",
+            expected: "(\"ALL\" | \"DEBUG\" | \"ERROR\" | \"INFO\" | \"NONE\" | \"WARN\")",
+            value: input
+        }, _errorFactory))(input, "$input", true);
+    }
+    return input;
+}; })();
+
+
+/***/ }),
+
+/***/ 9:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+var _Log_instances, _Log_logs, _Log_autoSyncInterval, _Log_isSyncing, _Log_shouldSyncAgain, _Log_destroyed, _Log_emitOnLog, _Log_logDebugTracing, _Log_targets, _Log_log, _Log_extractArguments;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const helper_generated_1 = __webpack_require__(5910);
+const target_console_1 = __importDefault(__webpack_require__(9022));
+/**
+ * Maximum number of logs to enqueue when there are no targets assigned to a
+ * Log instance
+ */
+const MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS = 131072;
+const NullLogger = {
+    log: () => { },
+    info: () => { },
+    debug: () => { },
+    warn: () => { },
+    error: () => { }
+};
+class Log {
+    /**
+     * The Null logger, to disable logging entirely
+     */
+    static Null() {
+        return (NullLogger);
+    }
+    /**
+     * The legacy logger
+     *
+     * This is a singleton instance of the logger that registers a console
+     * target that emits logs immediately to the console.
+     *
+     * This also sets the log level based on the `<name>_DEBUG`
+     * environment variable, if available and adds filtering based on
+     * the `<name>_DEBUG_FILTER` environment variable, if available.
+     *
+     * The default value for `<name>` is `KEETANET`.
+     */
+    static Legacy(name) {
+        if (name === undefined) {
+            name = 'KEETANET';
+        }
+        const extraConfig = {};
+        if (process !== undefined) {
+            let environmentLogLevel = process.env[`${name}_DEBUG`]?.toUpperCase() ?? 'NONE';
+            if (environmentLogLevel === 'TRUE') {
+                environmentLogLevel = 'DEBUG';
+            }
+            else if (environmentLogLevel === 'FALSE') {
+                environmentLogLevel = 'NONE';
+            }
+            extraConfig.logLevel = (0, helper_generated_1.assertLogTargetLevel)(environmentLogLevel);
+            extraConfig.filter = new RegExp(process.env[`${name}_DEBUG_FILTER`] ?? '', 'i');
+        }
+        if (Log.legacyLoggerInstance) {
+            if (__classPrivateFieldGet(Log.legacyLoggerInstance, _Log_destroyed, "f")) {
+                Log.legacyLoggerInstance = undefined;
+            }
+        }
+        if (Log.legacyLoggerInstance) {
+            return (Log.legacyLoggerInstance);
+        }
+        const logger = new Log();
+        logger.registerConsoleTarget({
+            logLevel: Log.defaultLevel,
+            ...extraConfig
+        });
+        __classPrivateFieldSet(logger, _Log_emitOnLog, true, "f");
+        Log.legacyLoggerInstance = logger;
+        return (Log.legacyLoggerInstance);
+    }
+    constructor(options) {
+        _Log_instances.add(this);
+        /**
+         * Queued logs to be sent
+         */
+        _Log_logs.set(this, []);
+        /**
+         * Interval holding the current autoSync process
+         */
+        _Log_autoSyncInterval.set(this, undefined);
+        /**
+         * Keep track of whether or not we are currently syncing
+         */
+        _Log_isSyncing.set(this, false);
+        /**
+         * If `sync()` is called while we are syncing, we should sync again
+         * to ensure all logs are sent
+         */
+        _Log_shouldSyncAgain.set(this, false);
+        /**
+         * Whether or not the logger has been destroyed
+         */
+        _Log_destroyed.set(this, false);
+        /**
+         * Always attempt to emit logs when a new log event is added
+         *
+         * This is only available for the legacy logger instance
+         */
+        _Log_emitOnLog.set(this, false);
+        /**
+         * Whether or not to generate debug tracing information for each log entry
+         */
+        _Log_logDebugTracing.set(this, false);
+        _Log_targets.set(this, new Map());
+        /**
+         * The maximum number of log entries to send to each target at a time
+         */
+        this.batchSize = 10;
+        if (options?.logDebugTracing !== undefined) {
+            __classPrivateFieldSet(this, _Log_logDebugTracing, options.logDebugTracing, "f");
+        }
+    }
+    log(...args) {
+        const { options, from } = __classPrivateFieldGet(this, _Log_instances, "m", _Log_extractArguments).call(this, args);
+        __classPrivateFieldGet(this, _Log_instances, "m", _Log_log).call(this, 'INFO', options, from, ...args);
+    }
+    info(...args) {
+        const { options, from } = __classPrivateFieldGet(this, _Log_instances, "m", _Log_extractArguments).call(this, args);
+        __classPrivateFieldGet(this, _Log_instances, "m", _Log_log).call(this, 'INFO', options, from, ...args);
+    }
+    debug(...args) {
+        const { options, from } = __classPrivateFieldGet(this, _Log_instances, "m", _Log_extractArguments).call(this, args);
+        __classPrivateFieldGet(this, _Log_instances, "m", _Log_log).call(this, 'DEBUG', options, from, ...args);
+    }
+    warn(...args) {
+        const { options, from } = __classPrivateFieldGet(this, _Log_instances, "m", _Log_extractArguments).call(this, args);
+        __classPrivateFieldGet(this, _Log_instances, "m", _Log_log).call(this, 'WARN', options, from, ...args);
+    }
+    error(...args) {
+        const { options, from } = __classPrivateFieldGet(this, _Log_instances, "m", _Log_extractArguments).call(this, args);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        __classPrivateFieldGet(this, _Log_instances, "m", _Log_log).call(this, 'ERROR', options, from, ...args);
+    }
+    /**
+     * Register a new logging target (sink) to send logs to
+     */
+    registerTarget(target) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const id = Symbol('LogTargetID');
+        __classPrivateFieldGet(this, _Log_targets, "f").set(id, target);
+        return (id);
+    }
+    /**
+     * Register a new logging target (sink) to send logs to, using the Console target
+     *
+     */
+    registerConsoleTarget(config) {
+        const target = new target_console_1.default({
+            ...config
+        });
+        return (this.registerTarget(target));
+    }
+    /**
+     * Unregister a logging target (sink) to stop sending logs to
+     */
+    unregisterTarget(id) {
+        __classPrivateFieldGet(this, _Log_targets, "f").delete(id);
+    }
+    /**
+     * Emit a set of logs to all registered targets
+     */
+    async emitLogs(logs, targets) {
+        await Promise.allSettled(targets.map(async function (target) {
+            await target.emitLogs(logs);
+        }));
+    }
+    /**
+     * Start a timer to periodically sync logs to all targets
+     */
+    startAutoSync(rate = 100) {
+        this.stopAutoSync();
+        __classPrivateFieldSet(this, _Log_autoSyncInterval, setInterval(async () => {
+            try {
+                await this.sync();
+            }
+            catch {
+                /* Ignored */
+            }
+        }, rate), "f");
+    }
+    /**
+     * If a timer was started with `startAutoSync()`, stop it
+     */
+    stopAutoSync() {
+        if (!__classPrivateFieldGet(this, _Log_autoSyncInterval, "f")) {
+            return;
+        }
+        clearInterval(__classPrivateFieldGet(this, _Log_autoSyncInterval, "f"));
+        __classPrivateFieldSet(this, _Log_autoSyncInterval, undefined, "f");
+    }
+    /**
+     * Sync all currently enqueued logs to all targets
+     */
+    async sync() {
+        /*
+         * If there are currently no targets, do not dequeue logs
+         * in case a target is added later;  However, if there are
+         * too many logs, drop the oldest ones
+         */
+        if (__classPrivateFieldGet(this, _Log_targets, "f").size === 0) {
+            if (__classPrivateFieldGet(this, _Log_logs, "f").length > MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
+                __classPrivateFieldGet(this, _Log_logs, "f").splice(0, __classPrivateFieldGet(this, _Log_logs, "f").length - MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
+            }
+            return;
+        }
+        /*
+         * If we are already syncing, set a flag to sync again after the current sync is done
+         */
+        if (__classPrivateFieldGet(this, _Log_isSyncing, "f")) {
+            __classPrivateFieldSet(this, _Log_shouldSyncAgain, true, "f");
+            return;
+        }
+        __classPrivateFieldSet(this, _Log_isSyncing, true, "f");
+        /*
+         * Create a copy of the currently registered targets in case
+         * they are modified while a sync is on-going, we use the
+         * same targets until the sync is complete
+         *
+         * This ensures no messages are lost if all targets are removed
+         * while a sync is in progress -- they will continue to be sent
+         * to the registered targets at the time of the sync
+         */
+        const targets = Array.from(__classPrivateFieldGet(this, _Log_targets, "f").values());
+        do {
+            try {
+                __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
+                while (__classPrivateFieldGet(this, _Log_logs, "f").length > 0) {
+                    const logs = __classPrivateFieldGet(this, _Log_logs, "f").splice(0, this.batchSize);
+                    await this.emitLogs(logs, targets);
+                }
+            }
+            catch {
+                /* Ignore errors */
+            }
+        } while (__classPrivateFieldGet(this, _Log_shouldSyncAgain, "f"));
+        __classPrivateFieldSet(this, _Log_isSyncing, false, "f");
+    }
+    /**
+     * Dispose of the logger instance, clearing all logs and targets
+     */
+    [(_Log_logs = new WeakMap(), _Log_autoSyncInterval = new WeakMap(), _Log_isSyncing = new WeakMap(), _Log_shouldSyncAgain = new WeakMap(), _Log_destroyed = new WeakMap(), _Log_emitOnLog = new WeakMap(), _Log_logDebugTracing = new WeakMap(), _Log_targets = new WeakMap(), _Log_instances = new WeakSet(), _Log_log = function _Log_log(level, options, from, ...args) {
+        const log = { options, level, from, args };
+        if (__classPrivateFieldGet(this, _Log_logDebugTracing, "f")) {
+            log.trace = new Error().stack?.split('\n').slice(2).join('\n') ?? '[No stack trace available]';
+        }
+        __classPrivateFieldGet(this, _Log_logs, "f").push(log);
+        if (__classPrivateFieldGet(this, _Log_emitOnLog, "f")) {
+            void this.sync().catch(function () {
+                /* Ignore errors */
+            });
+        }
+    }, _Log_extractArguments = function _Log_extractArguments(args) {
+        let firstArgIsOptions = false;
+        if (typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
+            firstArgIsOptions = true;
+        }
+        const options = (0, helper_generated_1.assertLogOptionsParam)(firstArgIsOptions ? args.shift() : {});
+        const from = args.shift();
+        if (typeof from !== 'string') {
+            throw (new Error(`Expected string for 'from', got ${typeof from}`));
+        }
+        return ({ options, from });
+    }, Symbol.dispose)]() {
+        this.destroy();
+    }
+    /**
+     * Terminate the logger instance, clearing all logs and targets
+     */
+    destroy() {
+        this.stopAutoSync();
+        __classPrivateFieldSet(this, _Log_logs, [], "f");
+        __classPrivateFieldGet(this, _Log_targets, "f").clear();
+        __classPrivateFieldSet(this, _Log_isSyncing, false, "f");
+        __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
+        __classPrivateFieldSet(this, _Log_emitOnLog, false, "f");
+        __classPrivateFieldSet(this, _Log_destroyed, true, "f");
+    }
+}
+/**
+ * The default log level, used for new instances of the logger
+ */
+Log.defaultLevel = 'DEBUG';
+/**
+ * The Console target, which is a basic logging target that outputs
+ * logs to the console
+ */
+Log.ConsoleTarget = target_console_1.default;
+/**
+ * The existing legacy logger instance, if it exists
+ */
+Log.legacyLoggerInstance = undefined;
+exports["default"] = Log;
+
+
+/***/ }),
+
+/***/ 9022:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var _LogTargetConsole_console;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const common_1 = __webpack_require__(7364);
+const never_1 = __webpack_require__(8692);
+class LogTargetConsole {
+    constructor(config) {
+        _LogTargetConsole_console.set(this, void 0);
+        this.logLevel = config?.logLevel ?? 'ALL';
+        __classPrivateFieldSet(this, _LogTargetConsole_console, config?.console ?? console, "f");
+        this.filter = config?.filter ?? null;
+    }
+    async emitLogs(logs) {
+        for (const rawLog of logs) {
+            const log = (0, common_1.filterLog)(this, rawLog);
+            if (log === null) {
+                continue;
+            }
+            let method;
+            switch (log.level) {
+                case 'ERROR':
+                    method = 'error';
+                    break;
+                case 'WARN':
+                    method = 'warn';
+                    break;
+                case 'INFO':
+                    method = 'info';
+                    break;
+                case 'DEBUG':
+                    method = 'debug';
+                    break;
+                default:
+                    (0, never_1.assertNever)(log.level);
+            }
+            const requestID = log.options.currentRequestInfo.id;
+            __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
+            if (log.trace !== undefined) {
+                __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
+            }
+        }
+    }
+}
+_LogTargetConsole_console = new WeakMap();
+exports["default"] = LogTargetConsole;
 
 
 /***/ }),
@@ -68814,7 +69621,7 @@ const vote_1 = __webpack_require__(1130);
 const timing_1 = __importDefault(__webpack_require__(2895));
 const helper_1 = __webpack_require__(3208);
 const Config = __importStar(__webpack_require__(1491));
-const helper_2 = __webpack_require__(3208);
+const log_1 = __importDefault(__webpack_require__(9));
 var NodeKind;
 (function (NodeKind) {
     NodeKind[NodeKind["PARTICIPANT"] = 0] = "PARTICIPANT";
@@ -68840,14 +69647,6 @@ class Node {
         });
     }
     constructor(configOrNode) {
-        this.log = {
-            debug: (from, ...message) => {
-                return ((0, helper_2.internalLogger)(this.config?.nodeAlias, 'debug', from, ...message));
-            },
-            error: (from, ...message) => {
-                return ((0, helper_2.internalLogger)(this.config?.nodeAlias, 'error', from, ...message));
-            }
-        };
         this.timing = new timing_1.default();
         if (Node.isInstance(configOrNode, false)) {
             const node = configOrNode;
@@ -68857,9 +69656,16 @@ class Node {
             this.ledger = node.ledger.copy(this);
             this.switch = node.switch;
             this.stats = node.stats;
+            this.log = node.log;
             return;
         }
         const config = configOrNode;
+        if (config.log) {
+            this.log = config.log;
+        }
+        else {
+            this.log = log_1.default.Legacy();
+        }
         this.log.debug('node', 'Starting up');
         const { networkAddress, baseToken } = account_1.default.generateBaseAddresses(config.network);
         this.networkAddress = networkAddress;
@@ -68877,9 +69683,7 @@ class Node {
             subnet: config.subnet,
             initialTrustedAccount: config.initialTrustedAccount,
             kind: ledgerKind,
-            log: (...args) => {
-                this.log.debug('ledger', ...args);
-            },
+            log: this.log,
             ...config.ledger
         }, this);
         this.switch = new p2p_1.P2PSwitch(this);
@@ -68912,7 +69716,8 @@ class Node {
     async sync() {
         await Promise.all([
             this.stats.sync(),
-            this.switch.wait()
+            this.switch.wait(),
+            this.log.sync()
         ]);
     }
     async addToLedger(votesAndBlocks, broadcast = true) {
@@ -74973,13 +75778,13 @@ function parseHexBigIntString(input) {
 
 "use strict";
 
-// https://raw.githubusercontent.com/jjavery/ed25519-to-x25519/main/src/ed2curve.js
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertPublicKey = convertPublicKey;
 exports.convertSecretKey = convertSecretKey;
+// https://raw.githubusercontent.com/jjavery/ed25519-to-x25519/main/src/ed2curve.js
 // @ts-nocheck
 const crypto_1 = __importDefault(__webpack_require__(6982));
 // If an 'initialValues' argument is provided, the values of the 'initialValues' array will be assigned to the new 'result' array
@@ -75454,6 +76259,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _AsyncDisposableStackPolyfill_instances, _AsyncDisposableStackPolyfill_toDispose, _AsyncDisposableStackPolyfill_validateNotDisposed, _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.crypto = exports.AsyncDisposableStack = void 0;
+exports.validateBase64ToBuffer = validateBase64ToBuffer;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
 exports.bufferToBigInt = bufferToBigInt;
 exports.isIntegerOrBigInt = isIntegerOrBigInt;
@@ -75466,7 +76272,6 @@ exports.randomString = randomString;
 exports.randomInt = randomInt;
 exports.asleep = asleep;
 exports.promiseGenerator = promiseGenerator;
-exports.internalLogger = internalLogger;
 exports.objectToBuffer = objectToBuffer;
 exports.debugPrintableObject = debugPrintableObject;
 exports.checkableGenerator = checkableGenerator;
@@ -75476,13 +76281,17 @@ const crypto_1 = __importDefault(__webpack_require__(6982));
 const util_1 = __webpack_require__(9023);
 const hash_1 = __webpack_require__(7908);
 const uuid = __importStar(__webpack_require__(5827));
-const loggingLevels = ['debug', 'error'];
-const configuredLoggingLevel = process.env['KEETANET_DEBUG']?.toLowerCase();
-const configuredLoggingFilter = new RegExp(process.env['KEETANET_DEBUG_FILTER'] ?? '', 'i');
 const randomBytes = crypto_1.default.randomBytes.bind(crypto_1.default);
 const randomUUID = crypto_1.default.randomUUID ? crypto_1.default.randomUUID.bind(crypto_1.default) : function () {
     return (uuid.v4());
 };
+function validateBase64ToBuffer(input) {
+    const buffer = Buffer.from(input, 'base64');
+    if (input !== buffer.toString('base64')) {
+        throw (new Error('Could Not Decode base64 String'));
+    }
+    return (buffer);
+}
 function bufferToArrayBuffer(input) {
     const out = new ArrayBuffer(input.length);
     const view = new Uint8Array(out);
@@ -75688,44 +76497,6 @@ function convertToJSON(_ignore_key, item) {
         return (retval);
     }
     return (item);
-}
-function internalLogger(nodeAlias, level, from, ...message) {
-    /**
-     * Disable logging unless specified
-     */
-    if (configuredLoggingLevel === undefined) {
-        return;
-    }
-    /**
-     * Only log matching sources
-     */
-    if (!configuredLoggingFilter.test(from)) {
-        return;
-    }
-    const configuredLoggingLevelValue = loggingLevels.indexOf(configuredLoggingLevel);
-    const levelValue = loggingLevels.indexOf(level);
-    /**
-     * Do not log anything if desired log level is higher than logged message
-     */
-    if (configuredLoggingLevelValue > levelValue) {
-        return;
-    }
-    if (nodeAlias === undefined) {
-        nodeAlias = '<unnamed node>';
-    }
-    let logger;
-    switch (level) {
-        case 'debug':
-            logger = console.debug;
-            break;
-        case 'error':
-            logger = console.error;
-            break;
-    }
-    if (logger === undefined) {
-        return;
-    }
-    logger(`[${nodeAlias}/${from.toUpperCase()}]`, ...message);
 }
 function objectToBuffer(input) {
     const stringified = JSON.stringify(input, convertToJSON);
@@ -76019,10 +76790,10 @@ async function generateInitialVoteStaple(options) {
             },
             {
                 type: block_1.default.OperationType.SET_INFO,
-                name: 'KEETANET',
-                description: 'Network Address For KeetaNet',
-                metadata: '',
-                defaultPermission: new permissions_1.Permissions(['STORAGE_CREATE'])
+                name: options.baseNetworkInfo?.name ?? 'KEETANET',
+                description: options.baseNetworkInfo?.description ?? 'Network Address For KeetaNet',
+                metadata: options.baseNetworkInfo?.metadata ?? '',
+                defaultPermission: options.baseNetworkInfo?.defaultPermission ?? new permissions_1.Permissions(['STORAGE_CREATE'])
             }
         ]
     }).seal();
@@ -76053,7 +76824,7 @@ async function generateInitialVoteStaple(options) {
                 name: options.baseTokenInfo?.currencyCode ?? '',
                 description: options.baseTokenInfo?.name ?? '',
                 metadata: options.baseTokenInfo ? btoa(JSON.stringify({ decimalPlaces: options.baseTokenInfo.decimalPlaces })) : '',
-                defaultPermission: new permissions_1.Permissions(['ACCESS'])
+                defaultPermission: options.baseTokenInfo?.defaultPermission ?? new permissions_1.Permissions(['ACCESS'])
             },
             ...additionalBaseTokenOperations
         ]
@@ -76142,12 +76913,6 @@ function assertNever(value) {
 
 "use strict";
 
-/*
- * KeetaNet Voting System
- *
- * Votes are indications that an operator will insert a group of blocks into
- * their ledger if enough cooperating operators agree.
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -76188,6 +76953,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Testing = exports.VoteQuoteBuilder = exports.VoteBuilder = exports.BaseVoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.VoteQuote = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
+/*
+ * KeetaNet Voting System
+ *
+ * Votes are indications that an operator will insert a group of blocks into
+ * their ledger if enough cooperating operators agree.
+ */
 const block_1 = __webpack_require__(6158);
 const hash_1 = __webpack_require__(7908);
 const account_1 = __importStar(__webpack_require__(9415));
@@ -77760,7 +78531,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.5+g7ab6fd7b04246202abe16df362295a3a022d514a';
+exports.version = '0.14.6+g5aa6231eec357d1f519f0844be54694bedc01505';
 exports["default"] = exports.version;
 
 
@@ -77795,6 +78566,58 @@ module.exports = function typedarrayToBuffer (arr) {
   }
 }
 
+
+/***/ }),
+
+/***/ 8659:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TypeGuardError = void 0;
+class TypeGuardError extends Error {
+    constructor(props) {
+        // MESSAGE CONSTRUCTION
+        super(props.message ||
+            `Error on ${props.method}(): invalid type${props.path ? ` on ${props.path}` : ""}, expect to be ${props.expected}`);
+        // INHERITANCE POLYFILL
+        const proto = new.target.prototype;
+        if (Object.setPrototypeOf)
+            Object.setPrototypeOf(this, proto);
+        else
+            this.__proto__ = proto;
+        // ASSIGN MEMBERS
+        this.method = props.method;
+        this.path = props.path;
+        this.expected = props.expected;
+        this.value = props.value;
+    }
+}
+exports.TypeGuardError = TypeGuardError;
+//# sourceMappingURL=TypeGuardError.js.map
+
+/***/ }),
+
+/***/ 7422:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports._assertGuard = void 0;
+const TypeGuardError_1 = __webpack_require__(8659);
+const _assertGuard = (exceptionable, props, factory) => {
+    if (exceptionable === true) {
+        if (factory)
+            throw factory(props);
+        else
+            throw new TypeGuardError_1.TypeGuardError(props);
+    }
+    return false;
+};
+exports._assertGuard = _assertGuard;
+//# sourceMappingURL=_assertGuard.js.map
 
 /***/ }),
 
@@ -91048,6 +91871,1280 @@ function version(uuid) {
     return parseInt(uuid.slice(14, 15), 16);
 }
 exports["default"] = version;
+
+
+/***/ }),
+
+/***/ 1608:
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+// ESM COMPAT FLAG
+__webpack_require__.r(__webpack_exports__);
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  TypeGuardError: () => (/* reexport */ TypeGuardError),
+  assert: () => (/* reexport */ assert),
+  assertEquals: () => (/* reexport */ assertEquals),
+  assertGuard: () => (/* reexport */ assertGuard),
+  assertGuardEquals: () => (/* reexport */ assertGuardEquals),
+  createAssert: () => (/* reexport */ createAssert),
+  createAssertEquals: () => (/* reexport */ createAssertEquals),
+  createAssertGuard: () => (/* reexport */ createAssertGuard),
+  createAssertGuardEquals: () => (/* reexport */ createAssertGuardEquals),
+  createEquals: () => (/* reexport */ createEquals),
+  createIs: () => (/* reexport */ createIs),
+  createRandom: () => (/* reexport */ createRandom),
+  createValidate: () => (/* reexport */ createValidate),
+  createValidateEquals: () => (/* reexport */ createValidateEquals),
+  "default": () => (/* reexport */ module_namespaceObject),
+  equals: () => (/* reexport */ equals),
+  functional: () => (/* reexport */ functional_namespaceObject),
+  http: () => (/* reexport */ http_namespaceObject),
+  is: () => (/* reexport */ is),
+  json: () => (/* reexport */ json_namespaceObject),
+  llm: () => (/* reexport */ llm_namespaceObject),
+  misc: () => (/* reexport */ misc_namespaceObject),
+  notations: () => (/* reexport */ notations_namespaceObject),
+  protobuf: () => (/* reexport */ protobuf_namespaceObject),
+  random: () => (/* reexport */ random),
+  reflect: () => (/* reexport */ reflect_namespaceObject),
+  tags: () => (/* reexport */ tags_namespaceObject),
+  validate: () => (/* reexport */ validate),
+  validateEquals: () => (/* reexport */ validateEquals)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/functional.mjs
+var functional_namespaceObject = {};
+__webpack_require__.r(functional_namespaceObject);
+__webpack_require__.d(functional_namespaceObject, {
+  assertEqualsFunction: () => (assertEqualsFunction),
+  assertEqualsParameters: () => (assertEqualsParameters),
+  assertEqualsReturn: () => (assertEqualsReturn),
+  assertFunction: () => (assertFunction),
+  assertParameters: () => (assertParameters),
+  assertReturn: () => (assertReturn),
+  equalsFunction: () => (equalsFunction),
+  equalsParameters: () => (equalsParameters),
+  equalsReturn: () => (equalsReturn),
+  isFunction: () => (isFunction),
+  isParameters: () => (isParameters),
+  isReturn: () => (isReturn),
+  validateEqualsFunction: () => (validateEqualsFunction),
+  validateEqualsParameters: () => (validateEqualsParameters),
+  validateEqualsReturn: () => (validateEqualsReturn),
+  validateFunction: () => (validateFunction),
+  validateParameters: () => (validateParameters),
+  validateReturn: () => (validateReturn)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/http.mjs
+var http_namespaceObject = {};
+__webpack_require__.r(http_namespaceObject);
+__webpack_require__.d(http_namespaceObject, {
+  assertFormData: () => (assertFormData),
+  assertHeaders: () => (assertHeaders),
+  assertQuery: () => (assertQuery),
+  createAssertFormData: () => (createAssertFormData),
+  createAssertHeaders: () => (createAssertHeaders),
+  createAssertQuery: () => (createAssertQuery),
+  createFormData: () => (createFormData),
+  createHeaders: () => (createHeaders),
+  createIsFormData: () => (createIsFormData),
+  createIsHeaders: () => (createIsHeaders),
+  createIsQuery: () => (createIsQuery),
+  createParameter: () => (createParameter),
+  createQuery: () => (createQuery),
+  createValidateFormData: () => (createValidateFormData),
+  createValidateHeaders: () => (createValidateHeaders),
+  createValidateQuery: () => (createValidateQuery),
+  formData: () => (formData),
+  headers: () => (headers),
+  isFormData: () => (isFormData),
+  isHeaders: () => (isHeaders),
+  isQuery: () => (isQuery),
+  parameter: () => (parameter),
+  query: () => (query),
+  validateFormData: () => (validateFormData),
+  validateHeaders: () => (validateHeaders),
+  validateQuery: () => (validateQuery)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/llm.mjs
+var llm_namespaceObject = {};
+__webpack_require__.r(llm_namespaceObject);
+__webpack_require__.d(llm_namespaceObject, {
+  application: () => (application),
+  controller: () => (controller),
+  parameters: () => (parameters),
+  schema: () => (schema)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/json.mjs
+var json_namespaceObject = {};
+__webpack_require__.r(json_namespaceObject);
+__webpack_require__.d(json_namespaceObject, {
+  assertParse: () => (assertParse),
+  assertStringify: () => (assertStringify),
+  createAssertParse: () => (createAssertParse),
+  createAssertStringify: () => (createAssertStringify),
+  createIsParse: () => (createIsParse),
+  createIsStringify: () => (createIsStringify),
+  createStringify: () => (createStringify),
+  createValidateParse: () => (createValidateParse),
+  createValidateStringify: () => (createValidateStringify),
+  isParse: () => (isParse),
+  isStringify: () => (isStringify),
+  schema: () => (json_schema),
+  schemas: () => (schemas),
+  stringify: () => (stringify),
+  validateParse: () => (validateParse),
+  validateStringify: () => (validateStringify)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/misc.mjs
+var misc_namespaceObject = {};
+__webpack_require__.r(misc_namespaceObject);
+__webpack_require__.d(misc_namespaceObject, {
+  assertClone: () => (assertClone),
+  assertPrune: () => (assertPrune),
+  clone: () => (clone),
+  createAssertClone: () => (createAssertClone),
+  createAssertPrune: () => (createAssertPrune),
+  createClone: () => (createClone),
+  createIsClone: () => (createIsClone),
+  createIsPrune: () => (createIsPrune),
+  createPrune: () => (createPrune),
+  createValidateClone: () => (createValidateClone),
+  createValidatePrune: () => (createValidatePrune),
+  isClone: () => (isClone),
+  isPrune: () => (isPrune),
+  literals: () => (literals),
+  prune: () => (prune),
+  validateClone: () => (validateClone),
+  validatePrune: () => (validatePrune)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/notations.mjs
+var notations_namespaceObject = {};
+__webpack_require__.r(notations_namespaceObject);
+__webpack_require__.d(notations_namespaceObject, {
+  assertCamel: () => (assertCamel),
+  assertPascal: () => (assertPascal),
+  assertSnake: () => (assertSnake),
+  camel: () => (camel),
+  createAssertCamel: () => (createAssertCamel),
+  createAssertPascal: () => (createAssertPascal),
+  createAssertSnake: () => (createAssertSnake),
+  createCamel: () => (createCamel),
+  createIsCamel: () => (createIsCamel),
+  createIsPascal: () => (createIsPascal),
+  createIsSnake: () => (createIsSnake),
+  createPascal: () => (createPascal),
+  createSnake: () => (createSnake),
+  createValidateCamel: () => (createValidateCamel),
+  createValidatePascal: () => (createValidatePascal),
+  createValidateSnake: () => (createValidateSnake),
+  isCamel: () => (isCamel),
+  isPascal: () => (isPascal),
+  isSnake: () => (isSnake),
+  pascal: () => (pascal),
+  snake: () => (snake),
+  validateCamel: () => (validateCamel),
+  validatePascal: () => (validatePascal),
+  validateSnake: () => (validateSnake)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/protobuf.mjs
+var protobuf_namespaceObject = {};
+__webpack_require__.r(protobuf_namespaceObject);
+__webpack_require__.d(protobuf_namespaceObject, {
+  assertDecode: () => (assertDecode),
+  assertEncode: () => (assertEncode),
+  createAssertDecode: () => (createAssertDecode),
+  createAssertEncode: () => (createAssertEncode),
+  createDecode: () => (createDecode),
+  createEncode: () => (createEncode),
+  createIsDecode: () => (createIsDecode),
+  createIsEncode: () => (createIsEncode),
+  createValidateDecode: () => (createValidateDecode),
+  createValidateEncode: () => (createValidateEncode),
+  decode: () => (decode),
+  encode: () => (encode),
+  isDecode: () => (isDecode),
+  isEncode: () => (isEncode),
+  message: () => (message),
+  validateDecode: () => (validateDecode),
+  validateEncode: () => (validateEncode)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/reflect.mjs
+var reflect_namespaceObject = {};
+__webpack_require__.r(reflect_namespaceObject);
+__webpack_require__.d(reflect_namespaceObject, {
+  metadata: () => (metadata),
+  name: () => (reflect_name)
+});
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/tags/index.mjs
+var tags_namespaceObject = {};
+__webpack_require__.r(tags_namespaceObject);
+
+// NAMESPACE OBJECT: ./node_modules/typia/lib/module.mjs
+var module_namespaceObject = {};
+__webpack_require__.r(module_namespaceObject);
+__webpack_require__.d(module_namespaceObject, {
+  TypeGuardError: () => (TypeGuardError),
+  assert: () => (assert),
+  assertEquals: () => (assertEquals),
+  assertGuard: () => (assertGuard),
+  assertGuardEquals: () => (assertGuardEquals),
+  createAssert: () => (createAssert),
+  createAssertEquals: () => (createAssertEquals),
+  createAssertGuard: () => (createAssertGuard),
+  createAssertGuardEquals: () => (createAssertGuardEquals),
+  createEquals: () => (createEquals),
+  createIs: () => (createIs),
+  createRandom: () => (createRandom),
+  createValidate: () => (createValidate),
+  createValidateEquals: () => (createValidateEquals),
+  equals: () => (equals),
+  functional: () => (functional_namespaceObject),
+  http: () => (http_namespaceObject),
+  is: () => (is),
+  json: () => (json_namespaceObject),
+  llm: () => (llm_namespaceObject),
+  misc: () => (misc_namespaceObject),
+  notations: () => (notations_namespaceObject),
+  protobuf: () => (protobuf_namespaceObject),
+  random: () => (random),
+  reflect: () => (reflect_namespaceObject),
+  tags: () => (tags_namespaceObject),
+  validate: () => (validate),
+  validateEquals: () => (validateEquals)
+});
+
+;// ./node_modules/typia/lib/transformers/NoTransformConfigurationError.mjs
+/**
+ * @internal
+ */
+function NoTransformConfigurationError(name) {
+    throw new Error([
+        `Error on typia.${name}(): no transform has been configured.`,
+        "",
+        "Read and follow https://typia.io/docs/setup please.",
+        "",
+        [
+            "If you've already completed the setup, it means there's",
+            "a bug in your code. Run `tsc` command so that check what",
+            "is wrong with your code.",
+        ].join(" "),
+    ].join("\n"));
+}
+
+
+//# sourceMappingURL=NoTransformConfigurationError.mjs.map
+
+;// ./node_modules/typia/lib/functional.mjs
+
+
+/**
+ * @internal
+ */
+function assertFunction() {
+    NoTransformConfigurationError("functional.assertFunction");
+}
+/**
+ * @internal
+ */
+function assertParameters() {
+    NoTransformConfigurationError("functional.assertParameters");
+}
+/**
+ * @internal
+ */
+function assertReturn() {
+    NoTransformConfigurationError("functional.assertReturn");
+}
+/**
+ * @internal
+ */
+function assertEqualsFunction() {
+    NoTransformConfigurationError("functional.assertEqualsFunction");
+}
+/**
+ * @internal
+ */
+function assertEqualsParameters() {
+    NoTransformConfigurationError("functional.assertEqualsParameters");
+}
+/**
+ * @internal
+ */
+function assertEqualsReturn() {
+    NoTransformConfigurationError("functional.assertEqualsReturn");
+}
+/**
+ * @internal
+ */
+function isFunction() {
+    NoTransformConfigurationError("functional.isFunction");
+}
+/**
+ * @internal
+ */
+function isParameters() {
+    NoTransformConfigurationError("functional.isParameters");
+}
+/**
+ * @internal
+ */
+function isReturn() {
+    NoTransformConfigurationError("functional.isReturn");
+}
+/**
+ * @internal
+ */
+function equalsFunction() {
+    NoTransformConfigurationError("functional.equalsFunction");
+}
+/**
+ * @internal
+ */
+function equalsParameters() {
+    NoTransformConfigurationError("functional.equalsParameters");
+}
+/**
+ * @internal
+ */
+function equalsReturn() {
+    NoTransformConfigurationError("functional.equalsReturn");
+}
+/**
+ * @internal
+ */
+function validateFunction() {
+    NoTransformConfigurationError("functional.validateFunction");
+}
+/**
+ * @internal
+ */
+function validateParameters() {
+    NoTransformConfigurationError("functional.validateReturn");
+}
+/**
+ * @internal
+ */
+function validateReturn() {
+    NoTransformConfigurationError("functional.validateReturn");
+}
+/**
+ * @internal
+ */
+function validateEqualsFunction() {
+    NoTransformConfigurationError("functional.validateEqualsFunction");
+}
+/**
+ * @internal
+ */
+function validateEqualsParameters() {
+    NoTransformConfigurationError("functional.validateEqualsParameters");
+}
+/**
+ * @internal
+ */
+function validateEqualsReturn() {
+    NoTransformConfigurationError("functional.validateEqualsReturn");
+}
+
+
+//# sourceMappingURL=functional.mjs.map
+
+;// ./node_modules/typia/lib/http.mjs
+
+
+/**
+ * @internal
+ */
+function formData() {
+    NoTransformConfigurationError("http.formData");
+}
+/**
+ * @internal
+ */
+function assertFormData() {
+    NoTransformConfigurationError("http.assertFormData");
+}
+/**
+ * @internal
+ */
+function isFormData() {
+    NoTransformConfigurationError("http.isFormData");
+}
+/**
+ * @internal
+ */
+function validateFormData() {
+    NoTransformConfigurationError("http.validateFormData");
+}
+/**
+ * @internal
+ */
+function query() {
+    NoTransformConfigurationError("http.query");
+}
+/**
+ * @internal
+ */
+function assertQuery() {
+    NoTransformConfigurationError("http.assertQuery");
+}
+/**
+ * @internal
+ */
+function isQuery() {
+    NoTransformConfigurationError("http.isQuery");
+}
+/**
+ * @internal
+ */
+function validateQuery() {
+    NoTransformConfigurationError("http.validateQuery");
+}
+/**
+ * @internal
+ */
+function headers() {
+    NoTransformConfigurationError("http.headers");
+}
+/**
+ * @internal
+ */
+function assertHeaders() {
+    NoTransformConfigurationError("http.assertHeaders");
+}
+/**
+ * @internal
+ */
+function isHeaders() {
+    NoTransformConfigurationError("http.isHeaders");
+}
+/**
+ * @internal
+ */
+function validateHeaders() {
+    NoTransformConfigurationError("http.validateHeaders");
+}
+/**
+ * @internal
+ */
+function parameter() {
+    NoTransformConfigurationError("http.parameter");
+}
+/**
+ * @internal
+ */
+function createFormData() {
+    NoTransformConfigurationError("http.createFormData");
+}
+/**
+ * @internal
+ */
+function createAssertFormData() {
+    NoTransformConfigurationError("http.createAssertFormData");
+}
+/**
+ * @internal
+ */
+function createIsFormData() {
+    NoTransformConfigurationError("http.createIsFormData");
+}
+/**
+ * @internal
+ */
+function createValidateFormData() {
+    NoTransformConfigurationError("http.createValidateFormData");
+}
+/**
+ * @internal
+ */
+function createQuery() {
+    NoTransformConfigurationError("http.createQuery");
+}
+/**
+ * @internal
+ */
+function createAssertQuery() {
+    NoTransformConfigurationError("http.createAssertQuery");
+}
+/**
+ * @internal
+ */
+function createIsQuery() {
+    NoTransformConfigurationError("http.createIsQuery");
+}
+/**
+ * @internal
+ */
+function createValidateQuery() {
+    NoTransformConfigurationError("http.createValidateQuery");
+}
+/**
+ * @internal
+ */
+function createHeaders() {
+    NoTransformConfigurationError("http.createHeaders");
+}
+/**
+ * @internal
+ */
+function createAssertHeaders() {
+    NoTransformConfigurationError("http.createAssertHeaders");
+}
+/**
+ * @internal
+ */
+function createIsHeaders() {
+    NoTransformConfigurationError("http.createIsHeaders");
+}
+/**
+ * @internal
+ */
+function createValidateHeaders() {
+    NoTransformConfigurationError("http.createValidateHeaders");
+}
+/**
+ * @internal
+ */
+function createParameter() {
+    NoTransformConfigurationError("http.createParameter");
+}
+
+
+//# sourceMappingURL=http.mjs.map
+
+;// ./node_modules/typia/lib/llm.mjs
+
+
+/**
+ * @internal
+ */
+function controller(..._args) {
+    NoTransformConfigurationError("llm.controller");
+}
+/**
+ * @internal
+ */
+function application() {
+    NoTransformConfigurationError("llm.application");
+}
+/**
+ * @internal
+ */
+function parameters() {
+    NoTransformConfigurationError("llm.parameters");
+}
+/**
+ * @internal
+ */
+function schema() {
+    NoTransformConfigurationError("llm.schema");
+}
+
+
+//# sourceMappingURL=llm.mjs.map
+
+;// ./node_modules/typia/lib/json.mjs
+
+
+/**
+ * @internal
+ */
+function schemas() {
+    NoTransformConfigurationError("json.schemas");
+}
+/**
+ * @internal
+ */
+function json_schema() {
+    NoTransformConfigurationError("json.schema");
+}
+/**
+ * @internal
+ */
+function assertParse() {
+    NoTransformConfigurationError("json.assertParse");
+}
+/**
+ * @internal
+ */
+function isParse() {
+    NoTransformConfigurationError("json.isParse");
+}
+/**
+ * @internal
+ */
+function validateParse() {
+    NoTransformConfigurationError("json.validateParse");
+}
+/**
+ * @internal
+ */
+function stringify() {
+    NoTransformConfigurationError("json.stringify");
+}
+/**
+ * @internal
+ */
+function assertStringify() {
+    NoTransformConfigurationError("json.assertStringify");
+}
+/**
+ * @internal
+ */
+function isStringify() {
+    NoTransformConfigurationError("json.isStringify");
+}
+/**
+ * @internal
+ */
+function validateStringify() {
+    NoTransformConfigurationError("json.validateStringify");
+}
+/**
+ * @internal
+ */
+function createIsParse() {
+    NoTransformConfigurationError("json.createIsParse");
+}
+/**
+ * @internal
+ */
+function createAssertParse() {
+    NoTransformConfigurationError("json.createAssertParse");
+}
+/**
+ * @internal
+ */
+function createValidateParse() {
+    NoTransformConfigurationError("json.createValidateParse");
+}
+/**
+ * @internal
+ */
+function createStringify() {
+    NoTransformConfigurationError("json.createStringify");
+}
+/**
+ * @internal
+ */
+function createAssertStringify() {
+    NoTransformConfigurationError("json.createAssertStringify");
+}
+/**
+ * @internal
+ */
+function createIsStringify() {
+    NoTransformConfigurationError("json.createIsStringify");
+}
+/**
+ * @internal
+ */
+function createValidateStringify() {
+    NoTransformConfigurationError("json.createValidateStringify");
+}
+
+
+//# sourceMappingURL=json.mjs.map
+
+;// ./node_modules/typia/lib/misc.mjs
+
+
+/* ===========================================================
+    MISCELLANEOUS
+      - LITERALS
+      - CLONE
+      - PRUNE
+      - FACTORY FUNCTIONS
+==============================================================
+    LITERALS
+----------------------------------------------------------- */
+/**
+ * @internal
+ */
+function literals() {
+    NoTransformConfigurationError("misc.literals");
+}
+/**
+ * @internal
+ */
+function clone() {
+    NoTransformConfigurationError("misc.clone");
+}
+/**
+ * @internal
+ */
+function assertClone() {
+    NoTransformConfigurationError("misc.assertClone");
+}
+/**
+ * @internal
+ */
+function isClone() {
+    NoTransformConfigurationError("misc.isClone");
+}
+/**
+ * @internal
+ */
+function validateClone() {
+    NoTransformConfigurationError("misc.validateClone");
+}
+/**
+ * @internal
+ */
+function prune() {
+    NoTransformConfigurationError("misc.prune");
+}
+/**
+ * @internal
+ */
+function assertPrune() {
+    NoTransformConfigurationError("misc.assertPrune");
+}
+/**
+ * @internal
+ */
+function isPrune() {
+    NoTransformConfigurationError("misc.isPrune");
+}
+/**
+ * @internal
+ */
+function validatePrune() {
+    NoTransformConfigurationError("misc.validatePrune");
+}
+/**
+ * @internal
+ */
+function createClone() {
+    NoTransformConfigurationError("misc.createClone");
+}
+/**
+ * @internal
+ */
+function createAssertClone() {
+    NoTransformConfigurationError("misc.createAssertClone");
+}
+/**
+ * @internal
+ */
+function createIsClone() {
+    NoTransformConfigurationError("misc.createIsClone");
+}
+/**
+ * @internal
+ */
+function createValidateClone() {
+    NoTransformConfigurationError("misc.createValidateClone");
+}
+/**
+ * @internal
+ */
+function createPrune() {
+    NoTransformConfigurationError("misc.createPrune");
+}
+/**
+ * @internal
+ */
+function createAssertPrune() {
+    NoTransformConfigurationError("misc.createAssertPrune");
+}
+/**
+ * @internal
+ */
+function createIsPrune() {
+    NoTransformConfigurationError("misc.createIsPrune");
+}
+/**
+ * @internal
+ */
+function createValidatePrune() {
+    NoTransformConfigurationError("misc.createValidatePrune");
+}
+
+
+//# sourceMappingURL=misc.mjs.map
+
+;// ./node_modules/typia/lib/notations.mjs
+
+
+/**
+ * @internal
+ */
+function camel() {
+    return NoTransformConfigurationError("notations.camel");
+}
+/**
+ * @internal
+ */
+function assertCamel() {
+    return NoTransformConfigurationError("notations.assertCamel");
+}
+/**
+ * @internal
+ */
+function isCamel() {
+    return NoTransformConfigurationError("notations.isCamel");
+}
+/**
+ * @internal
+ */
+function validateCamel() {
+    return NoTransformConfigurationError("notations.validateCamel");
+}
+/**
+ * @internal
+ */
+function pascal() {
+    return NoTransformConfigurationError("notations.pascal");
+}
+/**
+ * @internal
+ */
+function assertPascal() {
+    return NoTransformConfigurationError("notations.assertPascal");
+}
+/**
+ * @internal
+ */
+function isPascal() {
+    return NoTransformConfigurationError("notations.isPascal");
+}
+/**
+ * @internal
+ */
+function validatePascal() {
+    return NoTransformConfigurationError("notations.validatePascal");
+}
+/**
+ * @internal
+ */
+function snake() {
+    return NoTransformConfigurationError("notations.snake");
+}
+/**
+ * @internal
+ */
+function assertSnake() {
+    return NoTransformConfigurationError("notations.assertSnake");
+}
+/**
+ * @internal
+ */
+function isSnake() {
+    return NoTransformConfigurationError("notations.isSnake");
+}
+/**
+ * @internal
+ */
+function validateSnake() {
+    return NoTransformConfigurationError("notations.validateSnake");
+}
+/**
+ * @internal
+ */
+function createCamel() {
+    NoTransformConfigurationError("notations.createCamel");
+}
+/**
+ * @internal
+ */
+function createAssertCamel() {
+    NoTransformConfigurationError("notations.createAssertCamel");
+}
+/**
+ * @internal
+ */
+function createIsCamel() {
+    NoTransformConfigurationError("notations.createIsCamel");
+}
+/**
+ * @internal
+ */
+function createValidateCamel() {
+    NoTransformConfigurationError("notations.createValidateCamel");
+}
+/**
+ * @internal
+ */
+function createPascal() {
+    NoTransformConfigurationError("notations.createPascal");
+}
+/**
+ * @internal
+ */
+function createAssertPascal() {
+    NoTransformConfigurationError("notations.createAssertPascal");
+}
+/**
+ * @internal
+ */
+function createIsPascal() {
+    NoTransformConfigurationError("notations.createIsPascal");
+}
+/**
+ * @internal
+ */
+function createValidatePascal() {
+    NoTransformConfigurationError("notations.createValidatePascal");
+}
+/**
+ * @internal
+ */
+function createSnake() {
+    NoTransformConfigurationError("notations.createSnake");
+}
+/**
+ * @internal
+ */
+function createAssertSnake() {
+    NoTransformConfigurationError("notations.createAssertSnake");
+}
+/**
+ * @internal
+ */
+function createIsSnake() {
+    NoTransformConfigurationError("notations.createIsSnake");
+}
+/**
+ * @internal
+ */
+function createValidateSnake() {
+    NoTransformConfigurationError("notations.createValidateSnake");
+}
+
+
+//# sourceMappingURL=notations.mjs.map
+
+;// ./node_modules/typia/lib/protobuf.mjs
+
+
+/**
+ * @internal
+ */
+function message() {
+    NoTransformConfigurationError("protobuf.message");
+}
+/**
+ * @internal
+ */
+function decode() {
+    NoTransformConfigurationError("protobuf.decode");
+}
+/**
+ * @internal
+ */
+function assertDecode() {
+    NoTransformConfigurationError("protobuf.assertDecode");
+}
+/**
+ * @internal
+ */
+function isDecode() {
+    NoTransformConfigurationError("protobuf.isDecode");
+}
+/**
+ * @internal
+ */
+function validateDecode() {
+    NoTransformConfigurationError("protobuf.validateDecode");
+}
+/**
+ * @internal
+ */
+function encode() {
+    NoTransformConfigurationError("protobuf.encode");
+}
+/**
+ * @internal
+ */
+function assertEncode() {
+    NoTransformConfigurationError("protobuf.assertEncode");
+}
+/**
+ * @internal
+ */
+function isEncode() {
+    NoTransformConfigurationError("protobuf.isEncode");
+}
+/**
+ * @internal
+ */
+function validateEncode() {
+    NoTransformConfigurationError("protobuf.validateEncode");
+}
+/**
+ * @internal
+ */
+function createDecode() {
+    NoTransformConfigurationError("protobuf.createDecode");
+}
+/**
+ * @internal
+ */
+function createIsDecode() {
+    NoTransformConfigurationError("protobuf.createIsDecode");
+}
+/**
+ * @internal
+ */
+function createAssertDecode() {
+    NoTransformConfigurationError("protobuf.createAssertDecode");
+}
+/**
+ * @internal
+ */
+function createValidateDecode() {
+    NoTransformConfigurationError("protobuf.createValidateDecode");
+}
+/**
+ * @internal
+ */
+function createEncode() {
+    NoTransformConfigurationError("protobuf.createEncode");
+}
+/**
+ * @internal
+ */
+function createIsEncode() {
+    NoTransformConfigurationError("protobuf.createIsEncode");
+}
+/**
+ * @internal
+ */
+function createAssertEncode() {
+    NoTransformConfigurationError("protobuf.createAssertEncode");
+}
+/**
+ * @internal
+ */
+function createValidateEncode() {
+    NoTransformConfigurationError("protobuf.createValidateEncode");
+}
+
+
+//# sourceMappingURL=protobuf.mjs.map
+
+;// ./node_modules/typia/lib/reflect.mjs
+
+
+/**
+ * @internal
+ */
+function metadata() {
+    NoTransformConfigurationError("reflect.metadata");
+}
+function reflect_name() {
+    NoTransformConfigurationError("reflect.name");
+}
+
+
+//# sourceMappingURL=reflect.mjs.map
+
+;// ./node_modules/typia/lib/tags/index.mjs
+
+//# sourceMappingURL=index.mjs.map
+
+;// ./node_modules/typia/lib/TypeGuardError.mjs
+class TypeGuardError extends Error {
+    method;
+    path;
+    expected;
+    value;
+    fake_expected_typed_value_;
+    constructor(props) {
+        // MESSAGE CONSTRUCTION
+        super(props.message ||
+            `Error on ${props.method}(): invalid type${props.path ? ` on ${props.path}` : ""}, expect to be ${props.expected}`);
+        // INHERITANCE POLYFILL
+        const proto = new.target.prototype;
+        if (Object.setPrototypeOf)
+            Object.setPrototypeOf(this, proto);
+        else
+            this.__proto__ = proto;
+        // ASSIGN MEMBERS
+        this.method = props.method;
+        this.path = props.path;
+        this.expected = props.expected;
+        this.value = props.value;
+    }
+}
+
+
+//# sourceMappingURL=TypeGuardError.mjs.map
+
+;// ./node_modules/typia/lib/module.mjs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * @internal
+ */
+function assert() {
+    NoTransformConfigurationError("assert");
+}
+/**
+ * @internal
+ */
+function assertGuard() {
+    NoTransformConfigurationError("assertGuard");
+}
+/**
+ * @internal
+ */
+function is() {
+    NoTransformConfigurationError("is");
+}
+/**
+ * @internal
+ */
+function validate() {
+    NoTransformConfigurationError("validate");
+}
+/**
+ * @internal
+ */
+function assertEquals() {
+    NoTransformConfigurationError("assertEquals");
+}
+/**
+ * @internal
+ */
+function assertGuardEquals() {
+    NoTransformConfigurationError("assertGuardEquals");
+}
+/**
+ * @internal
+ */
+function equals() {
+    NoTransformConfigurationError("equals");
+}
+/**
+ * @internal
+ */
+function validateEquals() {
+    NoTransformConfigurationError("validateEquals");
+}
+/**
+ * @internal
+ */
+function random() {
+    NoTransformConfigurationError("random");
+}
+/**
+ * @internal
+ */
+function createAssert() {
+    NoTransformConfigurationError("createAssert");
+}
+/**
+ * @internal
+ */
+function createAssertGuard() {
+    NoTransformConfigurationError("createAssertGuard");
+}
+/**
+ * @internal
+ */
+function createIs() {
+    NoTransformConfigurationError("createIs");
+}
+/**
+ * @internal
+ */
+function createValidate() {
+    NoTransformConfigurationError("createValidate");
+}
+/**
+ * @internal
+ */
+function createAssertEquals() {
+    NoTransformConfigurationError("createAssertEquals");
+}
+/**
+ * @internal
+ */
+function createAssertGuardEquals() {
+    NoTransformConfigurationError("createAssertGuardEquals");
+}
+/**
+ * @internal
+ */
+function createEquals() {
+    NoTransformConfigurationError("createEquals");
+}
+/**
+ * @internal
+ */
+function createValidateEquals() {
+    NoTransformConfigurationError("createValidateEquals");
+}
+/**
+ * @internal
+ */
+function createRandom() {
+    NoTransformConfigurationError("createRandom");
+}
+
+
+//# sourceMappingURL=module.mjs.map
+
+;// ./node_modules/typia/lib/index.mjs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//# sourceMappingURL=index.mjs.map
 
 
 /***/ }),

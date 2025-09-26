@@ -158,6 +158,13 @@ declare const rootTree: {
                             block: null | import("../lib/block").Block;
                         }>;
                     };
+                    idempotent: {
+                        ':idempotent': {
+                            GET: (request: APIRequest, account: string, idempotent: string) => Promise<{
+                                block: import("../lib/block").Block | null;
+                            }>;
+                        };
+                    };
                 };
             };
             accounts: {

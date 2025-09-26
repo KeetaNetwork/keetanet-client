@@ -91,6 +91,9 @@ declare function getAccountPendingBlock(request: APIRequest, account: string): P
     account: string;
     block: null | Block;
 }>;
+declare function getBlockFromIdempotent(request: APIRequest, account: string, idempotent: string): Promise<{
+    block: Block | null;
+}>;
 declare function getAccountsHead(request: APIRequest, account: string | GenericAccount): Promise<{
     account: GenericAccount;
     block: null | Block;
@@ -226,6 +229,11 @@ declare const _default: {
                 };
                 pending: {
                     GET: typeof getAccountPendingBlock;
+                };
+                idempotent: {
+                    ':idempotent': {
+                        GET: typeof getBlockFromIdempotent;
+                    };
                 };
             };
         };

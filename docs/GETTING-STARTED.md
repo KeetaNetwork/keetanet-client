@@ -7,7 +7,7 @@ Category: Guides
 
 ## Documentation
 
-See the full documentation for the KeetaNet Client JavaScript/TypeScript SDK at [https://static.test.keeta.com/docs/](https://static.test.keeta.com/docs/).
+See the full documentation for the KeetaNet Client JavaScript/TypeScript SDK at [https://static.network.keeta.com/docs/](https://static.network.keeta.com/docs/).
 
 ## Installation
 
@@ -305,7 +305,7 @@ and accessed with the {@link KeetaNetSDK.lib} namespace.
 The KeetaNet SDK can be used in the browser by including the script tag:
 
 ```html
-<script src="https://static.test.keeta.com/keetanet-browser.js"></script>
+<script src="https://static.network.keeta.com/keetanet-browser.js"></script>
 ```
 
 The KeetaNet SDK can then be accessed using the `KeetaNet` global variable.
@@ -342,7 +342,7 @@ The SDK can be loaded in the browser with a script tag:
 ```html
 <html>
 	<head>
-		<script src="https://static.test.keeta.com/keetanet-browser.js"></script>
+		<script src="https://static.network.keeta.com/keetanet-browser.js"></script>
 	</head>
 	<body>
 		<script>

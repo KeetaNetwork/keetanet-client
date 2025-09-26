@@ -1,4 +1,4 @@
-import type { LedgerStorage } from '.';
+import { IdempotentKey, type LedgerStorage } from '.';
 import type { GenericAccount, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
 import Block, { BlockHash } from '../block';
@@ -83,6 +83,13 @@ declare const ColumnTypes: {
         readonly toComparable: (value: bigint | ExternalSet) => bigint;
         readonly dbType: string;
         readonly dbSize: undefined;
+    };
+    readonly IdempotentKey: {
+        fromSpanner: (hash: string) => IdempotentKey;
+        toSpanner: (constructedInput: IdempotentKey) => string;
+        toComparable: (input: string | IdempotentKey) => string;
+        dbType: string;
+        dbSize: number;
     };
     readonly BLOCKHASH: {
         fromSpanner: (hash: string) => BlockHash;
@@ -327,6 +334,15 @@ declare const schema: {
         };
         readonly key: readonly [Key];
     };
+    readonly idempotentKeys: {
+        readonly type: "TABLE";
+        readonly columns: {
+            readonly key: ColumnInterface<"IdempotentKey", false>;
+            readonly onLedger: ColumnInterface<"LEDGER", false>;
+            readonly blockHash: ColumnInterface<"BLOCKHASH", false>;
+        };
+        readonly key: readonly [Key];
+    };
     readonly voteBlocks: {
         readonly type: "TABLE";
         readonly columns: {
@@ -466,7 +482,7 @@ export declare class Helper {
     static getPrimaryKeyNames<X extends TableIndexName>(table: X): string[];
     static getNameFromType(filterType: 'INDEX'): IndexName[];
     static getNameFromType(filterType: 'TABLE'): TableName[];
-    static getAllTables(): ("blocks" | "permissions" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "accountCertificates" | "heapBlocks" | "heapStorage" | "delegation" | "voteBlocks")[];
+    static getAllTables(): ("blocks" | "permissions" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "accountCertificates" | "heapBlocks" | "heapStorage" | "delegation" | "idempotentKeys" | "voteBlocks")[];
     static IsTable(name: TableIndexName): name is TableName;
     static IsIndex(name: TableIndexName): name is IndexName;
     static getIndexParent(index: IndexName): TableName;

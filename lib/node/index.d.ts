@@ -9,6 +9,7 @@ import { P2PSwitch } from '../p2p';
 import { VoteStaple } from '../vote';
 import RequestTiming from './timing';
 import * as Config from '../../config';
+import Logger from '../log';
 export declare enum NodeKind {
     PARTICIPANT = 0,
     REPRESENTATIVE = 1,
@@ -23,6 +24,10 @@ export interface NodeConfig {
      * Kind of node
      */
     kind: NodeKind;
+    /**
+     * Logger for this node
+     */
+    log?: Logger;
     /**
      * Account that can bypass permissions for opening blocks on baseToken and networkAddress
      * This account also will become the source of authority when there is no weight on the network
@@ -96,10 +101,7 @@ export declare class Node {
     readonly baseToken: TokenAddress;
     static Kind: typeof NodeKind;
     static isInstance: (obj: any, strict?: boolean) => obj is Node;
-    log: {
-        debug: (from: string, ...message: any[]) => void;
-        error: (from: string, ...message: any[]) => void;
-    };
+    log: Logger;
     static getDefaultConfig(network: Config.Networks): Omit<NodeConfig, 'ledger' | 'stats'>;
     static main(config: NodeConfig): void;
     constructor(configOrNode: Node | NodeConfig);

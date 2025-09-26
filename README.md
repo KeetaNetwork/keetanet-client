@@ -8,4 +8,4 @@ information on first steps with the KeetaNet SDK.
 
 ## Documentation
 
-See the full documentation for the KeetaNet Client JavaScript/TypeScript SDK at [https://static.test.keeta.com/docs/](https://static.test.keeta.com/docs/).
+See the full documentation for the KeetaNet Client JavaScript/TypeScript SDK at [https://static.network.keeta.com/docs/](https://static.network.keeta.com/docs/).

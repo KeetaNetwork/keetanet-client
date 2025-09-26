@@ -322,6 +322,7 @@ export declare class VoteBlockBundle {
             signature?: string;
             signatures?: string[];
             version: 1 | 2;
+            idempotent: string | undefined;
             date: Date;
             previous: BlockHash;
             account: import("./account").GenericAccount;

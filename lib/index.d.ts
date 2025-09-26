@@ -6,6 +6,7 @@ import P2P from './p2p';
 import Stats from './stats';
 import { Permissions } from './permissions';
 import Vote from './vote';
+import Log from './log';
 import { KeetaNetError as Error } from './error';
 import * as ASN1 from './utils/asn1';
 import * as Bloom from './utils/bloom';
@@ -24,6 +25,7 @@ declare const _default: {
     Block: typeof Block;
     Error: typeof Error;
     Ledger: typeof Ledger;
+    Log: typeof Log;
     Node: typeof Node;
     P2P: typeof P2P;
     Permissions: typeof Permissions;

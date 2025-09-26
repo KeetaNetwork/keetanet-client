@@ -92153,6 +92153,59 @@ module.exports = function typedarrayToBuffer (arr) {
 
 /***/ }),
 
+/***/ 8659:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TypeGuardError = void 0;
+class TypeGuardError extends Error {
+    constructor(props) {
+        // MESSAGE CONSTRUCTION
+        super(props.message ||
+            `Error on ${props.method}(): invalid type${props.path ? ` on ${props.path}` : ""}, expect to be ${props.expected}`);
+        // INHERITANCE POLYFILL
+        const proto = new.target.prototype;
+        if (Object.setPrototypeOf)
+            Object.setPrototypeOf(this, proto);
+        else
+            this.__proto__ = proto;
+        // ASSIGN MEMBERS
+        this.method = props.method;
+        this.path = props.path;
+        this.expected = props.expected;
+        this.value = props.value;
+    }
+}
+exports.TypeGuardError = TypeGuardError;
+//# sourceMappingURL=TypeGuardError.js.map
+
+/***/ }),
+
+/***/ 7422:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+var __webpack_unused_export__;
+
+__webpack_unused_export__ = ({ value: true });
+exports.v = void 0;
+const TypeGuardError_1 = __webpack_require__(8659);
+const _assertGuard = (exceptionable, props, factory) => {
+    if (exceptionable === true) {
+        if (factory)
+            throw factory(props);
+        else
+            throw new TypeGuardError_1.TypeGuardError(props);
+    }
+    return false;
+};
+exports.v = _assertGuard;
+//# sourceMappingURL=_assertGuard.js.map
+
+/***/ }),
+
 /***/ 4643:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -101182,7 +101235,6 @@ __webpack_require__.d(client_helper_namespaceObject, {
   crypto: () => (client_helper_crypto),
   debugPrintableObject: () => (client_debugPrintableObject),
   env: () => (client_env),
-  internalLogger: () => (client_internalLogger),
   isBuffer: () => (client_isBuffer),
   isIntegerOrBigInt: () => (client_isIntegerOrBigInt),
   nonNullable: () => (client_nonNullable),
@@ -101191,6 +101243,7 @@ __webpack_require__.d(client_helper_namespaceObject, {
   randomInt: () => (client_randomInt),
   randomString: () => (client_randomString),
   setGenerator: () => (client_setGenerator),
+  validateBase64ToBuffer: () => (client_validateBase64ToBuffer),
   waitTicks: () => (client_waitTicks)
 });
 
@@ -105388,9 +105441,9 @@ function client_v4(options, buf, offset) {
 /* harmony default export */ const client_esm_browser_v4 = (client_v4);
 
 ;// ./src/lib/utils/helper.ts
-/* provided dependency */ var client_process = __webpack_require__(5606);
 /* provided dependency */ var src_client_Buffer = __webpack_require__(8287)["Buffer"];
-var client_process$env$KEETANET, client_process$env$KEETANET2, client_ref, client_global$AsyncDisposab;
+/* provided dependency */ var client_process = __webpack_require__(5606);
+var client_ref, client_global$AsyncDisposab;
 function src_client_classPrivateFieldSet(s, a, r) { return s.set(src_client_assertClassBrand(s, a), r), r; }
 function src_client_classPrivateMethodInitSpec(e, a) { src_client_checkPrivateRedeclaration(e, a), a.add(e); }
 function src_client_defineProperty_0(e, r, t) { return (r = src_client_toPropertyKey_0(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -105404,13 +105457,17 @@ function src_client_assertClassBrand(e, t, n) { if ("function" == typeof e ? e =
 
 
 
-const client_loggingLevels = ['debug', 'error'];
-const client_configuredLoggingLevel = (client_process$env$KEETANET = client_process.env['KEETANET_DEBUG']) === null || client_process$env$KEETANET === void 0 ? void 0 : client_process$env$KEETANET.toLowerCase();
-const client_configuredLoggingFilter = new RegExp((client_process$env$KEETANET2 = client_process.env['KEETANET_DEBUG_FILTER']) !== null && client_process$env$KEETANET2 !== void 0 ? client_process$env$KEETANET2 : '', 'i');
 const client_helper_randomBytes = client_crypto_default().randomBytes.bind((client_crypto_default()));
 const client_helper_randomUUID = (client_crypto_default()).randomUUID ? client_crypto_default().randomUUID.bind((client_crypto_default())) : function () {
   return client_esm_browser_v4();
 };
+function client_validateBase64ToBuffer(input) {
+  const buffer = src_client_Buffer.from(input, 'base64');
+  if (input !== buffer.toString('base64')) {
+    throw new Error('Could Not Decode base64 String');
+  }
+  return buffer;
+}
 function client_bufferToArrayBuffer(input) {
   const out = new ArrayBuffer(input.length);
   const view = new Uint8Array(out);
@@ -105633,48 +105690,6 @@ function client_convertToJSON(_ignore_key, item) {
     return retval;
   }
   return item;
-}
-function client_internalLogger(nodeAlias, level, from) {
-  /**
-   * Disable logging unless specified
-   */
-  if (client_configuredLoggingLevel === undefined) {
-    return;
-  }
-
-  /**
-   * Only log matching sources
-   */
-  if (!client_configuredLoggingFilter.test(from)) {
-    return;
-  }
-  const configuredLoggingLevelValue = client_loggingLevels.indexOf(client_configuredLoggingLevel);
-  const levelValue = client_loggingLevels.indexOf(level);
-  /**
-   * Do not log anything if desired log level is higher than logged message
-   */
-  if (configuredLoggingLevelValue > levelValue) {
-    return;
-  }
-  if (nodeAlias === undefined) {
-    nodeAlias = '<unnamed node>';
-  }
-  let logger;
-  switch (level) {
-    case 'debug':
-      logger = console.debug;
-      break;
-    case 'error':
-      logger = console.error;
-      break;
-  }
-  if (logger === undefined) {
-    return;
-  }
-  for (var _len = arguments.length, message = new Array(_len > 3 ? _len - 3 : 0), _key = 3; _key < _len; _key++) {
-    message[_key - 3] = arguments[_key];
-  }
-  logger(`[${nodeAlias}/${from.toUpperCase()}]`, ...message);
 }
 function client_objectToBuffer(input) {
   const stringified = JSON.stringify(input, client_convertToJSON);
@@ -114359,6 +114374,9 @@ const client_baseValidationConfig = {
       regex: /^[-_A-Za-z0-9+/= ]+$/,
       canBeEmpty: true
     }
+  },
+  idempotentKey: {
+    maxByteLength: 32
   }
 };
 function client_getNetworkAlias(networkOrID) {
@@ -115205,7 +115223,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['INVALID_TYPE', 'INVALID_VERSION', 'NO_MULTIPLE_SET_REP', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'CANNOT_SEND_NON_TOKEN', 'TOKEN_RECEIVE_DIFFERS', 'ONLY_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'NO_TOKEN_OP', 'NO_IDENTIFIER_OP', 'INVALID_SIGNER', 'INVALID_PURPOSE_VALIDATION', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'NO_MULTISIG_OP', 'IDENTIFIER_INVALID', 'GENERAL_FIELD_INVALID', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'INVALID_ACCOUNT_TYPE', 'NO_ADMIN_ON_TARGET', 'PREVIOUS_SELF', 'NO_DELEGATE_ADMIN', 'NO_MODIFY_PERMISSION_DUPE', 'CANNOT_FORWARD_TO_SELF', 'EXACT_TRUE_WHEN_FORWARDING', 'CERTIFICATE_SUBJECT_MISMATCH', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_CERTIFICATE_VALUE', 'EXTERNAL_TOO_LONG', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'SUPPLY_INVALID'];
+const client_BlockErrorCodes = ['INVALID_TYPE', 'INVALID_VERSION', 'NO_MULTIPLE_SET_REP', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'CANNOT_SEND_NON_TOKEN', 'TOKEN_RECEIVE_DIFFERS', 'ONLY_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'NO_TOKEN_OP', 'NO_IDENTIFIER_OP', 'INVALID_SIGNER', 'INVALID_PURPOSE_VALIDATION', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'NO_MULTISIG_OP', 'IDENTIFIER_INVALID', 'GENERAL_FIELD_INVALID', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'INVALID_ACCOUNT_TYPE', 'NO_ADMIN_ON_TARGET', 'PREVIOUS_SELF', 'NO_DELEGATE_ADMIN', 'NO_MODIFY_PERMISSION_DUPE', 'CANNOT_FORWARD_TO_SELF', 'EXACT_TRUE_WHEN_FORWARDING', 'CERTIFICATE_SUBJECT_MISMATCH', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_CERTIFICATE_VALUE', 'EXTERNAL_TOO_LONG', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'SUPPLY_INVALID', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -116719,7 +116737,8 @@ client_utils_certificate_defineProperty(src_client_Certificate, "Hash", src_clie
  */
 client_utils_certificate_defineProperty(src_client_Certificate, "certificateObjectTypeID", '8d05dca5-5f42-4dc9-8bf9-f534c6570994:CERTIFICATE');
 ;// ./src/lib/error/ledger.ts
-var client_KeetaNetLedgerError, client_KeetaNetLedgerVoteError;
+/* provided dependency */ var client_ledger_Buffer = __webpack_require__(8287)["Buffer"];
+var client_KeetaNetLedgerError, client_KeetaNetLedgerVoteError, client_KeetaNetLedgerIdempotentKeyError;
 function client_ledger_defineProperty(e, r, t) { return (r = client_ledger_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_ledger_toPropertyKey(t) { var i = client_ledger_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
 function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
@@ -116732,11 +116751,14 @@ const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'TRANSACTION_ABORTE
 
 // Errors that can trigger rep sync
 const client_LedgerVoteErrorCodes = ['NOT_SUCCESSOR', 'NOT_OPENING'];
-const client_FullLedgerErrorCodes = [...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes].map(code => `${client_LedgerErrorType}_${code}`);
+const client_LedgerIdempotentKeyErrorCodes = ['IDEMPOTENT_KEY_EXISTS'];
+const client_FullLedgerErrorCodes = [...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes, ...client_LedgerIdempotentKeyErrorCodes].map(code => `${client_LedgerErrorType}_${code}`);
 const client_FullLedgerBaseErrorCode = client_LedgerBaseErrorCodes.map(code => `${client_LedgerErrorType}_${code}`);
 const client_FullLedgerVoteErrorCodes = client_LedgerVoteErrorCodes.map(code => `${client_LedgerErrorType}_${code}`);
+const client_FullLedgerIdempotentKeyErrorCodes = client_LedgerIdempotentKeyErrorCodes.map(code => `${client_LedgerErrorType}_${code}`);
 const client_ledgerBaseErrorCodeSet = new Set(client_FullLedgerBaseErrorCode);
 const client_ledgerVoteErrorCodeSet = new Set(client_FullLedgerVoteErrorCodes);
+const client_ledgerIdempotentKeyErrorCodeSet = new Set(client_FullLedgerIdempotentKeyErrorCodes);
 class client_ledger_KeetaNetLedgerError extends src_client_KeetaNetErrorBase {
   static assertValidLedgerErrorCode(code) {
     return client_ledgerBaseErrorCodeSet.has(code);
@@ -116781,6 +116803,58 @@ class src_client_KeetaNetLedgerVoteError extends src_client_KeetaNetErrorBase {
 }
 client_KeetaNetLedgerVoteError = src_client_KeetaNetLedgerVoteError;
 client_ledger_defineProperty(src_client_KeetaNetLedgerVoteError, "isInstance", client_checkableGenerator(client_KeetaNetLedgerVoteError));
+class src_client_KeetaNetLedgerIdempotentKeyError extends src_client_KeetaNetErrorBase {
+  static assertValidLedgerErrorCode(code) {
+    return client_ledgerIdempotentKeyErrorCodeSet.has(code);
+  }
+  constructor(code, blockhash, existingBlockhash, account, idempotentKey) {
+    let messageIdempotentKey = '<unknown>';
+    if (idempotentKey) {
+      messageIdempotentKey = client_ledger_Buffer.from(idempotentKey).toString('base64');
+    }
+    let messageAccount = '<unknown>';
+    if (account) {
+      messageAccount = account.publicKeyString.get();
+    }
+    const message = `Idempotent key (${messageIdempotentKey}) for account (${messageAccount}) already exists for blockhash ${existingBlockhash.toString()}`;
+    super(code, message, {
+      type: client_LedgerErrorType,
+      codes: client_LedgerIdempotentKeyErrorCodes
+    });
+    client_ledger_defineProperty(this, "type", client_LedgerErrorType);
+    client_ledger_defineProperty(this, "shouldRetry", false);
+    this.blockhash = blockhash;
+    this.existingBlockhash = existingBlockhash;
+    if (account) {
+      this.account = account;
+    }
+    if (idempotentKey) {
+      if (client_ledger_Buffer.isBuffer(idempotentKey)) {
+        this.idempotentKey = client_bufferToArrayBuffer(idempotentKey);
+      } else {
+        this.idempotentKey = idempotentKey;
+      }
+    }
+  }
+  toJSON() {
+    const jsonOptional = {};
+    if (this.account) {
+      jsonOptional.account = this.account.publicKeyString.get();
+    }
+    if (this.idempotentKey) {
+      jsonOptional.idempotentKey = client_ledger_Buffer.from(this.idempotentKey).toString('base64');
+    }
+    const json = {
+      ...super.toJSON(),
+      ...jsonOptional,
+      blockhash: this.blockhash.toString(),
+      existingBlockhash: this.existingBlockhash.toString()
+    };
+    return json;
+  }
+}
+client_KeetaNetLedgerIdempotentKeyError = src_client_KeetaNetLedgerIdempotentKeyError;
+client_ledger_defineProperty(src_client_KeetaNetLedgerIdempotentKeyError, "isInstance", client_checkableGenerator(client_KeetaNetLedgerIdempotentKeyError));
 ;// ./src/lib/ledger/common.ts
 function client_common_classPrivateMethodInitSpec(e, a) { client_common_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_common_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -117499,11 +117573,11 @@ class client_LedgerStorageBase {
   }
 }
 function client_log() {
-  if (this.config !== null) {
-    if (this.config.log !== undefined) {
-      this.config.log(...arguments);
-    }
+  var _this$config;
+  for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+    args[_key] = arguments[_key];
   }
+  (_this$config = this.config) === null || _this$config === void 0 || (_this$config = _this$config.log) === null || _this$config === void 0 || _this$config.debug('ledger', ...args);
 }
 function client_assertLedgerStorage(value) {
   if (value === 'main' || value === 'side') {
@@ -118904,6 +118978,7 @@ function client_lib_block_toPrimitive(t, r) { if ("object" != typeof t || !t) re
 
 
 
+
 const client_NO_PREVIOUS = '9bd05fa2-8e59-42a2-8153-26d8e8c10143:NO_PREVIOUS';
 let client_BlockPurpose = /*#__PURE__*/function (BlockPurpose) {
   BlockPurpose[BlockPurpose["GENERIC"] = 0] = "GENERIC";
@@ -118991,6 +119066,9 @@ client_lib_block_defineProperty(client_block_BlockHash, "Set", client_setGenerat
  * Subnet ID
  */
 /**
+ * Idempotent Key
+ */
+/**
  * Block signature
  */
 /**
@@ -119008,6 +119086,8 @@ client_lib_block_defineProperty(client_block_BlockHash, "Set", client_setGenerat
 /** @internal */
 const client_BlockV1ASN1Schema = [0n, client_BufferStorageASN1.Validate.IsInteger, {
   choice: [client_BufferStorageASN1.Validate.IsInteger, client_BufferStorageASN1.Validate.IsNull]
+}, {
+  optional: client_BufferStorageASN1.Validate.IsOctetString
 }, {
   type: 'date',
   kind: 'general'
@@ -119095,6 +119175,8 @@ const client_BlockV2ASN1Schema = {
   contains: [client_BufferStorageASN1.Validate.IsInteger, {
     optional: client_BufferStorageASN1.Validate.IsInteger
   }, {
+    optional: client_BufferStorageASN1.Validate.IsOctetString
+  }, {
     type: 'date',
     kind: 'general'
   }, client_BufferStorageASN1.Validate.IsInteger, client_BufferStorageASN1.Validate.IsOctetString, {
@@ -119162,6 +119244,28 @@ function client_ignore_static_checks() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _ignore_check_blockasn1v2_reverse_2 = _ignore_check_blockasn1v2_reverse_1;
 }
+function client_parseBlockIdempotent(input, network) {
+  let output;
+  if (client_block_Buffer.isBuffer(input)) {
+    output = input;
+  } else {
+    try {
+      output = client_validateBase64ToBuffer(input);
+    } catch (base64Error) {
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse base64 Block idempotent');
+    }
+  }
+  if (output === undefined) {
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent');
+  }
+  if (network !== undefined) {
+    const idempotentValidationConfig = client_getValidation(network).idempotentKey;
+    if (output.length > idempotentValidationConfig.maxByteLength) {
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${output.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`);
+    }
+  }
+  return output;
+}
 function client_MapV1InputValues(input) {
   var _Account$toAccount, _output$account;
   const output = {};
@@ -119169,6 +119273,28 @@ function client_MapV1InputValues(input) {
     throw new Error('MapInputValues should not be called with version != 1');
   }
   output.version = input.version;
+
+  /*
+   * Import network
+   */
+  if (input.network !== undefined) {
+    if (typeof input.network === 'bigint') {
+      output.network = input.network;
+    } else {
+      output.network = BigInt(input.network);
+    }
+  }
+
+  /*
+   * Import idempotent key
+   */
+  if (input.idempotent !== undefined) {
+    output.idempotent = client_parseBlockIdempotent(input.idempotent, output.network);
+  }
+
+  /*
+   * Import date
+   */
   if (input.date !== undefined) {
     output.date = new Date(input.date);
   }
@@ -119197,17 +119323,6 @@ function client_MapV1InputValues(input) {
       }
     } else {
       output.previous = new client_block_BlockHash(input.previous);
-    }
-  }
-
-  /*
-   * Import network
-   */
-  if (input.network !== undefined) {
-    if (typeof input.network === 'bigint') {
-      output.network = input.network;
-    } else {
-      output.network = BigInt(input.network);
     }
   }
 
@@ -119241,6 +119356,24 @@ function client_MapV2InputValues(input) {
   }
   output.version = input.version;
   output.purpose = input.purpose;
+
+  /*
+   * Import network
+   */
+  if (input.network !== undefined) {
+    output.network = BigInt(input.network);
+  }
+
+  /*
+   * Import idempotent key
+   */
+  if (input.idempotent !== undefined) {
+    output.idempotent = client_parseBlockIdempotent(input.idempotent, output.network);
+  }
+
+  /*
+   * Import date
+   */
   if (input.date !== undefined) {
     output.date = new Date(input.date);
   }
@@ -119263,13 +119396,6 @@ function client_MapV2InputValues(input) {
     } else {
       output.previous = new client_block_BlockHash(input.previous);
     }
-  }
-
-  /*
-   * Import network
-   */
-  if (input.network !== undefined) {
-    output.network = BigInt(input.network);
   }
 
   /*
@@ -119389,7 +119515,7 @@ class src_client_Block {
     if (client_util.types.isArrayBuffer(input)) {
       const data = new client_BufferStorageASN1(input, client_BlockASN1Schema).getASN1();
       if (Array.isArray(data)) {
-        var _data$;
+        var _data$, _data$2;
         if (data[0] !== 0n) {
           throw new Error('Invalid block version without context tag');
         }
@@ -119397,10 +119523,11 @@ class src_client_Block {
         this.purpose = client_BlockPurpose.GENERIC;
         this.network = data[1];
         this.subnet = (_data$ = data[2]) !== null && _data$ !== void 0 ? _data$ : undefined;
-        this.date = data[3].date;
-        const signerContainer = data[4];
+        this.idempotent = (_data$2 = data[3]) !== null && _data$2 !== void 0 ? _data$2 : undefined;
+        this.date = data[4].date;
+        const signerContainer = data[5];
         this.signer = client_lib_account.fromPublicKeyAndType(signerContainer).assertAccount();
-        const acctItem = data[5];
+        const acctItem = data[6];
         if (acctItem === null) {
           this.account = this.signer;
         } else {
@@ -119409,20 +119536,21 @@ class src_client_Block {
             throw new Error('Account should not be in block when it is same as signer, we cannot use this block');
           }
         }
-        const prevHashBuf = data[6];
+        const prevHashBuf = data[7];
         this.previous = new client_block_BlockHash(prevHashBuf);
-        this.operations = client_ImportOperationsASN1(data[7], this.network);
-        this.signatures = [data[8]];
+        this.operations = client_ImportOperationsASN1(data[8], this.network);
+        this.signatures = [data[9]];
       } else if (data.value === 1) {
-        var _container$;
+        var _container$, _container$2;
         this.version = 2;
         const container = data.contains;
         this.network = container[0];
         this.subnet = (_container$ = container[1]) !== null && _container$ !== void 0 ? _container$ : undefined;
-        this.date = container[2].date;
-        this.purpose = client_toBlockPurpose(container[3]);
-        this.account = client_lib_account.fromPublicKeyAndType(container[4]);
-        const signersContainer = container[5];
+        this.idempotent = (_container$2 = container[2]) !== null && _container$2 !== void 0 ? _container$2 : undefined;
+        this.date = container[3].date;
+        this.purpose = client_toBlockPurpose(container[4]);
+        this.account = client_lib_account.fromPublicKeyAndType(container[5]);
+        const signersContainer = container[6];
         if (signersContainer === null) {
           this.signer = this.account.assertAccount();
         } else if (client_block_Buffer.isBuffer(signersContainer)) {
@@ -119433,9 +119561,9 @@ class src_client_Block {
         } else {
           this.signer = client_parseBlockSignerFieldContainer(signersContainer).parsed;
         }
-        this.previous = new client_block_BlockHash(container[6]);
-        this.operations = client_ImportOperationsASN1(container[7], this.network);
-        const signatureContainer = container[8];
+        this.previous = new client_block_BlockHash(container[7]);
+        this.operations = client_ImportOperationsASN1(container[8], this.network);
+        const signatureContainer = container[9];
         if (client_block_Buffer.isBuffer(signatureContainer)) {
           this.signatures = [signatureContainer];
         } else {
@@ -119453,6 +119581,7 @@ class src_client_Block {
       if (src_client_Block.isInstance(input)) {
         this.version = input.version;
         this.purpose = input.purpose;
+        this.idempotent = input.idempotent;
         this.date = input.date;
         this.previous = input.previous;
         this.network = input.network;
@@ -119467,6 +119596,7 @@ class src_client_Block {
         */
         const {
           version,
+          idempotent,
           date,
           previous,
           network,
@@ -119477,6 +119607,7 @@ class src_client_Block {
         } = client_MapV1InputValues(input);
         this.version = version;
         this.purpose = client_BlockPurpose.GENERIC;
+        this.idempotent = idempotent;
         this.date = date;
         this.previous = previous;
         this.network = network;
@@ -119506,6 +119637,7 @@ class src_client_Block {
         */
         const {
           version,
+          idempotent,
           date,
           previous,
           network,
@@ -119517,6 +119649,7 @@ class src_client_Block {
         } = client_MapV2InputValues(input);
         this.version = version;
         this.purpose = purpose;
+        this.idempotent = idempotent;
         this.date = date;
         this.previous = previous;
         this.network = network;
@@ -119588,7 +119721,8 @@ class src_client_Block {
       account: this.account,
       network: this.network,
       subnet: this.subnet,
-      date: this.date
+      date: this.date,
+      idempotent: this.idempotent
     };
     let container;
     if (this.version === 1) {
@@ -119660,7 +119794,7 @@ class src_client_Block {
     if (input.version !== 1) {
       throw new Error('Cannot call getASN1ContainerWithoutSignature when version != 1');
     }
-    return [0n, input.network, (_input$subnet = input.subnet) !== null && _input$subnet !== void 0 ? _input$subnet : null, {
+    return [0n, input.network, (_input$subnet = input.subnet) !== null && _input$subnet !== void 0 ? _input$subnet : null, input.idempotent, {
       type: 'date',
       kind: 'general',
       date: input.date
@@ -119678,7 +119812,7 @@ class src_client_Block {
     } else {
       signerContainer = input.signer.publicKeyAndType;
     }
-    return [input.network, input.subnet, {
+    return [input.network, input.subnet, input.idempotent, {
       type: 'date',
       kind: 'general',
       date: input.date
@@ -119699,6 +119833,7 @@ class src_client_Block {
     }
   }
   toJSON(options) {
+    var _this$idempotent;
     const additionalFields = {};
     if (options !== null && options !== void 0 && options.addBinary) {
       additionalFields['$binary'] = client_block_Buffer.from(this.toBytes()).toString('base64');
@@ -119713,6 +119848,7 @@ class src_client_Block {
     }
     return {
       version: this.version,
+      idempotent: (_this$idempotent = this.idempotent) === null || _this$idempotent === void 0 ? void 0 : _this$idempotent.toString('base64'),
       date: this.date,
       previous: this.previous,
       account: this.account,
@@ -119915,6 +120051,7 @@ class src_client_BlockBuilder {
     }
     return {
       version: this.version,
+      idempotent: this.idempotent,
       date: this.date,
       previous: this.previous,
       account: this.account,
@@ -119948,6 +120085,7 @@ class src_client_BlockBuilder {
     if (src_client_Block.isInstance(client_block_classPrivateFieldGet(client_block, this))) {
       client_block_classPrivateFieldSet(client_block, this, {
         version: client_block_classPrivateFieldGet(client_block, this).version,
+        idempotent: client_block_classPrivateFieldGet(client_block, this).idempotent,
         date: client_block_classPrivateFieldGet(client_block, this).date,
         previous: client_block_classPrivateFieldGet(client_block, this).previous,
         account: client_block_classPrivateFieldGet(client_block, this).account,
@@ -120040,7 +120178,7 @@ class src_client_BlockBuilder {
   get previous() {
     const block = this.currentBlock;
     if (block === undefined) {
-      return;
+      return undefined;
     }
     const previous = block.previous;
     if (previous === undefined) {
@@ -120076,6 +120214,26 @@ class src_client_BlockBuilder {
     const sentinel = src_client_Block.getAccountOpeningHash(account);
     return sentinel.compareHexString(previous);
   }
+  set idempotent(idempotent) {
+    if (typeof idempotent === 'string') {
+      try {
+        this.currentWIP.idempotent = client_validateBase64ToBuffer(idempotent);
+      } catch (decodeError) {
+        throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent');
+      }
+    } else {
+      this.currentWIP.idempotent = client_block_Buffer.from(idempotent);
+    }
+  }
+  get idempotent() {
+    if (this.currentBlock.idempotent === undefined) {
+      return undefined;
+    }
+    if (client_block_Buffer.isBuffer(this.currentBlock.idempotent)) {
+      return this.currentBlock.idempotent.toString('base64');
+    }
+    return this.currentBlock.idempotent;
+  }
   set date(date) {
     if (date === undefined) {
       this.currentWIP.date = undefined;
@@ -120087,7 +120245,7 @@ class src_client_BlockBuilder {
   }
   get date() {
     if (this.currentBlock.date === undefined) {
-      return;
+      return undefined;
     }
     return new Date(this.currentBlock.date);
   }
@@ -125514,17 +125672,20 @@ function client_getDurationRange(duration) {
 }
 /* harmony default export */ const client_stats = (client_Stats);
 ;// ./src/lib/ledger/index.ts
-var client_Ledger;
+/* provided dependency */ var client_lib_ledger_Buffer = __webpack_require__(8287)["Buffer"];
+var client_IdempotentKey, client_Ledger;
 function client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
-function client_lib_ledger_defineProperty(e, r, t) { return (r = client_lib_ledger_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_lib_ledger_toPropertyKey(t) { var i = client_lib_ledger_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_lib_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 function client_ledger_classPrivateMethodInitSpec(e, a) { client_ledger_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_ledger_classPrivateFieldInitSpec(e, t, a) { client_ledger_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_ledger_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
 function client_ledger_classPrivateFieldGet(s, a) { return s.get(client_ledger_assertClassBrand(s, a)); }
 function client_ledger_classPrivateFieldSet(s, a, r) { return s.set(client_ledger_assertClassBrand(s, a), r), r; }
 function client_ledger_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function client_lib_ledger_defineProperty(e, r, t) { return (r = client_lib_ledger_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_lib_ledger_toPropertyKey(t) { var i = client_lib_ledger_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_lib_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
 
 
 
@@ -125569,9 +125730,43 @@ let client_LedgerKind = /*#__PURE__*/function (LedgerKind) {
  */
 
 /**
+ * Idempotent Key
+ */
+class src_client_IdempotentKey extends src_client_BufferStorage {
+  static fromAccountAndIdempotent(account, idempotent) {
+    let idempotentBuffer;
+    if (typeof idempotent === 'string') {
+      idempotentBuffer = client_lib_ledger_Buffer.from(idempotent, 'base64');
+    } else {
+      idempotentBuffer = idempotent;
+    }
+    const data = client_lib_ledger_Buffer.concat([account.publicKeyAndType, idempotentBuffer]);
+    return new src_client_IdempotentKey(client_hash_Hash(data), account, idempotentBuffer);
+  }
+  constructor(idempotentKey, account, idempotent) {
+    super(idempotentKey, 32);
+    this.account = account;
+    this.userIdempotent = idempotent;
+  }
+  toJSON() {
+    return this.toString();
+  }
+  toString() {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return super.toString('hex');
+  }
+}
+
+/**
  * Each transaction can contain the node object making the request to access things like timing information
  */
-
+client_IdempotentKey = src_client_IdempotentKey;
+client_lib_ledger_defineProperty(src_client_IdempotentKey, "isInstance", client_checkableGenerator(client_IdempotentKey));
+client_lib_ledger_defineProperty(src_client_IdempotentKey, "Set", client_setGenerator(client_IdempotentKey, function (value) {
+  return value.toString();
+}, function (value) {
+  return new client_IdempotentKey(client_lib_ledger_Buffer.from(value, 'hex'));
+}));
 class client_LedgerStorageTransactionBase {
   constructor(options) {
     var _options$moment, _options$readOnly;
@@ -125761,7 +125956,16 @@ class client_LedgerAtomicInterface {
         throw new client_ledger_KeetaNetLedgerError('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us');
       }
     }
-    const allLedgerHeads = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlocksForVote).call(this, blocks);
+    const {
+      allLedgerHeads,
+      allLedgerIdempotentKeys
+    } = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlocksForVote).call(this, blocks);
+    for (const [blockHash, key] of allLedgerIdempotentKeys) {
+      const foundBlockHash = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getIdempotentBlockHash(transaction, key, 'both', blockHash);
+      if (foundBlockHash !== null) {
+        throw new src_client_KeetaNetLedgerIdempotentKeyError('LEDGER_IDEMPOTENT_KEY_EXISTS', blockHash, foundBlockHash, key.account, key.userIdempotent);
+      }
+    }
     const needToGetHeadFor = new client_lib_account.Set(allLedgerHeads.keys());
     const allHeads = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getHeadBlockHashes(transaction, needToGetHeadFor);
     for (const [account, expectedBlock] of allLedgerHeads.entries()) {
@@ -126216,6 +126420,24 @@ class client_LedgerAtomicInterface {
     const effects = effectsInput !== null && effectsInput !== void 0 ? effectsInput : client_computeEffectOfBlocks(blocks, client_ledger_classPrivateFieldGet(client_ledger, this));
     return client_ledger_classPrivateFieldGet(client_computeFeeFromBlocks, this).call(this, client_ledger_classPrivateFieldGet(client_ledger, this), blocks, effects);
   }
+  async getIdempotentBlockHash(account, idempotent) {
+    let from = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'both';
+    let excludeBlockHash = arguments.length > 3 ? arguments[3] : undefined;
+    const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
+    const idempotentKey = src_client_IdempotentKey.fromAccountAndIdempotent(account, idempotent);
+    const blockHash = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getIdempotentBlockHash(transaction, idempotentKey, from, excludeBlockHash);
+    return blockHash;
+  }
+  async getBlockFromIdempotent(account, idempotent) {
+    let from = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'both';
+    let excludeBlockHash = arguments.length > 3 ? arguments[3] : undefined;
+    const blockHash = await this.getIdempotentBlockHash(account, idempotent, from, excludeBlockHash);
+    if (blockHash === null) {
+      return null;
+    }
+    const block = await this.getBlock(blockHash, from);
+    return block;
+  }
   async _testingRunStorageFunction(code) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
     const retval = await code(client_ledger_classPrivateFieldGet(client_ledger_storage, this), transaction);
@@ -126539,6 +126761,8 @@ async function client_validateBlocksForVote(blocks) {
   const seenBlockHashes = new client_block_BlockHash.Set();
   const usedPreviousBlockHashes = new client_block_BlockHash.Set();
   const allLedgerHeads = new Map();
+  const allLedgerIdempotentKeys = new Map();
+  const allLedgerIdempotentKeysReverse = new Map();
   for (const block of blocks) {
     const prevBlockHash = block.previous;
     seenBlockHashes.add(block.hash);
@@ -126547,6 +126771,20 @@ async function client_validateBlocksForVote(blocks) {
     }
     if (block.subnet !== client_ledger_classPrivateFieldGet(client_subnet, this)) {
       throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_SUBNET', 'Cannot vote on block for a different subnet');
+    }
+
+    /*
+     * Verify that no other blocks in this set of blocks have the same idempotent key
+     */
+    if (block.idempotent !== undefined) {
+      const idempotentKey = src_client_IdempotentKey.fromAccountAndIdempotent(block.account, block.idempotent);
+      const idempotentKeyString = idempotentKey.toString();
+      const existingBlockHash = allLedgerIdempotentKeysReverse.get(idempotentKeyString);
+      if (existingBlockHash !== undefined) {
+        throw new src_client_KeetaNetLedgerIdempotentKeyError('LEDGER_IDEMPOTENT_KEY_EXISTS', block.hash, existingBlockHash, block.account, block.idempotent);
+      }
+      allLedgerIdempotentKeys.set(block.hash, idempotentKey);
+      allLedgerIdempotentKeysReverse.set(idempotentKeyString, block.hash);
     }
     if (usedPreviousBlockHashes.has(prevBlockHash)) {
       throw new client_ledger_KeetaNetLedgerError('LEDGER_PREVIOUS_ALREADY_USED', `Invalid reference to block, previous: ${prevBlockHash} has already been used`);
@@ -126576,7 +126814,10 @@ async function client_validateBlocksForVote(blocks) {
       allLedgerHeads.set(block.account, block);
     }
   }
-  return allLedgerHeads;
+  return {
+    allLedgerHeads,
+    allLedgerIdempotentKeys
+  };
 }
 async function client_voteOrQuoteWithFees(blocks, type, quote) {
   var _quote$fee;
@@ -127008,6 +127249,22 @@ class src_client_Ledger {
       return await transaction.getFee(...args);
     });
   }
+  async getIdempotentBlockHash() {
+    for (var _len27 = arguments.length, args = new Array(_len27), _key27 = 0; _key27 < _len27; _key27++) {
+      args[_key27] = arguments[_key27];
+    }
+    return await this.runReadOnly('db-getIdempotentBlockHash', async function (transaction) {
+      return await transaction.getIdempotentBlockHash(...args);
+    });
+  }
+  async getBlockFromIdempotent() {
+    for (var _len28 = arguments.length, args = new Array(_len28), _key28 = 0; _key28 < _len28; _key28++) {
+      args[_key28] = arguments[_key28];
+    }
+    return await this.runReadOnly('db-getBlockFromIdempotent', async function (transaction) {
+      return await transaction.getBlockFromIdempotent(...args);
+    });
+  }
   async stats() {
     try {
       var _this$node5;
@@ -127034,7 +127291,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.5+g7ab6fd7b04246202abe16df362295a3a022d514a';
+const client_version = '0.14.6+g5aa6231eec357d1f519f0844be54694bedc01505';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -129020,6 +129277,545 @@ const client_p2p_Testing = {
   generateP2PPeerSigned: client_generateP2PPeerSigned,
   P2PPeerToJSO: client_P2PPeerToJSO
 };
+// EXTERNAL MODULE: ./node_modules/typia/lib/internal/_assertGuard.js
+var client_assertGuard = __webpack_require__(7422);
+;// ./src/lib/log/helper.generated.ts
+
+const client_assertLogOptionsParam = (() => {
+  const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo));
+  const _io1 = input => "string" === typeof input.id;
+  const _ao0 = function (input, _path) {
+    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+    return (undefined === input.userVisible || "boolean" === typeof input.userVisible || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".userVisible",
+      expected: "(boolean | undefined)",
+      value: input.userVisible
+    }, _errorFactory)) && (undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".currentRequestInfo",
+      expected: "(LogCurrentRequest | undefined)",
+      value: input.currentRequestInfo
+    }, _errorFactory)) && _ao1(input.currentRequestInfo, _path + ".currentRequestInfo",  true && _exceptionable) || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".currentRequestInfo",
+      expected: "(LogCurrentRequest | undefined)",
+      value: input.currentRequestInfo
+    }, _errorFactory));
+  };
+  const _ao1 = function (input, _path) {
+    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+    return "string" === typeof input.id || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".id",
+      expected: "string",
+      value: input.id
+    }, _errorFactory);
+  };
+  const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input);
+  let _errorFactory;
+  return (input, errorFactory) => {
+    if (false === __is(input)) {
+      _errorFactory = errorFactory;
+      (function (input, _path) {
+        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+        return ("object" === typeof input && null !== input && false === Array.isArray(input) || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "__type",
+          value: input
+        }, _errorFactory)) && _ao0(input, _path + "", true) || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "__type",
+          value: input
+        }, _errorFactory);
+      })(input, "$input", true);
+    }
+    return input;
+  };
+})();
+const client_assertLogTargetLevel = (() => {
+  const __is = input => "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input;
+  let _errorFactory;
+  return (input, errorFactory) => {
+    if (false === __is(input)) {
+      _errorFactory = errorFactory;
+      (function (input, _path) {
+        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+        return "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "(\"ALL\" | \"DEBUG\" | \"ERROR\" | \"INFO\" | \"NONE\" | \"WARN\")",
+          value: input
+        }, _errorFactory);
+      })(input, "$input", true);
+    }
+    return input;
+  };
+})();
+;// ./src/lib/log/common.ts
+const client_numericLogLevels = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3
+};
+
+/* XXX:TODO -- Do something with this */
+
+function client_canLogForLevel(level, currentLevel) {
+  return client_numericLogLevels[level] >= client_numericLogLevels[currentLevel];
+}
+function client_canLogForTargetLevel(level, targetLevel) {
+  if (targetLevel === 'ALL') {
+    return true;
+  }
+  if (targetLevel === 'NONE') {
+    return false;
+  }
+  return client_canLogForLevel(level, targetLevel);
+}
+function client_filterLog(target, message) {
+  var _message$options$user, _message$options$curr, _message$options$curr2;
+  if (!client_canLogForTargetLevel(message.level, target.logLevel)) {
+    return null;
+  }
+  if (target.filter && !target.filter.test(message.from)) {
+    return null;
+  }
+  return {
+    ...message,
+    options: {
+      userVisible: (_message$options$user = message.options.userVisible) !== null && _message$options$user !== void 0 ? _message$options$user : true,
+      currentRequestInfo: {
+        id: (_message$options$curr = (_message$options$curr2 = message.options.currentRequestInfo) === null || _message$options$curr2 === void 0 ? void 0 : _message$options$curr2.id) !== null && _message$options$curr !== void 0 ? _message$options$curr : '<NO_REQUEST_ID>',
+        ...message.options.currentRequestInfo
+      },
+      ...message.options
+    }
+  };
+}
+;// ./src/lib/log/target_console.ts
+function client_target_console_classPrivateFieldInitSpec(e, t, a) { client_target_console_checkPrivateRedeclaration(e, t), t.set(e, a); }
+function client_target_console_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function client_target_console_classPrivateFieldGet(s, a) { return s.get(client_target_console_assertClassBrand(s, a)); }
+function client_target_console_classPrivateFieldSet(s, a, r) { return s.set(client_target_console_assertClassBrand(s, a), r), r; }
+function client_target_console_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
+var client_console = /*#__PURE__*/new WeakMap();
+class client_LogTargetConsole {
+  constructor(config) {
+    var _config$logLevel, _config$console, _config$filter;
+    client_target_console_classPrivateFieldInitSpec(this, client_console, void 0);
+    this.logLevel = (_config$logLevel = config === null || config === void 0 ? void 0 : config.logLevel) !== null && _config$logLevel !== void 0 ? _config$logLevel : 'ALL';
+    client_target_console_classPrivateFieldSet(client_console, this, (_config$console = config === null || config === void 0 ? void 0 : config.console) !== null && _config$console !== void 0 ? _config$console : console);
+    this.filter = (_config$filter = config === null || config === void 0 ? void 0 : config.filter) !== null && _config$filter !== void 0 ? _config$filter : null;
+  }
+  async emitLogs(logs) {
+    for (const rawLog of logs) {
+      const log = client_filterLog(this, rawLog);
+      if (log === null) {
+        continue;
+      }
+      let method;
+      switch (log.level) {
+        case 'ERROR':
+          method = 'error';
+          break;
+        case 'WARN':
+          method = 'warn';
+          break;
+        case 'INFO':
+          method = 'info';
+          break;
+        case 'DEBUG':
+          method = 'debug';
+          break;
+        default:
+          client_assertNever(log.level);
+      }
+      const requestID = log.options.currentRequestInfo.id;
+      client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
+      if (log.trace !== undefined) {
+        client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
+      }
+    }
+  }
+}
+/* harmony default export */ const client_target_console = (client_LogTargetConsole);
+;// ./src/lib/log/index.ts
+/* provided dependency */ var client_log_process = __webpack_require__(5606);
+function client_log_classPrivateMethodInitSpec(e, a) { client_log_checkPrivateRedeclaration(e, a), a.add(e); }
+function client_log_classPrivateFieldInitSpec(e, t, a) { client_log_checkPrivateRedeclaration(e, t), t.set(e, a); }
+function client_log_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function client_log_defineProperty(e, r, t) { return (r = client_log_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_log_toPropertyKey(t) { var i = client_log_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_log_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function client_log_classPrivateFieldSet(s, a, r) { return s.set(client_log_assertClassBrand(s, a), r), r; }
+function client_log_classPrivateFieldGet(s, a) { return s.get(client_log_assertClassBrand(s, a)); }
+function client_log_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
+/**
+ * Maximum number of logs to enqueue when there are no targets assigned to a
+ * Log instance
+ */
+const client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS = 131072;
+
+/**
+ * Options for a Log instance
+ */
+
+const client_NullLogger = {
+  log: () => {},
+  info: () => {},
+  debug: () => {},
+  warn: () => {},
+  error: () => {}
+};
+var client_logs = /*#__PURE__*/new WeakMap();
+var client_autoSyncInterval = /*#__PURE__*/new WeakMap();
+var client_isSyncing = /*#__PURE__*/new WeakMap();
+var client_shouldSyncAgain = /*#__PURE__*/new WeakMap();
+var client_destroyed = /*#__PURE__*/new WeakMap();
+var client_emitOnLog = /*#__PURE__*/new WeakMap();
+var client_logDebugTracing = /*#__PURE__*/new WeakMap();
+var client_targets = /*#__PURE__*/new WeakMap();
+var client_Log_brand = /*#__PURE__*/new WeakSet();
+class client_Log {
+  /**
+   * The Null logger, to disable logging entirely
+   */
+  static Null() {
+    return client_NullLogger;
+  }
+
+  /**
+   * The legacy logger
+   *
+   * This is a singleton instance of the logger that registers a console
+   * target that emits logs immediately to the console.
+   *
+   * This also sets the log level based on the `<name>_DEBUG`
+   * environment variable, if available and adds filtering based on
+   * the `<name>_DEBUG_FILTER` environment variable, if available.
+   *
+   * The default value for `<name>` is `KEETANET`.
+   */
+  static Legacy(name) {
+    if (name === undefined) {
+      name = 'KEETANET';
+    }
+    const extraConfig = {};
+    if (client_log_process !== undefined) {
+      var _process$env$toUpperC, _process$env, _process$env2;
+      let environmentLogLevel = (_process$env$toUpperC = (_process$env = client_log_process.env[`${name}_DEBUG`]) === null || _process$env === void 0 ? void 0 : _process$env.toUpperCase()) !== null && _process$env$toUpperC !== void 0 ? _process$env$toUpperC : 'NONE';
+      if (environmentLogLevel === 'TRUE') {
+        environmentLogLevel = 'DEBUG';
+      } else if (environmentLogLevel === 'FALSE') {
+        environmentLogLevel = 'NONE';
+      }
+      extraConfig.logLevel = client_assertLogTargetLevel(environmentLogLevel);
+      extraConfig.filter = new RegExp((_process$env2 = client_log_process.env[`${name}_DEBUG_FILTER`]) !== null && _process$env2 !== void 0 ? _process$env2 : '', 'i');
+    }
+    if (client_Log.legacyLoggerInstance) {
+      if (client_log_classPrivateFieldGet(client_destroyed, client_Log.legacyLoggerInstance)) {
+        client_Log.legacyLoggerInstance = undefined;
+      }
+    }
+    if (client_Log.legacyLoggerInstance) {
+      return client_Log.legacyLoggerInstance;
+    }
+    const logger = new client_Log();
+    logger.registerConsoleTarget({
+      logLevel: client_Log.defaultLevel,
+      ...extraConfig
+    });
+    client_log_classPrivateFieldSet(client_emitOnLog, logger, true);
+    client_Log.legacyLoggerInstance = logger;
+    return client_Log.legacyLoggerInstance;
+  }
+
+  /**
+   * Queued logs to be sent
+   */
+
+  constructor(_options) {
+    client_log_classPrivateMethodInitSpec(this, client_Log_brand);
+    client_log_classPrivateFieldInitSpec(this, client_logs, []);
+    /**
+     * Interval holding the current autoSync process
+     */
+    client_log_classPrivateFieldInitSpec(this, client_autoSyncInterval, undefined);
+    /**
+     * Keep track of whether or not we are currently syncing
+     */
+    client_log_classPrivateFieldInitSpec(this, client_isSyncing, false);
+    /**
+     * If `sync()` is called while we are syncing, we should sync again
+     * to ensure all logs are sent
+     */
+    client_log_classPrivateFieldInitSpec(this, client_shouldSyncAgain, false);
+    /**
+     * Whether or not the logger has been destroyed
+     */
+    client_log_classPrivateFieldInitSpec(this, client_destroyed, false);
+    /**
+     * Always attempt to emit logs when a new log event is added
+     *
+     * This is only available for the legacy logger instance
+     */
+    client_log_classPrivateFieldInitSpec(this, client_emitOnLog, false);
+    /**
+     * Whether or not to generate debug tracing information for each log entry
+     */
+    client_log_classPrivateFieldInitSpec(this, client_logDebugTracing, false);
+    client_log_classPrivateFieldInitSpec(this, client_targets, new Map());
+    /**
+     * The maximum number of log entries to send to each target at a time
+     */
+    client_log_defineProperty(this, "batchSize", 10);
+    if ((_options === null || _options === void 0 ? void 0 : _options.logDebugTracing) !== undefined) {
+      client_log_classPrivateFieldSet(client_logDebugTracing, this, _options.logDebugTracing);
+    }
+  }
+  log() {
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
+  }
+  info() {
+    for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+      args[_key2] = arguments[_key2];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
+  }
+  debug() {
+    for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+      args[_key3] = arguments[_key3];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'DEBUG', options, from, ...args);
+  }
+  warn() {
+    for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+      args[_key4] = arguments[_key4];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'WARN', options, from, ...args);
+  }
+  error() {
+    for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+      args[_key5] = arguments[_key5];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'ERROR', options, from, ...args);
+  }
+
+  /**
+   * Register a new logging target (sink) to send logs to
+   */
+  registerTarget(target) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const id = Symbol('LogTargetID');
+    client_log_classPrivateFieldGet(client_targets, this).set(id, target);
+    return id;
+  }
+
+  /**
+   * Register a new logging target (sink) to send logs to, using the Console target
+   *
+   */
+  registerConsoleTarget(config) {
+    const target = new client_target_console({
+      ...config
+    });
+    return this.registerTarget(target);
+  }
+
+  /**
+   * Unregister a logging target (sink) to stop sending logs to
+   */
+  unregisterTarget(id) {
+    client_log_classPrivateFieldGet(client_targets, this).delete(id);
+  }
+
+  /**
+   * Emit a set of logs to all registered targets
+   */
+  async emitLogs(logs, targets) {
+    await Promise.allSettled(targets.map(async function (target) {
+      await target.emitLogs(logs);
+    }));
+  }
+
+  /**
+   * Start a timer to periodically sync logs to all targets
+   */
+  startAutoSync() {
+    let rate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
+    this.stopAutoSync();
+    client_log_classPrivateFieldSet(client_autoSyncInterval, this, setInterval(async () => {
+      try {
+        await this.sync();
+      } catch {
+        /* Ignored */
+      }
+    }, rate));
+  }
+
+  /**
+   * If a timer was started with `startAutoSync()`, stop it
+   */
+  stopAutoSync() {
+    if (!client_log_classPrivateFieldGet(client_autoSyncInterval, this)) {
+      return;
+    }
+    clearInterval(client_log_classPrivateFieldGet(client_autoSyncInterval, this));
+    client_log_classPrivateFieldSet(client_autoSyncInterval, this, undefined);
+  }
+
+  /**
+   * Sync all currently enqueued logs to all targets
+   */
+  async sync() {
+    /*
+     * If there are currently no targets, do not dequeue logs
+     * in case a target is added later;  However, if there are
+     * too many logs, drop the oldest ones
+     */
+    if (client_log_classPrivateFieldGet(client_targets, this).size === 0) {
+      if (client_log_classPrivateFieldGet(client_logs, this).length > client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
+        client_log_classPrivateFieldGet(client_logs, this).splice(0, client_log_classPrivateFieldGet(client_logs, this).length - client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
+      }
+      return;
+    }
+
+    /*
+     * If we are already syncing, set a flag to sync again after the current sync is done
+     */
+    if (client_log_classPrivateFieldGet(client_isSyncing, this)) {
+      client_log_classPrivateFieldSet(client_shouldSyncAgain, this, true);
+      return;
+    }
+    client_log_classPrivateFieldSet(client_isSyncing, this, true);
+
+    /*
+     * Create a copy of the currently registered targets in case
+     * they are modified while a sync is on-going, we use the
+     * same targets until the sync is complete
+     *
+     * This ensures no messages are lost if all targets are removed
+     * while a sync is in progress -- they will continue to be sent
+     * to the registered targets at the time of the sync
+     */
+    const targets = Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
+    do {
+      try {
+        client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
+        while (client_log_classPrivateFieldGet(client_logs, this).length > 0) {
+          const logs = client_log_classPrivateFieldGet(client_logs, this).splice(0, this.batchSize);
+          await this.emitLogs(logs, targets);
+        }
+      } catch {
+        /* Ignore errors */
+      }
+    } while (client_log_classPrivateFieldGet(client_shouldSyncAgain, this));
+    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+  }
+
+  /**
+   * Dispose of the logger instance, clearing all logs and targets
+   */
+  [Symbol.dispose]() {
+    this.destroy();
+  }
+
+  /**
+   * Terminate the logger instance, clearing all logs and targets
+   */
+  destroy() {
+    this.stopAutoSync();
+    client_log_classPrivateFieldSet(client_logs, this, []);
+    client_log_classPrivateFieldGet(client_targets, this).clear();
+    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+    client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
+    client_log_classPrivateFieldSet(client_emitOnLog, this, false);
+    client_log_classPrivateFieldSet(client_destroyed, this, true);
+  }
+}
+function client_log_log(level, options, from) {
+  for (var _len6 = arguments.length, args = new Array(_len6 > 3 ? _len6 - 3 : 0), _key6 = 3; _key6 < _len6; _key6++) {
+    args[_key6 - 3] = arguments[_key6];
+  }
+  const log = {
+    options,
+    level,
+    from,
+    args
+  };
+  if (client_log_classPrivateFieldGet(client_logDebugTracing, this)) {
+    var _Error$stack$split$sl, _Error$stack;
+    log.trace = (_Error$stack$split$sl = (_Error$stack = new Error().stack) === null || _Error$stack === void 0 ? void 0 : _Error$stack.split('\n').slice(2).join('\n')) !== null && _Error$stack$split$sl !== void 0 ? _Error$stack$split$sl : '[No stack trace available]';
+  }
+  client_log_classPrivateFieldGet(client_logs, this).push(log);
+  if (client_log_classPrivateFieldGet(client_emitOnLog, this)) {
+    void this.sync().catch(function () {
+      /* Ignore errors */
+    });
+  }
+}
+function client_extractArguments(args) {
+  let firstArgIsOptions = false;
+  if (typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
+    firstArgIsOptions = true;
+  }
+  const options = client_assertLogOptionsParam(firstArgIsOptions ? args.shift() : {});
+  const from = args.shift();
+  if (typeof from !== 'string') {
+    throw new Error(`Expected string for 'from', got ${typeof from}`);
+  }
+  return {
+    options,
+    from
+  };
+}
+/**
+ * The default log level, used for new instances of the logger
+ */
+client_log_defineProperty(client_Log, "defaultLevel", 'DEBUG');
+/**
+ * The Console target, which is a basic logging target that outputs
+ * logs to the console
+ */
+client_log_defineProperty(client_Log, "ConsoleTarget", client_target_console);
+/**
+ * The existing legacy logger instance, if it exists
+ */
+client_log_defineProperty(client_Log, "legacyLoggerInstance", undefined);
+/* harmony default export */ const src_client_log = (client_Log);
 ;// ./src/lib/node/index.ts
 /* provided dependency */ var client_node_process = __webpack_require__(5606);
 /* provided dependency */ var client_node_Buffer = __webpack_require__(8287)["Buffer"];
@@ -129061,23 +129857,6 @@ class src_client_Node {
     });
   }
   constructor(configOrNode) {
-    var _this = this;
-    client_node_defineProperty(this, "log", {
-      debug: function (from) {
-        var _this$config;
-        for (var _len = arguments.length, message = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-          message[_key - 1] = arguments[_key];
-        }
-        return client_internalLogger((_this$config = _this.config) === null || _this$config === void 0 ? void 0 : _this$config.nodeAlias, 'debug', from, ...message);
-      },
-      error: function (from) {
-        var _this$config2;
-        for (var _len2 = arguments.length, message = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-          message[_key2 - 1] = arguments[_key2];
-        }
-        return client_internalLogger((_this$config2 = _this.config) === null || _this$config2 === void 0 ? void 0 : _this$config2.nodeAlias, 'error', from, ...message);
-      }
-    });
     this.timing = new src_client_timing();
     if (src_client_Node.isInstance(configOrNode, false)) {
       const node = configOrNode;
@@ -129087,9 +129866,15 @@ class src_client_Node {
       this.ledger = node.ledger.copy(this);
       this.switch = node.switch;
       this.stats = node.stats;
+      this.log = node.log;
       return;
     }
     const config = configOrNode;
+    if (config.log) {
+      this.log = config.log;
+    } else {
+      this.log = src_client_log.Legacy();
+    }
     this.log.debug('node', 'Starting up');
     const {
       networkAddress,
@@ -129111,12 +129896,7 @@ class src_client_Node {
       subnet: config.subnet,
       initialTrustedAccount: config.initialTrustedAccount,
       kind: ledgerKind,
-      log: function () {
-        for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
-          args[_key3] = arguments[_key3];
-        }
-        _this.log.debug('ledger', ...args);
-      },
+      log: this.log,
       ...config.ledger
     }, this);
     this.switch = new src_client_P2PSwitch(this);
@@ -129147,7 +129927,7 @@ class src_client_Node {
     await this.switch.stop();
   }
   async sync() {
-    await Promise.all([this.stats.sync(), this.switch.wait()]);
+    await Promise.all([this.stats.sync(), this.switch.wait(), this.log.sync()]);
   }
   async addToLedger(votesAndBlocks) {
     let broadcast = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
@@ -129329,6 +130109,8 @@ client_error_kv_defineProperty(src_client_KeetaNetKVError, "isInstance", client_
 
 
 
+
+
 const client_allErrorCodesWithoutPrefix = [...client_AccountErrorCodes, ...client_APIErrorCodes, ...client_BlockErrorCodes, ...client_CertificateErrorCodes, ...client_ClientErrorCodes, ...client_KVErrorCodes, ...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes, ...client_PermissionsErrorCodes, ...client_VoteErrorCodes];
 const client_allFullErrorCodes = [...client_FullAccountErrorCodes, ...client_FullAPIErrorCodes, ...client_FullBlockErrorCodes, ...client_FullCertificateErrorCodes, ...client_FullClientErrorCodes, ...client_FullKVErrorCodes, ...client_FullLedgerErrorCodes, ...client_FullPermissionsErrorCodes, ...client_FullVoteErrorCodes];
 const client_errorCodeSet = new Set(client_allFullErrorCodes);
@@ -129366,7 +130148,35 @@ class client_KeetaNetError extends src_client_KeetaNetErrorBase {
           }
           retryDelay = json.retryDelay;
         }
-        if (src_client_KeetaNetLedgerVoteError.assertValidLedgerErrorCode(code)) {
+        if (src_client_KeetaNetLedgerIdempotentKeyError.assertValidLedgerErrorCode(code)) {
+          let account;
+          let idempotentKey;
+          if ('account' in json) {
+            if (typeof json.account !== 'string') {
+              return new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad account)');
+            }
+            account = client_lib_account.fromPublicKeyString(json.account);
+          }
+          if ('idempotentKey' in json) {
+            if (typeof json.idempotentKey !== 'string') {
+              return new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad idempotentKey)');
+            }
+            try {
+              idempotentKey = client_bufferToArrayBuffer(client_validateBase64ToBuffer(json.idempotentKey));
+            } catch {
+              return new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad idempotentKey)');
+            }
+          }
+          if (!('blockhash' in json) || typeof json.blockhash !== 'string') {
+            return new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad blockhash)');
+          }
+          if (!('existingBlockhash' in json) || typeof json.existingBlockhash !== 'string') {
+            return new Error('Invalid JSON for KeetaNetLedgerIdempotentKeyError (bad existingBlockhash)');
+          }
+          const blockhash = new client_block_BlockHash(json.blockhash);
+          const existingBlockhash = new client_block_BlockHash(json.existingBlockhash);
+          return new src_client_KeetaNetLedgerIdempotentKeyError(code, blockhash, existingBlockhash, account, idempotentKey);
+        } else if (src_client_KeetaNetLedgerVoteError.assertValidLedgerErrorCode(code)) {
           if (!('accounts' in json) || !Array.isArray(json.accounts)) {
             return new Error('Invalid JSON for KeetaNetLedgerVoteError (bad accounts)');
           }
@@ -129468,7 +130278,7 @@ function client_deserializeBloomFilter(input) {
 // Blocks that will return from generateInitialVoteStaple if you are adding supply
 
 async function client_generateInitialVoteStaple(options) {
-  var _options$baseTokenInf, _options$baseTokenInf2, _options$baseTokenInf3, _options$baseTokenInf4;
+  var _options$baseNetworkI, _options$baseNetworkI2, _options$baseNetworkI3, _options$baseNetworkI4, _options$baseNetworkI5, _options$baseNetworkI6, _options$baseNetworkI7, _options$baseNetworkI8, _options$baseTokenInf, _options$baseTokenInf2, _options$baseTokenInf3, _options$baseTokenInf4, _options$baseTokenInf5, _options$baseTokenInf6;
   const {
     network,
     initialTrustedAccount,
@@ -129501,10 +130311,10 @@ async function client_generateInitialVoteStaple(options) {
       permissions: new client_permissions_Permissions(['OWNER'])
     }, {
       type: client_lib_block.OperationType.SET_INFO,
-      name: 'KEETANET',
-      description: 'Network Address For KeetaNet',
-      metadata: '',
-      defaultPermission: new client_permissions_Permissions(['STORAGE_CREATE'])
+      name: (_options$baseNetworkI = (_options$baseNetworkI2 = options.baseNetworkInfo) === null || _options$baseNetworkI2 === void 0 ? void 0 : _options$baseNetworkI2.name) !== null && _options$baseNetworkI !== void 0 ? _options$baseNetworkI : 'KEETANET',
+      description: (_options$baseNetworkI3 = (_options$baseNetworkI4 = options.baseNetworkInfo) === null || _options$baseNetworkI4 === void 0 ? void 0 : _options$baseNetworkI4.description) !== null && _options$baseNetworkI3 !== void 0 ? _options$baseNetworkI3 : 'Network Address For KeetaNet',
+      metadata: (_options$baseNetworkI5 = (_options$baseNetworkI6 = options.baseNetworkInfo) === null || _options$baseNetworkI6 === void 0 ? void 0 : _options$baseNetworkI6.metadata) !== null && _options$baseNetworkI5 !== void 0 ? _options$baseNetworkI5 : '',
+      defaultPermission: (_options$baseNetworkI7 = (_options$baseNetworkI8 = options.baseNetworkInfo) === null || _options$baseNetworkI8 === void 0 ? void 0 : _options$baseNetworkI8.defaultPermission) !== null && _options$baseNetworkI7 !== void 0 ? _options$baseNetworkI7 : new client_permissions_Permissions(['STORAGE_CREATE'])
     }]
   }).seal();
   setPrevious(networkAddress, blocks.networkAddress);
@@ -129534,7 +130344,7 @@ async function client_generateInitialVoteStaple(options) {
       metadata: options.baseTokenInfo ? btoa(JSON.stringify({
         decimalPlaces: options.baseTokenInfo.decimalPlaces
       })) : '',
-      defaultPermission: new client_permissions_Permissions(['ACCESS'])
+      defaultPermission: (_options$baseTokenInf5 = (_options$baseTokenInf6 = options.baseTokenInfo) === null || _options$baseTokenInf6 === void 0 ? void 0 : _options$baseTokenInf6.defaultPermission) !== null && _options$baseTokenInf5 !== void 0 ? _options$baseTokenInf5 : new client_permissions_Permissions(['ACCESS'])
     }, ...additionalBaseTokenOperations]
   }).seal();
   setPrevious(baseToken, blocks.baseToken);
@@ -129606,6 +130416,7 @@ async function client_generateInitialVoteStaple(options) {
 
 
 
+
 /* harmony default export */ const client_src_lib = ({
   /**
    * The `Account` module provides functionality for managing key pairs
@@ -129615,6 +130426,7 @@ async function client_generateInitialVoteStaple(options) {
   Block: client_lib_block,
   Error: client_KeetaNetError,
   Ledger: src_client_ledger,
+  Log: src_client_log,
   Node: client_node,
   P2P: client_p2p,
   Permissions: client_permissions_Permissions,
@@ -131945,6 +132757,38 @@ class src_client_Client {
     }
     return successorStaple;
   }
+
+  /**
+   * Fetch a block from a given idempotent key
+   * @param account The account associated with the idempotent key
+   * @param idempotent The idempotent key to check
+   */
+  async getBlockFromIdempotent(account, idempotent) {
+    let side = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'main';
+    let rep = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 'ANY';
+    account = client_lib_account.toAccount(account);
+    const accountPubKey = account.publicKeyString.get();
+    const query = {
+      side: client_assertLedgerStorage(side)
+    };
+    let idempotentBase64;
+    if (typeof idempotent === 'string') {
+      idempotentBase64 = idempotent;
+    } else {
+      idempotentBase64 = client_client_Buffer.from(idempotent).toString('base64');
+    }
+    const result = await client_client_assertClassBrand(client_Client_brand, this, src_client_api).call(this, rep, 'GET /node/ledger/account/:account/idempotent/:idempotent', {
+      queryParams: query,
+      args: {
+        account: accountPubKey,
+        idempotent: idempotentBase64
+      }
+    });
+    if (result.block === null) {
+      return null;
+    }
+    return new client_lib_block(result.block);
+  }
   async getVoteQuotes(blocks) {
     return await client_client_assertClassBrand(client_Client_brand, this, client_requestQuotes).call(this, blocks);
   }
@@ -132347,6 +133191,9 @@ function client_formatAccountInfo(raw) {
   if (raw.defaultPermission !== undefined) {
     info.defaultPermission = client_client_assertClassBrand(client_Client_brand, this, client_parseResponsePermissions).call(this, raw.defaultPermission);
   }
+  if (raw.multisigQuorum !== undefined) {
+    info.multisigQuorum = BigInt(raw.multisigQuorum);
+  }
   return info;
 }
 function client_parseAccountInfo(account, accountInfo) {
@@ -132690,7 +133537,8 @@ class src_client_UserClient {
       delegateTo = this.client.representatives[0].key,
       addSupplyAmount,
       voteSerial = 0n,
-      baseTokenInfo
+      baseTokenInfo,
+      baseNetworkInfo
     } = initOpts;
     if (this.signer === null) {
       throw new Error('May not initialize chain with a read-only UserClient (signer is null)');
@@ -132707,7 +133555,8 @@ class src_client_UserClient {
         recipient: client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options).assertAccount(),
         amount: addSupplyAmount
       },
-      baseTokenInfo
+      baseTokenInfo,
+      baseNetworkInfo
     });
     return await this.client.transmitStaple(voteStaple);
   }
@@ -133183,6 +134032,16 @@ class src_client_UserClient {
   async recover(publish) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     return await client_client_classPrivateFieldGet(client_client, this).recoverAccount(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), publish);
+  }
+
+  /**
+   * Fetch a block from a given idempotent key
+   * @param idempotent The idempotent key to check
+   * @param options User client options (common options)
+   */
+  async getBlockFromIdempotent(idempotent) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    return await client_client_classPrivateFieldGet(client_client, this).getBlockFromIdempotent(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), idempotent);
   }
 
   /**

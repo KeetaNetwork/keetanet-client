@@ -15,7 +15,7 @@ import type { AdjustMethod } from '../lib/block';
 import Block, { BlockHash } from '../lib/block';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import * as Config from '../config';
-import type { BaseTokenInfo } from '../lib/utils/initial';
+import type { BaseNetworkInfo, BaseTokenInfo } from '../lib/utils/initial';
 import type { BuilderOptions, ManageCertificateMethod } from './builder';
 import { UserClientBuilder } from './builder';
 import { KeetaNetError } from '../lib/error';
@@ -242,7 +242,7 @@ export declare class Client {
      * is defined by the `Client.DefaultLogger` property, but can be overridden
      * by the application.
      */
-    logger: Pick<Console, "error" | "log" | "warn">;
+    logger: Pick<Console, "log" | "error" | "warn">;
     /**
      * Indication of whether or not this client has been destroyed.
      */
@@ -734,6 +734,12 @@ export declare class Client {
      * @param publish Publish the synced staple to the network (default is true)
      */
     syncAccount(account: GenericAccount, publish?: boolean, reps?: ClientRepresentative[]): Promise<VoteStaple | null>;
+    /**
+     * Fetch a block from a given idempotent key
+     * @param account The account associated with the idempotent key
+     * @param idempotent The idempotent key to check
+     */
+    getBlockFromIdempotent(account: GenericAccount | string, idempotent: string | ArrayBuffer, side?: LedgerStorage, rep?: ClientRepresentative | 'ANY'): Promise<Block | null>;
     getVoteQuotes(blocks: Block[]): Promise<VoteQuote[]>;
     /** Work in progress */
     getLedgerChecksum(rep?: ClientRepresentative | 'ANY'): Promise<{
@@ -889,7 +895,8 @@ export declare class UserClient {
         addSupplyAmount: bigint;
         delegateTo?: Account;
         voteSerial?: bigint;
-        baseTokenInfo: BaseTokenInfo;
+        baseTokenInfo?: BaseTokenInfo;
+        baseNetworkInfo?: BaseNetworkInfo;
     }, options?: UserClientOptions): Promise<{
         voteStaple: VoteStaple;
         publish: boolean;
@@ -1202,6 +1209,12 @@ export declare class UserClient {
      */
     recover(publish?: boolean, options?: UserClientOptions): Promise<VoteStaple | null>;
     /**
+     * Fetch a block from a given idempotent key
+     * @param idempotent The idempotent key to check
+     * @param options User client options (common options)
+     */
+    getBlockFromIdempotent(idempotent: string | ArrayBuffer, options?: UserClientOptions): Promise<Block | null>;
+    /**
      * Sync any partially-published account artifacts
      *
      * @param publish Publish the recovered staple to the network
@@ -1277,6 +1290,7 @@ export declare const lib: {
     Block: typeof Block;
     Error: typeof KeetaNetError;
     Ledger: typeof import("../lib/ledger").Ledger;
+    Log: typeof import("../lib/log").default;
     Node: typeof import("../lib/node").Node;
     P2P: typeof import("../lib/p2p").P2PSwitch;
     Permissions: typeof import("../lib/permissions").Permissions;

@@ -5,7 +5,7 @@ import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
-import { LedgerStorageTransactionBase } from '../ledger';
+import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import type { KVStorageProviderAPI } from '../kv';
 import { LedgerStorageBase } from './common';
@@ -107,6 +107,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     getNextSerialNumber(): Promise<bigint>;
     getAccountCertificates(transaction: SpannerTransaction, account: GenericAccount): Promise<CertificateWithIntermediates[]>;
     getAccountCertificateByHash(transaction: SpannerTransaction, account: GenericAccount, certificateHash: CertificateHash): Promise<CertificateWithIntermediates | null>;
+    getIdempotentBlockHash(transaction: SpannerTransaction, idempotent: IdempotentKey, from: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
     stats(): Promise<LedgerStatistics>;
 }
 export declare const Testing: {

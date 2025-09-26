@@ -4,7 +4,7 @@ import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
-import { LedgerStorageTransactionBase } from '../ledger';
+import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
 import type { PoolClient as PostgresPoolClient } from 'pg';
@@ -69,6 +69,7 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     getAccountCertificateByHash(transaction: PostgresTransaction, account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     protected gcBatch(transaction: PostgresTransaction): Promise<boolean>;
     getNextSerialNumber(): Promise<bigint>;
+    getIdempotentBlockHash(transaction: PostgresTransaction, idempotent: IdempotentKey, from: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
     stats(): Promise<LedgerStatistics>;
 }
 export declare const Testing: {

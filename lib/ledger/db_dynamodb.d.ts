@@ -3,7 +3,7 @@ import { Block, BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions, IdempotentKey } from '../ledger';
 import { LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
@@ -100,6 +100,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
     getAccountCertificateByHash(transaction: DynamoDBTransaction, account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     getNextSerialNumber(): Promise<bigint>;
     gcBatch(transaction: DynamoDBTransaction): Promise<boolean>;
+    getIdempotentBlockHash(_ignored_transaction: DynamoDBTransaction, _ignored_idempotent: IdempotentKey, _ignored_from: LedgerSelector): Promise<BlockHash | null>;
     stats(): Promise<LedgerStatistics>;
 }
 export default DBDynamoDB;

@@ -1,11 +1,11 @@
 import { VoteStaple, Vote, VoteBlockHash } from '../vote';
 import type { VoteBlockHashMap } from '../vote';
-import type { BlockHash } from '../block';
+import { BlockHash } from '../block';
 import { Block } from '../block';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
-import { LedgerStorageTransactionBase } from '../ledger';
+import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import { LedgerStorageBase } from './common';
 import * as sqlite from 'sqlite';
@@ -67,6 +67,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     getAccountCertificateByHash(transaction: DBSqliteTransaction, account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
     protected gcBatch(transaction: DBSqliteTransaction): Promise<boolean>;
     getNextSerialNumber(transaction: DBSqliteTransaction): Promise<bigint>;
+    getIdempotentBlockHash(transaction: DBSqliteTransaction, idempotent: IdempotentKey, from: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
     stats(): Promise<LedgerStatistics>;
 }
 export default DBSqlite;

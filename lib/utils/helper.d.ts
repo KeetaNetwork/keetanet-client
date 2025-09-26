@@ -1,6 +1,7 @@
 import _crypto from 'crypto';
 import type { JSONSerializable } from './conversion';
 export type DistributiveOmit<T, P extends PropertyKey> = T extends T ? Omit<T, P> : never;
+export declare function validateBase64ToBuffer(input: string): Buffer;
 export declare function bufferToArrayBuffer(input: Buffer): ArrayBuffer;
 export declare function bufferToBigInt(buffer: Buffer): bigint;
 /**
@@ -37,7 +38,6 @@ export declare function promiseGenerator<T>(): {
     resolve: (value: T) => void;
     reject: (error: any) => void;
 };
-export declare function internalLogger(nodeAlias: string | undefined, level: string, from: string, ...message: any[]): void;
 export declare function objectToBuffer(input: any): Buffer;
 export declare function debugPrintableObject(input: any): JSONSerializable;
 interface Constructor<T> {

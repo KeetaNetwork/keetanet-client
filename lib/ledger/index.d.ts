@@ -8,8 +8,10 @@ import type { BloomFilter } from '../utils/bloom';
 import type { ComputedEffectOfBlocks } from './effects';
 import type { ACLRow, AccountInfo, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
 import LedgerRequestCache from './cache';
+import type { Logger } from '../log';
 import type { CertificateHash } from '../utils/certificate';
 import { StatsPending } from '../stats';
+import { BufferStorage } from '../utils/buffer';
 /**
  * Kind of ledger
  */
@@ -66,7 +68,7 @@ export interface LedgerConfig {
     /**
      * Logging method
      */
-    log?: (...args: any[]) => any;
+    log?: Logger;
     /**
      * Operation specific parameters
      */
@@ -107,6 +109,22 @@ export type GetVotesAfterOptions = {
      */
     timeout?: number;
 };
+type IdempotentKeyString = string & {
+    readonly __idempotentKey: never;
+};
+/**
+ * Idempotent Key
+ */
+export declare class IdempotentKey extends BufferStorage {
+    readonly account: GenericAccount | undefined;
+    readonly userIdempotent: Buffer | undefined;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is IdempotentKey;
+    static readonly Set: import("../utils/helper").InstanceSetConstructor<IdempotentKey, IdempotentKeyString>;
+    static fromAccountAndIdempotent(account: GenericAccount, idempotent: string | Buffer): IdempotentKey;
+    constructor(idempotentKey: ConstructorParameters<typeof BufferStorage>[0], account?: GenericAccount, idempotent?: Buffer);
+    toJSON(): IdempotentKeyString;
+    toString(): IdempotentKeyString;
+}
 /**
  * Each transaction can contain the node object making the request to access things like timing information
  */
@@ -297,6 +315,10 @@ export interface LedgerStorageAPI {
      */
     getAccountCertificateByHash: (transaction: any, account: GenericAccount, hash: CertificateHash) => Promise<CertificateWithIntermediates | null>;
     /**
+     * Get block hash from idempotent key
+     */
+    getIdempotentBlockHash: (transaction: any, idempotent: IdempotentKey, from: LedgerSelector, excludeBlockHash?: BlockHash) => Promise<BlockHash | null>;
+    /**
      * Get ledger statistics
      */
     stats: () => Promise<LedgerStatistics>;
@@ -347,6 +369,8 @@ declare class LedgerAtomicInterface {
     getVoteStaplesAfter(moment: Date, limit?: number, options?: GetVotesAfterOptions): Promise<VoteStaple[]>;
     gc(timeLimitMS?: number): Promise<boolean>;
     getFee(blocks: Block[], effectsInput?: ComputedEffectOfBlocks): Promise<FeeAmountAndToken | null>;
+    getIdempotentBlockHash(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
+    getBlockFromIdempotent(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<Block | null>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 /**
@@ -400,6 +424,8 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getVoteStaplesAfter(...args: Parameters<LedgerAtomicInterface['getVoteStaplesAfter']>): ReturnType<LedgerAtomicInterface['getVoteStaplesAfter']>;
     gc(...args: Parameters<LedgerAtomicInterface['gc']>): ReturnType<LedgerAtomicInterface['gc']>;
     getFee(...args: Parameters<LedgerAtomicInterface['getFee']>): ReturnType<LedgerAtomicInterface['getFee']>;
+    getIdempotentBlockHash(...args: Parameters<LedgerAtomicInterface['getIdempotentBlockHash']>): ReturnType<LedgerAtomicInterface['getIdempotentBlockHash']>;
+    getBlockFromIdempotent(...args: Parameters<LedgerAtomicInterface['getBlockFromIdempotent']>): ReturnType<LedgerAtomicInterface['getBlockFromIdempotent']>;
     stats(): Promise<LedgerStatistics>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }

@@ -58008,6 +58008,58 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __addDisposableResource = (this && this.__addDisposableResource) || function (env, value, async) {
+    if (value !== null && value !== void 0) {
+        if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
+        var dispose, inner;
+        if (async) {
+            if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+            dispose = value[Symbol.asyncDispose];
+        }
+        if (dispose === void 0) {
+            if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+            dispose = value[Symbol.dispose];
+            if (async) inner = dispose;
+        }
+        if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+        if (inner) dispose = function() { try { inner.call(this); } catch (e) { return Promise.reject(e); } };
+        env.stack.push({ value: value, dispose: dispose, async: async });
+    }
+    else if (async) {
+        env.stack.push({ async: true });
+    }
+    return value;
+};
+var __disposeResources = (this && this.__disposeResources) || (function (SuppressedError) {
+    return function (env) {
+        function fail(e) {
+            env.error = env.hasError ? new SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+            env.hasError = true;
+        }
+        var r, s = 0;
+        function next() {
+            while (r = env.stack.pop()) {
+                try {
+                    if (!r.async && s === 1) return s = 0, env.stack.push(r), Promise.resolve().then(next);
+                    if (r.dispose) {
+                        var result = r.dispose.call(r.value);
+                        if (r.async) return s |= 2, Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+                    }
+                    else s |= 1;
+                }
+                catch (e) {
+                    fail(e);
+                }
+            }
+            if (s === 1) return env.hasError ? Promise.reject(env.error) : Promise.resolve();
+            if (env.hasError) throw env.error;
+        }
+        return next();
+    };
+})(typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+    var e = new Error(message);
+    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+});
 var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
     if (kind === "m") throw new TypeError("Private method is not writable");
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
@@ -58246,6 +58298,7 @@ class Client {
      * The `blocks` builder will be computed using {@link computeBuilderBlocks} and then transmitted.
      *
      * @param builder The UserClientBuilder to compute and transmit transmit
+     * @param options User provided options {@link PublishOptions }
      * @param network The network to use for the builder (if using a builder)
      * @return The result of the publish operation
      */
@@ -58276,7 +58329,7 @@ class Client {
                 throw (new Error('Votes require fees but generateFeeBlock was not defined'));
             }
             const staple = vote_1.VoteStaple.fromVotesAndBlocks(tempVotes, blocks);
-            const feeBlock = await options.generateFeeBlock(staple);
+            const feeBlock = await options.generateFeeBlock(staple, options);
             blocks.push(feeBlock);
         }
         const permVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, blocks, tempVotes);
@@ -58557,21 +58610,43 @@ class Client {
      *
      * @param account The account to get the head block for
      * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
-     * @return The head block for the account or null if the account has
-     *         not created any blocks
+     * @return The head block and height for the account or null if the account has not created any blocks
      */
-    async getHeadBlock(account, rep = 'ANY') {
+    async getAccountHeadInfo(account, rep = 'ANY') {
         account = lib_1.default.Account.toPublicKeyString(account);
         const result = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_api).call(this, rep, 'GET /node/ledger/account/:account/head', {
             args: {
                 account
             }
         });
-        if (result.block === null) {
+        if (result.block === null || result.height === null) {
             return (null);
         }
         const block = new lib_1.default.Block(result.block);
-        return (block);
+        return ({
+            block,
+            height: BigInt(result.height)
+        });
+    }
+    /**
+     * Get the current head block for a given account.  This will return the
+     * entire block, or null if the account has not created any blocks.
+     *
+     * An account with no blocks may still have a balance because other users
+     * may have sent tokens to it.
+     *
+     * @param account The account to get the head block for
+     * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
+     * @return The head block for the account or null if the account has
+     *         not created any blocks
+     */
+    async getHeadBlock(account, rep = 'ANY') {
+        account = lib_1.default.Account.toPublicKeyString(account);
+        const headBlockInfo = await this.getAccountHeadInfo(account, rep);
+        if (headBlockInfo === null) {
+            return (null);
+        }
+        return (headBlockInfo.block);
     }
     /**
      * @param blockhash The block hash to get the block for
@@ -59061,8 +59136,9 @@ class Client {
      *
      * @param account Account to recover
      * @param publish Publish the recovered staple to the network (default is true)
+     * @param options options for publishing {@link PublishOptions }
      */
-    async recoverAccount(account, publish = true) {
+    async recoverAccount(account, publish = true, options) {
         const successorBlock = await this.getPendingBlock(account);
         if (!successorBlock) {
             return (null);
@@ -59158,7 +59234,7 @@ class Client {
             let newTempVotes = [];
             if (tempVotes.length !== __classPrivateFieldGet(this, _Client_reps, "f").length) {
                 try {
-                    newTempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, undefined, missingReps);
+                    newTempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, undefined, missingReps, options?.quotes);
                 }
                 catch {
                     /* Ignore */
@@ -59166,6 +59242,22 @@ class Client {
                 tempVotes = [...tempVotes, ...newTempVotes];
             }
             const missingPermReps = __classPrivateFieldGet(this, _Client_reps, "f").filter(rep => !permReps.includes(rep));
+            // If any of the temporary votes require a fee, we need to generate a fee block
+            let requiresFee = false;
+            for (const vote of tempVotes) {
+                if (vote.fee !== undefined) {
+                    requiresFee = true;
+                }
+            }
+            // If we need a fee block and don't have any permanent votes, we need to generate a fee block
+            if (requiresFee && permVotes.length === 0) {
+                if (options?.generateFeeBlock === undefined) {
+                    throw (new Error('Votes require fees but generateFeeBlock was not defined'));
+                }
+                const staple = vote_1.VoteStaple.fromVotesAndBlocks(tempVotes, votedOnBlocks);
+                const feeBlock = await options.generateFeeBlock(staple, options);
+                votedOnBlocks.push(feeBlock);
+            }
             try {
                 const newPermVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, tempVotes, missingPermReps);
                 permVotes = [...permVotes, ...newPermVotes];
@@ -59200,7 +59292,7 @@ class Client {
         const repAccountInfoPromises = [];
         for (const rep of reps) {
             repAccountInfoPromises.push((async () => {
-                const info = await this.getAccountInfo(account, rep);
+                const info = await this.getAccountHeadInfo(account, rep);
                 return ({
                     rep,
                     info
@@ -59215,15 +59307,15 @@ class Client {
             }
         }
         const accountInfoSorted = accountInfo.sort(function (a, b) {
-            return (Number(BigInt(a.info.currentHeadBlockHeight ?? -1) - BigInt(b.info.currentHeadBlockHeight ?? -1)));
+            return (Number(BigInt(a.info?.height ?? -1) - BigInt(b.info?.height ?? -1)));
         });
-        if (accountInfoSorted[0].info.currentHeadBlockHeight === accountInfoSorted[accountInfoSorted.length - 1].info.currentHeadBlockHeight) {
+        if (accountInfoSorted[0].info?.height === accountInfoSorted[accountInfoSorted.length - 1].info?.height) {
             // Block Heights match so return
             return (null);
         }
-        let lowestHead = accountInfoSorted[0].info.currentHeadBlock;
-        if (lowestHead === null) {
-            lowestHead = block_1.default.getAccountOpeningHash(account).toString();
+        let lowestHead = accountInfoSorted[0].info?.block.hash;
+        if (lowestHead === null || lowestHead === undefined) {
+            lowestHead = block_1.default.getAccountOpeningHash(account);
         }
         // Get the missing successor block and vote staple from the rep with the highest block height
         const successorBlock = await this.getSuccessorBlock(lowestHead, accountInfoSorted[accountInfoSorted.length - 1].rep);
@@ -59237,8 +59329,8 @@ class Client {
         if (publish === true) {
             await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
         }
-        const updatedAccountInfo = await this.getAccountInfo(account, accountInfoSorted[0].rep);
-        if (updatedAccountInfo.currentHeadBlockHeight === accountInfoSorted[0].info.currentHeadBlockHeight) {
+        const updatedAccountInfo = await this.getAccountHeadInfo(account, accountInfoSorted[0].rep);
+        if (updatedAccountInfo?.height === accountInfoSorted[0].info?.height) {
             throw (new client_1.default('CLIENT_SYNC_PUBLISH_FAILED', `Client sync found a missing staple: ${successorStaple.blocksHash}, but it could not be published to rep: ${accountInfoSorted[0].rep.key.publicKeyString.get()}`));
         }
         return (successorStaple);
@@ -59364,10 +59456,16 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
                         const keetaNetError = error_1.KeetaNetError.fromJSON(errorInfo);
                         try {
                             if (ledger_1.KeetaNetLedgerVoteError.isInstance(keetaNetError)) {
+                                let syncPerformed = false;
                                 for (const account of keetaNetError.accounts) {
-                                    await this.syncAccount(account);
+                                    const successorStaple = await this.syncAccount(account);
+                                    if (successorStaple !== null) {
+                                        syncPerformed = true;
+                                    }
                                 }
-                                continue;
+                                if (syncPerformed) {
+                                    continue;
+                                }
                             }
                         }
                         catch {
@@ -59837,6 +59935,103 @@ class UserClient {
         return (new UserClient(config));
     }
     /**
+     * Initiate a swap request
+     *
+     * @param request {@link CreateSwapRequest}
+     * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+     * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+     * @param client either a UserClient instance or network and signer from which to create a UserClient
+     * @param options User client options (common options)
+     * @returns Swap {@link Block}
+     */
+    static async createSwapRequest(request, client, options) {
+        let userClient;
+        if (UserClient.isInstance(client)) {
+            userClient = client;
+        }
+        else {
+            userClient = this.fromNetwork(client.network, client.signer, options);
+        }
+        if (userClient === undefined) {
+            throw (new Error('UserClient Should have been defined for swap'));
+        }
+        const { from, to } = request;
+        if (options?.account !== undefined && !request.from.account.comparePublicKey(options.account)) {
+            throw (new client_1.default('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'account should be provided in the request instead of options'));
+        }
+        const builder = userClient.initBuilder({ ...options, account: request.from.account });
+        builder.send(to.account, from.amount, from.token);
+        builder.receive(to.account, to.amount, to.token, true);
+        const blocks = await builder.computeBlocks();
+        if (blocks.blocks.length !== 1) {
+            throw (new Error('Compute Swap Request Generated more than 1 block'));
+        }
+        return (blocks.blocks[0]);
+    }
+    static async acceptSwapRequest(request, builderOrUserClient, options) {
+        let builder;
+        let account;
+        if (builder_1.UserClientBuilder.isInstance(builderOrUserClient)) {
+            builder = builderOrUserClient;
+            account = builder.defaultOptions.account;
+        }
+        else {
+            let userClient;
+            if (UserClient.isInstance(builderOrUserClient)) {
+                userClient = builderOrUserClient;
+                account = builderOrUserClient.account;
+            }
+            else {
+                const env_1 = { stack: [], error: void 0, hasError: false };
+                try {
+                    // Use await using so this temporary client gets cleaned up
+                    const temporaryClient = __addDisposableResource(env_1, this.fromNetwork(builderOrUserClient.network, builderOrUserClient.signer, options), true);
+                    userClient = temporaryClient;
+                    account = options?.account ?? builderOrUserClient.signer;
+                    if (account === null) {
+                        throw (new client_1.default('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Signer is required for building swap block'));
+                    }
+                }
+                catch (e_1) {
+                    env_1.error = e_1;
+                    env_1.hasError = true;
+                }
+                finally {
+                    const result_1 = __disposeResources(env_1);
+                    if (result_1)
+                        await result_1;
+                }
+            }
+            builder = userClient.initBuilder(options);
+        }
+        if (account === undefined) {
+            throw (new client_1.default('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Unable to determine account for swap'));
+        }
+        const sendOperation = request.block.operations.find(({ type }) => block_1.default.OperationType.SEND === type);
+        const receiveOperation = request.block.operations.find(({ type }) => block_1.default.OperationType.RECEIVE === type);
+        if (!sendOperation || sendOperation.type !== block_1.default.OperationType.SEND) {
+            throw (new client_1.default('CLIENT_SWAP_MISSING_SEND', 'Swap Request is missing send'));
+        }
+        if (!receiveOperation || receiveOperation.type !== block_1.default.OperationType.RECEIVE) {
+            throw (new client_1.default('CLIENT_SWAP_MISSING_RECEIVE', 'Swap Request is missing receive operation'));
+        }
+        if (!sendOperation.to.comparePublicKey(receiveOperation.from)) {
+            throw (new client_1.default('CLIENT_SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'The SEND and RECEIVE operations must have matching accounts.'));
+        }
+        if (!sendOperation.to.comparePublicKey(account)) {
+            throw (new client_1.default('CLIENT_SWAP_SEND_ACCOUNT_MISMATCH', 'Swap Request send account does not match'));
+        }
+        if (request.expected?.token !== undefined && !sendOperation.token.comparePublicKey(request.expected?.token)) {
+            throw (new client_1.default('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected'));
+        }
+        if (request.expected?.amount !== undefined && sendOperation.amount !== request.expected?.amount) {
+            throw (new client_1.default('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected'));
+        }
+        builder.send(request.block.account, receiveOperation.amount, receiveOperation.token);
+        const blocks = await builder.computeBlocks();
+        return ([...blocks.blocks, request.block]);
+    }
+    /**
      * Helper method to filter a list of vote staples into
      * a list of blocks and operations that are related to
      * a given account.
@@ -59942,8 +60137,8 @@ class UserClient {
         this.networkAddress = networkAddress;
         this.baseToken = baseToken;
         __classPrivateFieldSet(this, _UserClient_config, {
-            generateFeeBlock: async (staple) => {
-                const builder = this.initBuilder();
+            generateFeeBlock: async (staple, options) => {
+                const builder = this.initBuilder(options);
                 const block = await builder.computeFeeBlock(staple);
                 return (block);
             },
@@ -60089,6 +60284,22 @@ class UserClient {
             publish: retval.publish,
             from: 'publish-aid'
         });
+    }
+    /**
+     * Transmit a set of blocks to the network.  This will request short
+     * votes and permanent votes for the blocks and then publish them to
+     * the network.  Optionally it will generate a fee block from a user
+     * provided function if fees are required.
+     *
+     * @param blocks The blocks to transmit
+     * @param options User provided options {@link PublishOptions }
+     * @return The result of the publish operation
+     */
+    async transmit(blocks, options = {}) {
+        if (options.generateFeeBlock === undefined) {
+            options.generateFeeBlock = __classPrivateFieldGet(this, _UserClient_config, "f").generateFeeBlock;
+        }
+        return (await __classPrivateFieldGet(this, _UserClient_client, "f").transmit(blocks, options));
     }
     /**
      * Set the metadata for an account and publish the blocks to the
@@ -60350,7 +60561,7 @@ class UserClient {
      * @param options User client options (common options)
      */
     async recover(publish, options = {}) {
-        return (await __classPrivateFieldGet(this, _UserClient_client, "f").recoverAccount(__classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options), publish));
+        return (await __classPrivateFieldGet(this, _UserClient_client, "f").recoverAccount(__classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options), publish, options));
     }
     /**
      * Fetch a block from a given idempotent key
@@ -60369,6 +60580,33 @@ class UserClient {
      */
     async sync(publish, options = {}) {
         return (await __classPrivateFieldGet(this, _UserClient_client, "f").syncAccount(__classPrivateFieldGet(this, _UserClient_instances, "m", _UserClient_getAccount).call(this, options), publish));
+    }
+    /**
+     * Initiate a swap request
+     *
+     * @param request {@link CreateSwapRequest}
+     * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+     * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+     * @param options User client options (common options)
+     * @returns Swap {@link Block}
+     */
+    async createSwapRequest(request, options) {
+        return (await UserClient.createSwapRequest(request, this, options));
+    }
+    /**
+     * Finalize a swap request
+     *
+     * @param request {@link AcceptSwapRequest} initial swap request block and optional expected token and amounts
+     * @param builderOrOptions {@link UserClientBuilder} or {@link UserClientOptions} to use for building the swap block
+     * @returns Blocks
+     */
+    async acceptSwapRequest(request, builderOrOptions) {
+        if (builder_1.UserClientBuilder.isInstance(builderOrOptions)) {
+            return (await UserClient.acceptSwapRequest(request, builderOrOptions));
+        }
+        else {
+            return (await UserClient.acceptSwapRequest(request, this, builderOrOptions));
+        }
     }
     /**
      * Register a callback for change messages and set up a websocket filtered to our account only.
@@ -65336,7 +65574,15 @@ exports.ClientErrorCodes = [
     'BUILDER_USER_CLIENT_REQUIRED',
     'PUBLISH_AID_NOT_AVAILABLE',
     'SIGNER_REQUIRES_PRIVATE_KEY',
-    'SYNC_PUBLISH_FAILED'
+    'SYNC_PUBLISH_FAILED',
+    'SWAP_INVALID_ACCOUNT_OPTION',
+    'SWAP_OPTIONS_INVALID',
+    'SWAP_MISSING_SEND',
+    'SWAP_MISSING_RECEIVE',
+    'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH',
+    'SWAP_SEND_ACCOUNT_MISMATCH',
+    'SWAP_REQUEST_TOKEN_MISMATCH',
+    'SWAP_REQUEST_AMOUNT_MISMATCH'
 ];
 exports.FullClientErrorCodes = exports.ClientErrorCodes.map(code => `${ClientErrorType}_${code}`);
 class KeetaNetClientError extends base_1.KeetaNetErrorBase {
@@ -69271,22 +69517,7 @@ class Log {
      *
      * The default value for `<name>` is `KEETANET`.
      */
-    static Legacy(name) {
-        if (name === undefined) {
-            name = 'KEETANET';
-        }
-        const extraConfig = {};
-        if (process !== undefined) {
-            let environmentLogLevel = process.env[`${name}_DEBUG`]?.toUpperCase() ?? 'NONE';
-            if (environmentLogLevel === 'TRUE') {
-                environmentLogLevel = 'DEBUG';
-            }
-            else if (environmentLogLevel === 'FALSE') {
-                environmentLogLevel = 'NONE';
-            }
-            extraConfig.logLevel = (0, helper_generated_1.assertLogTargetLevel)(environmentLogLevel);
-            extraConfig.filter = new RegExp(process.env[`${name}_DEBUG_FILTER`] ?? '', 'i');
-        }
+    static Legacy(name = 'KEETANET') {
         if (Log.legacyLoggerInstance) {
             if (__classPrivateFieldGet(Log.legacyLoggerInstance, _Log_destroyed, "f")) {
                 Log.legacyLoggerInstance = undefined;
@@ -69294,6 +69525,21 @@ class Log {
         }
         if (Log.legacyLoggerInstance) {
             return (Log.legacyLoggerInstance);
+        }
+        const extraConfig = {};
+        if (process !== undefined) {
+            let environmentLogLevel = process.env[`${name}_DEBUG`]?.toUpperCase() ?? process.env[`${name}_LAMBDA_LOG_LEVEL`]?.toUpperCase() ?? 'NONE';
+            if (environmentLogLevel === 'TRUE') {
+                environmentLogLevel = 'DEBUG';
+            }
+            else if (environmentLogLevel === 'FALSE') {
+                environmentLogLevel = 'NONE';
+            }
+            extraConfig.logLevel = (0, helper_generated_1.assertLogTargetLevel)(environmentLogLevel);
+            const logFilterString = process.env[`${name}_DEBUG_FILTER`] ?? process.env[`${name}_LAMBDA_LOG_FILTER`] ?? '';
+            if (logFilterString !== '') {
+                extraConfig.filter = new RegExp(logFilterString, 'i');
+            }
         }
         const logger = new Log();
         logger.registerConsoleTarget({
@@ -69839,7 +70085,7 @@ exports["default"] = Node;
 /***/ }),
 
 /***/ 2895:
-/***/ (function(__unused_webpack_module, exports) {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -69854,9 +70100,13 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var _RequestTiming_timing, _RequestTiming_counter;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RequestTiming = void 0;
+const log_1 = __importDefault(__webpack_require__(9));
 /**
  * Support the old way of doing timing where the callers could call
  * startTime/endTime with the same string to terminate a timing section
@@ -70009,7 +70259,7 @@ class RequestTiming {
 }
 exports.RequestTiming = RequestTiming;
 _RequestTiming_timing = new WeakMap(), _RequestTiming_counter = new WeakMap();
-RequestTiming.defaultLogger = console;
+RequestTiming.defaultLogger = log_1.default.Legacy();
 exports["default"] = RequestTiming;
 
 
@@ -78545,7 +78795,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.7+gc361cc93bcd5918c1bfac43f60a0a68020a0ecb1';
+exports.version = '0.14.8+g2ae53aba450fae088463ac1a8f545b6460825c5b';
 exports["default"] = exports.version;
 
 

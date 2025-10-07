@@ -39,7 +39,7 @@ export declare function setup(options?: NodeCreationOptions): Promise<{
     params: ClientParams;
     cleanupFunctions: (() => Promise<void>)[];
 }>;
-declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, _ignoreExpectErrorCode: any): Promise<void>;
+declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runFeeBlockTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runBuilderStorageTests(_ignoreNodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runMultiSigTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;

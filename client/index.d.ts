@@ -125,16 +125,6 @@ interface CertificateWithIntermediatesResponse {
     certificate: Certificate;
     intermediates: CertificateBundle | null;
 }
-interface PublishOptions {
-    /**
-     * Client provided function to compute the fee block associated with any transactions
-     */
-    generateFeeBlock?: (staple: VoteStaple) => Promise<Block>;
-    /**
-     * Quotes if provided will be sent to the representative
-     */
-    quotes?: VoteQuote[];
-}
 /**
  */
 interface UserClientOptions {
@@ -166,6 +156,16 @@ interface UserClientOptions {
      * Client provided function to compute the fee block associated with any transactions
      */
     generateFeeBlock?: PublishOptions['generateFeeBlock'];
+}
+interface PublishOptions extends UserClientOptions {
+    /**
+     * Client provided function to compute the fee block associated with any transactions
+     */
+    generateFeeBlock?: (staple: VoteStaple, options?: UserClientOptions) => Promise<Block>;
+    /**
+     * Quotes if provided will be sent to the representative
+     */
+    quotes?: VoteQuote[];
 }
 /**
  * The set of options that are applicable to read-only operations
@@ -242,7 +242,7 @@ export declare class Client {
      * is defined by the `Client.DefaultLogger` property, but can be overridden
      * by the application.
      */
-    logger: Pick<Console, "log" | "error" | "warn">;
+    logger: Pick<Console, "log" | "warn" | "error">;
     /**
      * Indication of whether or not this client has been destroyed.
      */
@@ -347,6 +347,7 @@ export declare class Client {
      * The `blocks` builder will be computed using {@link computeBuilderBlocks} and then transmitted.
      *
      * @param builder The UserClientBuilder to compute and transmit transmit
+     * @param options User provided options {@link PublishOptions }
      * @param network The network to use for the builder (if using a builder)
      * @return The result of the publish operation
      */
@@ -486,6 +487,21 @@ export declare class Client {
      * @return The certificate and any intermediates or null if the certificate was not found
      */
     getCertificateByHash(account: GenericAccount | string, certificateHash: string | CertificateHash): Promise<CertificateWithIntermediatesResponse | null>;
+    /**
+     * Get the current head block for a given account.  This will return the
+     * entire block, or null if the account has not created any blocks.
+     *
+     * An account with no blocks may still have a balance because other users
+     * may have sent tokens to it.
+     *
+     * @param account The account to get the head block for
+     * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
+     * @return The head block and height for the account or null if the account has not created any blocks
+     */
+    getAccountHeadInfo(account: GenericAccount | string, rep?: Config.Representative | 'ANY'): Promise<{
+        block: Block;
+        height: bigint;
+    } | null>;
     /**
      * Get the current head block for a given account.  This will return the
      * entire block, or null if the account has not created any blocks.
@@ -725,8 +741,9 @@ export declare class Client {
      *
      * @param account Account to recover
      * @param publish Publish the recovered staple to the network (default is true)
+     * @param options options for publishing {@link PublishOptions }
      */
-    recoverAccount(account: GenericAccount, publish?: boolean): Promise<VoteStaple | null>;
+    recoverAccount(account: GenericAccount, publish?: boolean, options?: PublishOptions): Promise<VoteStaple | null>;
     /**
      * Sync any partially-published account artifacts
      *
@@ -755,6 +772,25 @@ export declare class Client {
     getVersion(rep?: ClientRepresentative | 'ANY'): Promise<{
         node: string;
     }>;
+}
+interface CreateSwapRequest {
+    from: {
+        account: GenericAccount;
+        token: TokenAddress;
+        amount: bigint;
+    };
+    to: {
+        account: GenericAccount;
+        token: TokenAddress;
+        amount: bigint;
+    };
+}
+interface AcceptSwapRequest {
+    block: Block;
+    expected?: {
+        token?: TokenAddress;
+        amount?: bigint;
+    };
 }
 interface UserClientListenerTypes {
     change: ((data: GetAccountStateAPIResponseFormatted) => void);
@@ -849,6 +885,32 @@ export declare class UserClient {
      * different contexts.
      */
     static isInstance: (obj: any, strict?: boolean) => obj is UserClient;
+    /**
+     * Initiate a swap request
+     *
+     * @param request {@link CreateSwapRequest}
+     * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+     * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+     * @param client either a UserClient instance or network and signer from which to create a UserClient
+     * @param options User client options (common options)
+     * @returns Swap {@link Block}
+     */
+    static createSwapRequest(request: CreateSwapRequest, client: UserClient | {
+        network: Config.Networks;
+        signer: Account;
+    }, options?: UserClientOptions): Promise<Block>;
+    /**
+     * Finalize a swap request
+     *
+     * @param request {@link AcceptSwapRequest} initial swap request block and optional expected token and amounts
+     * @param builderOrUserClient User Client Options or optional builder to add the new block too
+     * @returns Swap Blocks
+     */
+    static acceptSwapRequest(request: AcceptSwapRequest, builderOrUserClient: UserClient | {
+        network: Config.Networks;
+        signer: Account | null;
+    }, options?: UserClientOptions): Promise<Block[]>;
+    static acceptSwapRequest(request: AcceptSwapRequest, builderOrUserClient: UserClientBuilder): Promise<Block[]>;
     /**
      * Helper method to filter a list of vote staples into
      * a list of blocks and operations that are related to
@@ -964,6 +1026,21 @@ export declare class UserClient {
         blocks: Block[];
         publish: boolean;
         from: "publish-aid";
+    }>;
+    /**
+     * Transmit a set of blocks to the network.  This will request short
+     * votes and permanent votes for the blocks and then publish them to
+     * the network.  Optionally it will generate a fee block from a user
+     * provided function if fees are required.
+     *
+     * @param blocks The blocks to transmit
+     * @param options User provided options {@link PublishOptions }
+     * @return The result of the publish operation
+     */
+    transmit(blocks: Block[], options?: PublishOptions): Promise<{
+        voteStaple: VoteStaple;
+        publish: boolean;
+        from: "direct";
     }>;
     /**
      * Set the metadata for an account and publish the blocks to the
@@ -1222,6 +1299,24 @@ export declare class UserClient {
      * @param options User client options (common options)
      */
     sync(publish?: boolean, options?: UserClientOptions): Promise<VoteStaple | null>;
+    /**
+     * Initiate a swap request
+     *
+     * @param request {@link CreateSwapRequest}
+     * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+     * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+     * @param options User client options (common options)
+     * @returns Swap {@link Block}
+     */
+    createSwapRequest(request: CreateSwapRequest, options?: UserClientOptions): Promise<Block>;
+    /**
+     * Finalize a swap request
+     *
+     * @param request {@link AcceptSwapRequest} initial swap request block and optional expected token and amounts
+     * @param builderOrOptions {@link UserClientBuilder} or {@link UserClientOptions} to use for building the swap block
+     * @returns Blocks
+     */
+    acceptSwapRequest(request: AcceptSwapRequest, builderOrOptions?: UserClientBuilder | UserClientOptions): Promise<Block[]>;
     /**
      * Register a callback for change messages and set up a websocket filtered to our account only.
      * Also set up long timeout polling for changes in case the websocket misses a change update

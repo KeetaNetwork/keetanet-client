@@ -125070,6 +125070,546 @@ class client_LedgerRequestCache {
   }
 }
 /* harmony default export */ const client_cache = (client_LedgerRequestCache);
+// EXTERNAL MODULE: ./node_modules/typia/lib/internal/_assertGuard.js
+var client_assertGuard = __webpack_require__(7422);
+;// ./src/lib/log/helper.generated.ts
+
+const client_assertLogOptionsParam = (() => {
+  const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo));
+  const _io1 = input => "string" === typeof input.id;
+  const _ao0 = function (input, _path) {
+    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+    return (undefined === input.userVisible || "boolean" === typeof input.userVisible || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".userVisible",
+      expected: "(boolean | undefined)",
+      value: input.userVisible
+    }, _errorFactory)) && (undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".currentRequestInfo",
+      expected: "(LogCurrentRequest | undefined)",
+      value: input.currentRequestInfo
+    }, _errorFactory)) && _ao1(input.currentRequestInfo, _path + ".currentRequestInfo",  true && _exceptionable) || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".currentRequestInfo",
+      expected: "(LogCurrentRequest | undefined)",
+      value: input.currentRequestInfo
+    }, _errorFactory));
+  };
+  const _ao1 = function (input, _path) {
+    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+    return "string" === typeof input.id || client_assertGuard/* _assertGuard */.v(_exceptionable, {
+      method: "createAssert",
+      path: _path + ".id",
+      expected: "string",
+      value: input.id
+    }, _errorFactory);
+  };
+  const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input);
+  let _errorFactory;
+  return (input, errorFactory) => {
+    if (false === __is(input)) {
+      _errorFactory = errorFactory;
+      (function (input, _path) {
+        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+        return ("object" === typeof input && null !== input && false === Array.isArray(input) || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "__type",
+          value: input
+        }, _errorFactory)) && _ao0(input, _path + "", true) || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "__type",
+          value: input
+        }, _errorFactory);
+      })(input, "$input", true);
+    }
+    return input;
+  };
+})();
+const client_assertLogTargetLevel = (() => {
+  const __is = input => "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input;
+  let _errorFactory;
+  return (input, errorFactory) => {
+    if (false === __is(input)) {
+      _errorFactory = errorFactory;
+      (function (input, _path) {
+        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+        return "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input || client_assertGuard/* _assertGuard */.v(true, {
+          method: "createAssert",
+          path: _path + "",
+          expected: "(\"ALL\" | \"DEBUG\" | \"ERROR\" | \"INFO\" | \"NONE\" | \"WARN\")",
+          value: input
+        }, _errorFactory);
+      })(input, "$input", true);
+    }
+    return input;
+  };
+})();
+;// ./src/lib/log/common.ts
+const client_numericLogLevels = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3
+};
+
+/* XXX:TODO -- Do something with this */
+
+function client_canLogForLevel(level, currentLevel) {
+  return client_numericLogLevels[level] >= client_numericLogLevels[currentLevel];
+}
+function client_canLogForTargetLevel(level, targetLevel) {
+  if (targetLevel === 'ALL') {
+    return true;
+  }
+  if (targetLevel === 'NONE') {
+    return false;
+  }
+  return client_canLogForLevel(level, targetLevel);
+}
+function client_filterLog(target, message) {
+  var _message$options$user, _message$options$curr, _message$options$curr2;
+  if (!client_canLogForTargetLevel(message.level, target.logLevel)) {
+    return null;
+  }
+  if (target.filter && !target.filter.test(message.from)) {
+    return null;
+  }
+  return {
+    ...message,
+    options: {
+      userVisible: (_message$options$user = message.options.userVisible) !== null && _message$options$user !== void 0 ? _message$options$user : true,
+      currentRequestInfo: {
+        id: (_message$options$curr = (_message$options$curr2 = message.options.currentRequestInfo) === null || _message$options$curr2 === void 0 ? void 0 : _message$options$curr2.id) !== null && _message$options$curr !== void 0 ? _message$options$curr : '<NO_REQUEST_ID>',
+        ...message.options.currentRequestInfo
+      },
+      ...message.options
+    }
+  };
+}
+;// ./src/lib/log/target_console.ts
+function client_target_console_classPrivateFieldInitSpec(e, t, a) { client_target_console_checkPrivateRedeclaration(e, t), t.set(e, a); }
+function client_target_console_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function client_target_console_classPrivateFieldGet(s, a) { return s.get(client_target_console_assertClassBrand(s, a)); }
+function client_target_console_classPrivateFieldSet(s, a, r) { return s.set(client_target_console_assertClassBrand(s, a), r), r; }
+function client_target_console_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
+var client_console = /*#__PURE__*/new WeakMap();
+class client_LogTargetConsole {
+  constructor(config) {
+    var _config$logLevel, _config$console, _config$filter;
+    client_target_console_classPrivateFieldInitSpec(this, client_console, void 0);
+    this.logLevel = (_config$logLevel = config === null || config === void 0 ? void 0 : config.logLevel) !== null && _config$logLevel !== void 0 ? _config$logLevel : 'ALL';
+    client_target_console_classPrivateFieldSet(client_console, this, (_config$console = config === null || config === void 0 ? void 0 : config.console) !== null && _config$console !== void 0 ? _config$console : console);
+    this.filter = (_config$filter = config === null || config === void 0 ? void 0 : config.filter) !== null && _config$filter !== void 0 ? _config$filter : null;
+  }
+  async emitLogs(logs) {
+    for (const rawLog of logs) {
+      const log = client_filterLog(this, rawLog);
+      if (log === null) {
+        continue;
+      }
+      let method;
+      switch (log.level) {
+        case 'ERROR':
+          method = 'error';
+          break;
+        case 'WARN':
+          method = 'warn';
+          break;
+        case 'INFO':
+          method = 'info';
+          break;
+        case 'DEBUG':
+          method = 'debug';
+          break;
+        default:
+          client_assertNever(log.level);
+      }
+      const requestID = log.options.currentRequestInfo.id;
+      client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
+      if (log.trace !== undefined) {
+        client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
+      }
+    }
+  }
+}
+/* harmony default export */ const client_target_console = (client_LogTargetConsole);
+;// ./src/lib/log/index.ts
+/* provided dependency */ var client_log_process = __webpack_require__(5606);
+function client_log_classPrivateMethodInitSpec(e, a) { client_log_checkPrivateRedeclaration(e, a), a.add(e); }
+function client_log_classPrivateFieldInitSpec(e, t, a) { client_log_checkPrivateRedeclaration(e, t), t.set(e, a); }
+function client_log_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function client_log_defineProperty(e, r, t) { return (r = client_log_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_log_toPropertyKey(t) { var i = client_log_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_log_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function client_log_classPrivateFieldSet(s, a, r) { return s.set(client_log_assertClassBrand(s, a), r), r; }
+function client_log_classPrivateFieldGet(s, a) { return s.get(client_log_assertClassBrand(s, a)); }
+function client_log_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
+/**
+ * Maximum number of logs to enqueue when there are no targets assigned to a
+ * Log instance
+ */
+const client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS = 131072;
+
+/**
+ * Options for a Log instance
+ */
+
+const client_NullLogger = {
+  log: () => {},
+  info: () => {},
+  debug: () => {},
+  warn: () => {},
+  error: () => {}
+};
+var client_logs = /*#__PURE__*/new WeakMap();
+var client_autoSyncInterval = /*#__PURE__*/new WeakMap();
+var client_isSyncing = /*#__PURE__*/new WeakMap();
+var client_shouldSyncAgain = /*#__PURE__*/new WeakMap();
+var client_destroyed = /*#__PURE__*/new WeakMap();
+var client_emitOnLog = /*#__PURE__*/new WeakMap();
+var client_logDebugTracing = /*#__PURE__*/new WeakMap();
+var client_targets = /*#__PURE__*/new WeakMap();
+var client_Log_brand = /*#__PURE__*/new WeakSet();
+class client_Log {
+  /**
+   * The Null logger, to disable logging entirely
+   */
+  static Null() {
+    return client_NullLogger;
+  }
+
+  /**
+   * The legacy logger
+   *
+   * This is a singleton instance of the logger that registers a console
+   * target that emits logs immediately to the console.
+   *
+   * This also sets the log level based on the `<name>_DEBUG`
+   * environment variable, if available and adds filtering based on
+   * the `<name>_DEBUG_FILTER` environment variable, if available.
+   *
+   * The default value for `<name>` is `KEETANET`.
+   */
+  static Legacy() {
+    let name = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'KEETANET';
+    if (client_Log.legacyLoggerInstance) {
+      if (client_log_classPrivateFieldGet(client_destroyed, client_Log.legacyLoggerInstance)) {
+        client_Log.legacyLoggerInstance = undefined;
+      }
+    }
+    if (client_Log.legacyLoggerInstance) {
+      return client_Log.legacyLoggerInstance;
+    }
+    const extraConfig = {};
+    if (client_log_process !== undefined) {
+      var _ref, _process$env$toUpperC, _process$env, _process$env2, _ref2, _process$env3;
+      let environmentLogLevel = (_ref = (_process$env$toUpperC = (_process$env = client_log_process.env[`${name}_DEBUG`]) === null || _process$env === void 0 ? void 0 : _process$env.toUpperCase()) !== null && _process$env$toUpperC !== void 0 ? _process$env$toUpperC : (_process$env2 = client_log_process.env[`${name}_LAMBDA_LOG_LEVEL`]) === null || _process$env2 === void 0 ? void 0 : _process$env2.toUpperCase()) !== null && _ref !== void 0 ? _ref : 'NONE';
+      if (environmentLogLevel === 'TRUE') {
+        environmentLogLevel = 'DEBUG';
+      } else if (environmentLogLevel === 'FALSE') {
+        environmentLogLevel = 'NONE';
+      }
+      extraConfig.logLevel = client_assertLogTargetLevel(environmentLogLevel);
+      const logFilterString = (_ref2 = (_process$env3 = client_log_process.env[`${name}_DEBUG_FILTER`]) !== null && _process$env3 !== void 0 ? _process$env3 : client_log_process.env[`${name}_LAMBDA_LOG_FILTER`]) !== null && _ref2 !== void 0 ? _ref2 : '';
+      if (logFilterString !== '') {
+        extraConfig.filter = new RegExp(logFilterString, 'i');
+      }
+    }
+    const logger = new client_Log();
+    logger.registerConsoleTarget({
+      logLevel: client_Log.defaultLevel,
+      ...extraConfig
+    });
+    client_log_classPrivateFieldSet(client_emitOnLog, logger, true);
+    client_Log.legacyLoggerInstance = logger;
+    return client_Log.legacyLoggerInstance;
+  }
+
+  /**
+   * Queued logs to be sent
+   */
+
+  constructor(_options) {
+    client_log_classPrivateMethodInitSpec(this, client_Log_brand);
+    client_log_classPrivateFieldInitSpec(this, client_logs, []);
+    /**
+     * Interval holding the current autoSync process
+     */
+    client_log_classPrivateFieldInitSpec(this, client_autoSyncInterval, undefined);
+    /**
+     * Keep track of whether or not we are currently syncing
+     */
+    client_log_classPrivateFieldInitSpec(this, client_isSyncing, false);
+    /**
+     * If `sync()` is called while we are syncing, we should sync again
+     * to ensure all logs are sent
+     */
+    client_log_classPrivateFieldInitSpec(this, client_shouldSyncAgain, false);
+    /**
+     * Whether or not the logger has been destroyed
+     */
+    client_log_classPrivateFieldInitSpec(this, client_destroyed, false);
+    /**
+     * Always attempt to emit logs when a new log event is added
+     *
+     * This is only available for the legacy logger instance
+     */
+    client_log_classPrivateFieldInitSpec(this, client_emitOnLog, false);
+    /**
+     * Whether or not to generate debug tracing information for each log entry
+     */
+    client_log_classPrivateFieldInitSpec(this, client_logDebugTracing, false);
+    client_log_classPrivateFieldInitSpec(this, client_targets, new Map());
+    /**
+     * The maximum number of log entries to send to each target at a time
+     */
+    client_log_defineProperty(this, "batchSize", 10);
+    if ((_options === null || _options === void 0 ? void 0 : _options.logDebugTracing) !== undefined) {
+      client_log_classPrivateFieldSet(client_logDebugTracing, this, _options.logDebugTracing);
+    }
+  }
+  log() {
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
+  }
+  info() {
+    for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+      args[_key2] = arguments[_key2];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
+  }
+  debug() {
+    for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
+      args[_key3] = arguments[_key3];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'DEBUG', options, from, ...args);
+  }
+  warn() {
+    for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+      args[_key4] = arguments[_key4];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'WARN', options, from, ...args);
+  }
+  error() {
+    for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+      args[_key5] = arguments[_key5];
+    }
+    const {
+      options,
+      from
+    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'ERROR', options, from, ...args);
+  }
+
+  /**
+   * Register a new logging target (sink) to send logs to
+   */
+  registerTarget(target) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const id = Symbol('LogTargetID');
+    client_log_classPrivateFieldGet(client_targets, this).set(id, target);
+    return id;
+  }
+
+  /**
+   * Register a new logging target (sink) to send logs to, using the Console target
+   *
+   */
+  registerConsoleTarget(config) {
+    const target = new client_target_console({
+      ...config
+    });
+    return this.registerTarget(target);
+  }
+
+  /**
+   * Unregister a logging target (sink) to stop sending logs to
+   */
+  unregisterTarget(id) {
+    client_log_classPrivateFieldGet(client_targets, this).delete(id);
+  }
+
+  /**
+   * Emit a set of logs to all registered targets
+   */
+  async emitLogs(logs, targets) {
+    await Promise.allSettled(targets.map(async function (target) {
+      await target.emitLogs(logs);
+    }));
+  }
+
+  /**
+   * Start a timer to periodically sync logs to all targets
+   */
+  startAutoSync() {
+    let rate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
+    this.stopAutoSync();
+    client_log_classPrivateFieldSet(client_autoSyncInterval, this, setInterval(async () => {
+      try {
+        await this.sync();
+      } catch {
+        /* Ignored */
+      }
+    }, rate));
+  }
+
+  /**
+   * If a timer was started with `startAutoSync()`, stop it
+   */
+  stopAutoSync() {
+    if (!client_log_classPrivateFieldGet(client_autoSyncInterval, this)) {
+      return;
+    }
+    clearInterval(client_log_classPrivateFieldGet(client_autoSyncInterval, this));
+    client_log_classPrivateFieldSet(client_autoSyncInterval, this, undefined);
+  }
+
+  /**
+   * Sync all currently enqueued logs to all targets
+   */
+  async sync() {
+    /*
+     * If there are currently no targets, do not dequeue logs
+     * in case a target is added later;  However, if there are
+     * too many logs, drop the oldest ones
+     */
+    if (client_log_classPrivateFieldGet(client_targets, this).size === 0) {
+      if (client_log_classPrivateFieldGet(client_logs, this).length > client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
+        client_log_classPrivateFieldGet(client_logs, this).splice(0, client_log_classPrivateFieldGet(client_logs, this).length - client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
+      }
+      return;
+    }
+
+    /*
+     * If we are already syncing, set a flag to sync again after the current sync is done
+     */
+    if (client_log_classPrivateFieldGet(client_isSyncing, this)) {
+      client_log_classPrivateFieldSet(client_shouldSyncAgain, this, true);
+      return;
+    }
+    client_log_classPrivateFieldSet(client_isSyncing, this, true);
+
+    /*
+     * Create a copy of the currently registered targets in case
+     * they are modified while a sync is on-going, we use the
+     * same targets until the sync is complete
+     *
+     * This ensures no messages are lost if all targets are removed
+     * while a sync is in progress -- they will continue to be sent
+     * to the registered targets at the time of the sync
+     */
+    const targets = Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
+    do {
+      try {
+        client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
+        while (client_log_classPrivateFieldGet(client_logs, this).length > 0) {
+          const logs = client_log_classPrivateFieldGet(client_logs, this).splice(0, this.batchSize);
+          await this.emitLogs(logs, targets);
+        }
+      } catch {
+        /* Ignore errors */
+      }
+    } while (client_log_classPrivateFieldGet(client_shouldSyncAgain, this));
+    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+  }
+
+  /**
+   * Dispose of the logger instance, clearing all logs and targets
+   */
+  [Symbol.dispose]() {
+    this.destroy();
+  }
+
+  /**
+   * Terminate the logger instance, clearing all logs and targets
+   */
+  destroy() {
+    this.stopAutoSync();
+    client_log_classPrivateFieldSet(client_logs, this, []);
+    client_log_classPrivateFieldGet(client_targets, this).clear();
+    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+    client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
+    client_log_classPrivateFieldSet(client_emitOnLog, this, false);
+    client_log_classPrivateFieldSet(client_destroyed, this, true);
+  }
+}
+function client_log_log(level, options, from) {
+  for (var _len6 = arguments.length, args = new Array(_len6 > 3 ? _len6 - 3 : 0), _key6 = 3; _key6 < _len6; _key6++) {
+    args[_key6 - 3] = arguments[_key6];
+  }
+  const log = {
+    options,
+    level,
+    from,
+    args
+  };
+  if (client_log_classPrivateFieldGet(client_logDebugTracing, this)) {
+    var _Error$stack$split$sl, _Error$stack;
+    log.trace = (_Error$stack$split$sl = (_Error$stack = new Error().stack) === null || _Error$stack === void 0 ? void 0 : _Error$stack.split('\n').slice(2).join('\n')) !== null && _Error$stack$split$sl !== void 0 ? _Error$stack$split$sl : '[No stack trace available]';
+  }
+  client_log_classPrivateFieldGet(client_logs, this).push(log);
+  if (client_log_classPrivateFieldGet(client_emitOnLog, this)) {
+    void this.sync().catch(function () {
+      /* Ignore errors */
+    });
+  }
+}
+function client_extractArguments(args) {
+  let firstArgIsOptions = false;
+  if (typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
+    firstArgIsOptions = true;
+  }
+  const options = client_assertLogOptionsParam(firstArgIsOptions ? args.shift() : {});
+  const from = args.shift();
+  if (typeof from !== 'string') {
+    throw new Error(`Expected string for 'from', got ${typeof from}`);
+  }
+  return {
+    options,
+    from
+  };
+}
+/**
+ * The default log level, used for new instances of the logger
+ */
+client_log_defineProperty(client_Log, "defaultLevel", 'DEBUG');
+/**
+ * The Console target, which is a basic logging target that outputs
+ * logs to the console
+ */
+client_log_defineProperty(client_Log, "ConsoleTarget", client_target_console);
+/**
+ * The existing legacy logger instance, if it exists
+ */
+client_log_defineProperty(client_Log, "legacyLoggerInstance", undefined);
+/* harmony default export */ const src_client_log = (client_Log);
 ;// ./src/lib/node/timing.ts
 function client_timing_classPrivateFieldInitSpec(e, t, a) { client_timing_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_timing_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -125079,6 +125619,8 @@ function client_timing_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 function client_timing_classPrivateFieldSet(s, a, r) { return s.set(client_timing_assertClassBrand(s, a), r), r; }
 function client_timing_classPrivateFieldGet(s, a) { return s.get(client_timing_assertClassBrand(s, a)); }
 function client_timing_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
 /**
  * Support the old way of doing timing where the callers could call
  * startTime/endTime with the same string to terminate a timing section
@@ -125247,7 +125789,7 @@ class client_RequestTiming {
     return client_timing_classPrivateFieldSet(client_counter, this, (_this$counter = client_timing_classPrivateFieldGet(client_counter, this), _this$counter2 = _this$counter++, _this$counter)), _this$counter2;
   }
 }
-client_timing_defineProperty(client_RequestTiming, "defaultLogger", console);
+client_timing_defineProperty(client_RequestTiming, "defaultLogger", src_client_log.Legacy());
 /* harmony default export */ const src_client_timing = (client_RequestTiming);
 ;// ./src/lib/kv/index.ts
 function client_kv_defineProperty(e, r, t) { return (r = client_kv_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -125674,7 +126216,7 @@ function client_getDurationRange(duration) {
 ;// ./src/lib/ledger/index.ts
 /* provided dependency */ var client_lib_ledger_Buffer = __webpack_require__(8287)["Buffer"];
 var client_IdempotentKey, client_Ledger;
-function client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
+function src_client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
 function client_ledger_classPrivateMethodInitSpec(e, a) { client_ledger_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_ledger_classPrivateFieldInitSpec(e, t, a) { client_ledger_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_ledger_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -126940,7 +127482,7 @@ class src_client_Ledger {
   async run(identifier, code, readOnly) {
     try {
       var _this$node, _classPrivateFieldGet8, _classPrivateFieldGet9, _this$node4;
-      var _usingCtx = client_usingCtx2();
+      var _usingCtx = src_client_usingCtx2();
       const _timing = _usingCtx.u((_this$node = this.node) === null || _this$node === void 0 ? void 0 : _this$node.timing.startTime(`run-${identifier}`));
       let retryConfig;
       if (((_classPrivateFieldGet8 = client_ledger_classPrivateFieldGet(src_client_config, this).transactionRetries) === null || _classPrivateFieldGet8 === void 0 ? void 0 : _classPrivateFieldGet8.maxRetries) !== undefined) {
@@ -127268,7 +127810,7 @@ class src_client_Ledger {
   async stats() {
     try {
       var _this$node5;
-      var _usingCtx3 = client_usingCtx2();
+      var _usingCtx3 = src_client_usingCtx2();
       const _timing = _usingCtx3.u((_this$node5 = this.node) === null || _this$node5 === void 0 ? void 0 : _this$node5.timing.startTime('db-stats'));
       const retval = await client_ledger_classPrivateFieldGet(client_storage2, this).stats();
       return retval;
@@ -127291,7 +127833,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.7+gc361cc93bcd5918c1bfac43f60a0a68020a0ecb1';
+const client_version = '0.14.8+g2ae53aba450fae088463ac1a8f545b6460825c5b';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -129277,545 +129819,6 @@ const client_p2p_Testing = {
   generateP2PPeerSigned: client_generateP2PPeerSigned,
   P2PPeerToJSO: client_P2PPeerToJSO
 };
-// EXTERNAL MODULE: ./node_modules/typia/lib/internal/_assertGuard.js
-var client_assertGuard = __webpack_require__(7422);
-;// ./src/lib/log/helper.generated.ts
-
-const client_assertLogOptionsParam = (() => {
-  const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo));
-  const _io1 = input => "string" === typeof input.id;
-  const _ao0 = function (input, _path) {
-    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
-    return (undefined === input.userVisible || "boolean" === typeof input.userVisible || client_assertGuard/* _assertGuard */.v(_exceptionable, {
-      method: "createAssert",
-      path: _path + ".userVisible",
-      expected: "(boolean | undefined)",
-      value: input.userVisible
-    }, _errorFactory)) && (undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || client_assertGuard/* _assertGuard */.v(_exceptionable, {
-      method: "createAssert",
-      path: _path + ".currentRequestInfo",
-      expected: "(LogCurrentRequest | undefined)",
-      value: input.currentRequestInfo
-    }, _errorFactory)) && _ao1(input.currentRequestInfo, _path + ".currentRequestInfo",  true && _exceptionable) || client_assertGuard/* _assertGuard */.v(_exceptionable, {
-      method: "createAssert",
-      path: _path + ".currentRequestInfo",
-      expected: "(LogCurrentRequest | undefined)",
-      value: input.currentRequestInfo
-    }, _errorFactory));
-  };
-  const _ao1 = function (input, _path) {
-    let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
-    return "string" === typeof input.id || client_assertGuard/* _assertGuard */.v(_exceptionable, {
-      method: "createAssert",
-      path: _path + ".id",
-      expected: "string",
-      value: input.id
-    }, _errorFactory);
-  };
-  const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input);
-  let _errorFactory;
-  return (input, errorFactory) => {
-    if (false === __is(input)) {
-      _errorFactory = errorFactory;
-      (function (input, _path) {
-        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
-        return ("object" === typeof input && null !== input && false === Array.isArray(input) || client_assertGuard/* _assertGuard */.v(true, {
-          method: "createAssert",
-          path: _path + "",
-          expected: "__type",
-          value: input
-        }, _errorFactory)) && _ao0(input, _path + "", true) || client_assertGuard/* _assertGuard */.v(true, {
-          method: "createAssert",
-          path: _path + "",
-          expected: "__type",
-          value: input
-        }, _errorFactory);
-      })(input, "$input", true);
-    }
-    return input;
-  };
-})();
-const client_assertLogTargetLevel = (() => {
-  const __is = input => "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input;
-  let _errorFactory;
-  return (input, errorFactory) => {
-    if (false === __is(input)) {
-      _errorFactory = errorFactory;
-      (function (input, _path) {
-        let _exceptionable = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
-        return "ALL" === input || "DEBUG" === input || "INFO" === input || "WARN" === input || "ERROR" === input || "NONE" === input || client_assertGuard/* _assertGuard */.v(true, {
-          method: "createAssert",
-          path: _path + "",
-          expected: "(\"ALL\" | \"DEBUG\" | \"ERROR\" | \"INFO\" | \"NONE\" | \"WARN\")",
-          value: input
-        }, _errorFactory);
-      })(input, "$input", true);
-    }
-    return input;
-  };
-})();
-;// ./src/lib/log/common.ts
-const client_numericLogLevels = {
-  DEBUG: 0,
-  INFO: 1,
-  WARN: 2,
-  ERROR: 3
-};
-
-/* XXX:TODO -- Do something with this */
-
-function client_canLogForLevel(level, currentLevel) {
-  return client_numericLogLevels[level] >= client_numericLogLevels[currentLevel];
-}
-function client_canLogForTargetLevel(level, targetLevel) {
-  if (targetLevel === 'ALL') {
-    return true;
-  }
-  if (targetLevel === 'NONE') {
-    return false;
-  }
-  return client_canLogForLevel(level, targetLevel);
-}
-function client_filterLog(target, message) {
-  var _message$options$user, _message$options$curr, _message$options$curr2;
-  if (!client_canLogForTargetLevel(message.level, target.logLevel)) {
-    return null;
-  }
-  if (target.filter && !target.filter.test(message.from)) {
-    return null;
-  }
-  return {
-    ...message,
-    options: {
-      userVisible: (_message$options$user = message.options.userVisible) !== null && _message$options$user !== void 0 ? _message$options$user : true,
-      currentRequestInfo: {
-        id: (_message$options$curr = (_message$options$curr2 = message.options.currentRequestInfo) === null || _message$options$curr2 === void 0 ? void 0 : _message$options$curr2.id) !== null && _message$options$curr !== void 0 ? _message$options$curr : '<NO_REQUEST_ID>',
-        ...message.options.currentRequestInfo
-      },
-      ...message.options
-    }
-  };
-}
-;// ./src/lib/log/target_console.ts
-function client_target_console_classPrivateFieldInitSpec(e, t, a) { client_target_console_checkPrivateRedeclaration(e, t), t.set(e, a); }
-function client_target_console_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
-function client_target_console_classPrivateFieldGet(s, a) { return s.get(client_target_console_assertClassBrand(s, a)); }
-function client_target_console_classPrivateFieldSet(s, a, r) { return s.set(client_target_console_assertClassBrand(s, a), r), r; }
-function client_target_console_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
-
-
-var client_console = /*#__PURE__*/new WeakMap();
-class client_LogTargetConsole {
-  constructor(config) {
-    var _config$logLevel, _config$console, _config$filter;
-    client_target_console_classPrivateFieldInitSpec(this, client_console, void 0);
-    this.logLevel = (_config$logLevel = config === null || config === void 0 ? void 0 : config.logLevel) !== null && _config$logLevel !== void 0 ? _config$logLevel : 'ALL';
-    client_target_console_classPrivateFieldSet(client_console, this, (_config$console = config === null || config === void 0 ? void 0 : config.console) !== null && _config$console !== void 0 ? _config$console : console);
-    this.filter = (_config$filter = config === null || config === void 0 ? void 0 : config.filter) !== null && _config$filter !== void 0 ? _config$filter : null;
-  }
-  async emitLogs(logs) {
-    for (const rawLog of logs) {
-      const log = client_filterLog(this, rawLog);
-      if (log === null) {
-        continue;
-      }
-      let method;
-      switch (log.level) {
-        case 'ERROR':
-          method = 'error';
-          break;
-        case 'WARN':
-          method = 'warn';
-          break;
-        case 'INFO':
-          method = 'info';
-          break;
-        case 'DEBUG':
-          method = 'debug';
-          break;
-        default:
-          client_assertNever(log.level);
-      }
-      const requestID = log.options.currentRequestInfo.id;
-      client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
-      if (log.trace !== undefined) {
-        client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
-      }
-    }
-  }
-}
-/* harmony default export */ const client_target_console = (client_LogTargetConsole);
-;// ./src/lib/log/index.ts
-/* provided dependency */ var client_log_process = __webpack_require__(5606);
-function client_log_classPrivateMethodInitSpec(e, a) { client_log_checkPrivateRedeclaration(e, a), a.add(e); }
-function client_log_classPrivateFieldInitSpec(e, t, a) { client_log_checkPrivateRedeclaration(e, t), t.set(e, a); }
-function client_log_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
-function client_log_defineProperty(e, r, t) { return (r = client_log_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_log_toPropertyKey(t) { var i = client_log_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_log_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-function client_log_classPrivateFieldSet(s, a, r) { return s.set(client_log_assertClassBrand(s, a), r), r; }
-function client_log_classPrivateFieldGet(s, a) { return s.get(client_log_assertClassBrand(s, a)); }
-function client_log_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
-
-
-/**
- * Maximum number of logs to enqueue when there are no targets assigned to a
- * Log instance
- */
-const client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS = 131072;
-
-/**
- * Options for a Log instance
- */
-
-const client_NullLogger = {
-  log: () => {},
-  info: () => {},
-  debug: () => {},
-  warn: () => {},
-  error: () => {}
-};
-var client_logs = /*#__PURE__*/new WeakMap();
-var client_autoSyncInterval = /*#__PURE__*/new WeakMap();
-var client_isSyncing = /*#__PURE__*/new WeakMap();
-var client_shouldSyncAgain = /*#__PURE__*/new WeakMap();
-var client_destroyed = /*#__PURE__*/new WeakMap();
-var client_emitOnLog = /*#__PURE__*/new WeakMap();
-var client_logDebugTracing = /*#__PURE__*/new WeakMap();
-var client_targets = /*#__PURE__*/new WeakMap();
-var client_Log_brand = /*#__PURE__*/new WeakSet();
-class client_Log {
-  /**
-   * The Null logger, to disable logging entirely
-   */
-  static Null() {
-    return client_NullLogger;
-  }
-
-  /**
-   * The legacy logger
-   *
-   * This is a singleton instance of the logger that registers a console
-   * target that emits logs immediately to the console.
-   *
-   * This also sets the log level based on the `<name>_DEBUG`
-   * environment variable, if available and adds filtering based on
-   * the `<name>_DEBUG_FILTER` environment variable, if available.
-   *
-   * The default value for `<name>` is `KEETANET`.
-   */
-  static Legacy(name) {
-    if (name === undefined) {
-      name = 'KEETANET';
-    }
-    const extraConfig = {};
-    if (client_log_process !== undefined) {
-      var _process$env$toUpperC, _process$env, _process$env2;
-      let environmentLogLevel = (_process$env$toUpperC = (_process$env = client_log_process.env[`${name}_DEBUG`]) === null || _process$env === void 0 ? void 0 : _process$env.toUpperCase()) !== null && _process$env$toUpperC !== void 0 ? _process$env$toUpperC : 'NONE';
-      if (environmentLogLevel === 'TRUE') {
-        environmentLogLevel = 'DEBUG';
-      } else if (environmentLogLevel === 'FALSE') {
-        environmentLogLevel = 'NONE';
-      }
-      extraConfig.logLevel = client_assertLogTargetLevel(environmentLogLevel);
-      extraConfig.filter = new RegExp((_process$env2 = client_log_process.env[`${name}_DEBUG_FILTER`]) !== null && _process$env2 !== void 0 ? _process$env2 : '', 'i');
-    }
-    if (client_Log.legacyLoggerInstance) {
-      if (client_log_classPrivateFieldGet(client_destroyed, client_Log.legacyLoggerInstance)) {
-        client_Log.legacyLoggerInstance = undefined;
-      }
-    }
-    if (client_Log.legacyLoggerInstance) {
-      return client_Log.legacyLoggerInstance;
-    }
-    const logger = new client_Log();
-    logger.registerConsoleTarget({
-      logLevel: client_Log.defaultLevel,
-      ...extraConfig
-    });
-    client_log_classPrivateFieldSet(client_emitOnLog, logger, true);
-    client_Log.legacyLoggerInstance = logger;
-    return client_Log.legacyLoggerInstance;
-  }
-
-  /**
-   * Queued logs to be sent
-   */
-
-  constructor(_options) {
-    client_log_classPrivateMethodInitSpec(this, client_Log_brand);
-    client_log_classPrivateFieldInitSpec(this, client_logs, []);
-    /**
-     * Interval holding the current autoSync process
-     */
-    client_log_classPrivateFieldInitSpec(this, client_autoSyncInterval, undefined);
-    /**
-     * Keep track of whether or not we are currently syncing
-     */
-    client_log_classPrivateFieldInitSpec(this, client_isSyncing, false);
-    /**
-     * If `sync()` is called while we are syncing, we should sync again
-     * to ensure all logs are sent
-     */
-    client_log_classPrivateFieldInitSpec(this, client_shouldSyncAgain, false);
-    /**
-     * Whether or not the logger has been destroyed
-     */
-    client_log_classPrivateFieldInitSpec(this, client_destroyed, false);
-    /**
-     * Always attempt to emit logs when a new log event is added
-     *
-     * This is only available for the legacy logger instance
-     */
-    client_log_classPrivateFieldInitSpec(this, client_emitOnLog, false);
-    /**
-     * Whether or not to generate debug tracing information for each log entry
-     */
-    client_log_classPrivateFieldInitSpec(this, client_logDebugTracing, false);
-    client_log_classPrivateFieldInitSpec(this, client_targets, new Map());
-    /**
-     * The maximum number of log entries to send to each target at a time
-     */
-    client_log_defineProperty(this, "batchSize", 10);
-    if ((_options === null || _options === void 0 ? void 0 : _options.logDebugTracing) !== undefined) {
-      client_log_classPrivateFieldSet(client_logDebugTracing, this, _options.logDebugTracing);
-    }
-  }
-  log() {
-    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
-      args[_key] = arguments[_key];
-    }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
-    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
-  }
-  info() {
-    for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-      args[_key2] = arguments[_key2];
-    }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
-    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
-  }
-  debug() {
-    for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
-      args[_key3] = arguments[_key3];
-    }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
-    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'DEBUG', options, from, ...args);
-  }
-  warn() {
-    for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-      args[_key4] = arguments[_key4];
-    }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
-    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'WARN', options, from, ...args);
-  }
-  error() {
-    for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-      args[_key5] = arguments[_key5];
-    }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'ERROR', options, from, ...args);
-  }
-
-  /**
-   * Register a new logging target (sink) to send logs to
-   */
-  registerTarget(target) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const id = Symbol('LogTargetID');
-    client_log_classPrivateFieldGet(client_targets, this).set(id, target);
-    return id;
-  }
-
-  /**
-   * Register a new logging target (sink) to send logs to, using the Console target
-   *
-   */
-  registerConsoleTarget(config) {
-    const target = new client_target_console({
-      ...config
-    });
-    return this.registerTarget(target);
-  }
-
-  /**
-   * Unregister a logging target (sink) to stop sending logs to
-   */
-  unregisterTarget(id) {
-    client_log_classPrivateFieldGet(client_targets, this).delete(id);
-  }
-
-  /**
-   * Emit a set of logs to all registered targets
-   */
-  async emitLogs(logs, targets) {
-    await Promise.allSettled(targets.map(async function (target) {
-      await target.emitLogs(logs);
-    }));
-  }
-
-  /**
-   * Start a timer to periodically sync logs to all targets
-   */
-  startAutoSync() {
-    let rate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
-    this.stopAutoSync();
-    client_log_classPrivateFieldSet(client_autoSyncInterval, this, setInterval(async () => {
-      try {
-        await this.sync();
-      } catch {
-        /* Ignored */
-      }
-    }, rate));
-  }
-
-  /**
-   * If a timer was started with `startAutoSync()`, stop it
-   */
-  stopAutoSync() {
-    if (!client_log_classPrivateFieldGet(client_autoSyncInterval, this)) {
-      return;
-    }
-    clearInterval(client_log_classPrivateFieldGet(client_autoSyncInterval, this));
-    client_log_classPrivateFieldSet(client_autoSyncInterval, this, undefined);
-  }
-
-  /**
-   * Sync all currently enqueued logs to all targets
-   */
-  async sync() {
-    /*
-     * If there are currently no targets, do not dequeue logs
-     * in case a target is added later;  However, if there are
-     * too many logs, drop the oldest ones
-     */
-    if (client_log_classPrivateFieldGet(client_targets, this).size === 0) {
-      if (client_log_classPrivateFieldGet(client_logs, this).length > client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
-        client_log_classPrivateFieldGet(client_logs, this).splice(0, client_log_classPrivateFieldGet(client_logs, this).length - client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
-      }
-      return;
-    }
-
-    /*
-     * If we are already syncing, set a flag to sync again after the current sync is done
-     */
-    if (client_log_classPrivateFieldGet(client_isSyncing, this)) {
-      client_log_classPrivateFieldSet(client_shouldSyncAgain, this, true);
-      return;
-    }
-    client_log_classPrivateFieldSet(client_isSyncing, this, true);
-
-    /*
-     * Create a copy of the currently registered targets in case
-     * they are modified while a sync is on-going, we use the
-     * same targets until the sync is complete
-     *
-     * This ensures no messages are lost if all targets are removed
-     * while a sync is in progress -- they will continue to be sent
-     * to the registered targets at the time of the sync
-     */
-    const targets = Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
-    do {
-      try {
-        client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
-        while (client_log_classPrivateFieldGet(client_logs, this).length > 0) {
-          const logs = client_log_classPrivateFieldGet(client_logs, this).splice(0, this.batchSize);
-          await this.emitLogs(logs, targets);
-        }
-      } catch {
-        /* Ignore errors */
-      }
-    } while (client_log_classPrivateFieldGet(client_shouldSyncAgain, this));
-    client_log_classPrivateFieldSet(client_isSyncing, this, false);
-  }
-
-  /**
-   * Dispose of the logger instance, clearing all logs and targets
-   */
-  [Symbol.dispose]() {
-    this.destroy();
-  }
-
-  /**
-   * Terminate the logger instance, clearing all logs and targets
-   */
-  destroy() {
-    this.stopAutoSync();
-    client_log_classPrivateFieldSet(client_logs, this, []);
-    client_log_classPrivateFieldGet(client_targets, this).clear();
-    client_log_classPrivateFieldSet(client_isSyncing, this, false);
-    client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
-    client_log_classPrivateFieldSet(client_emitOnLog, this, false);
-    client_log_classPrivateFieldSet(client_destroyed, this, true);
-  }
-}
-function client_log_log(level, options, from) {
-  for (var _len6 = arguments.length, args = new Array(_len6 > 3 ? _len6 - 3 : 0), _key6 = 3; _key6 < _len6; _key6++) {
-    args[_key6 - 3] = arguments[_key6];
-  }
-  const log = {
-    options,
-    level,
-    from,
-    args
-  };
-  if (client_log_classPrivateFieldGet(client_logDebugTracing, this)) {
-    var _Error$stack$split$sl, _Error$stack;
-    log.trace = (_Error$stack$split$sl = (_Error$stack = new Error().stack) === null || _Error$stack === void 0 ? void 0 : _Error$stack.split('\n').slice(2).join('\n')) !== null && _Error$stack$split$sl !== void 0 ? _Error$stack$split$sl : '[No stack trace available]';
-  }
-  client_log_classPrivateFieldGet(client_logs, this).push(log);
-  if (client_log_classPrivateFieldGet(client_emitOnLog, this)) {
-    void this.sync().catch(function () {
-      /* Ignore errors */
-    });
-  }
-}
-function client_extractArguments(args) {
-  let firstArgIsOptions = false;
-  if (typeof args[0] === 'object' && args[0] !== null && !Array.isArray(args[0])) {
-    firstArgIsOptions = true;
-  }
-  const options = client_assertLogOptionsParam(firstArgIsOptions ? args.shift() : {});
-  const from = args.shift();
-  if (typeof from !== 'string') {
-    throw new Error(`Expected string for 'from', got ${typeof from}`);
-  }
-  return {
-    options,
-    from
-  };
-}
-/**
- * The default log level, used for new instances of the logger
- */
-client_log_defineProperty(client_Log, "defaultLevel", 'DEBUG');
-/**
- * The Console target, which is a basic logging target that outputs
- * logs to the console
- */
-client_log_defineProperty(client_Log, "ConsoleTarget", client_target_console);
-/**
- * The existing legacy logger instance, if it exists
- */
-client_log_defineProperty(client_Log, "legacyLoggerInstance", undefined);
-/* harmony default export */ const src_client_log = (client_Log);
 ;// ./src/lib/node/index.ts
 /* provided dependency */ var client_node_process = __webpack_require__(5606);
 /* provided dependency */ var client_node_Buffer = __webpack_require__(8287)["Buffer"];
@@ -130065,7 +130068,7 @@ function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_ClientErrorType = 'CLIENT';
-const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED'];
+const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED', 'SWAP_INVALID_ACCOUNT_OPTION', 'SWAP_OPTIONS_INVALID', 'SWAP_MISSING_SEND', 'SWAP_MISSING_RECEIVE', 'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'SWAP_SEND_ACCOUNT_MISMATCH', 'SWAP_REQUEST_TOKEN_MISMATCH', 'SWAP_REQUEST_AMOUNT_MISMATCH'];
 const client_FullClientErrorCodes = client_ClientErrorCodes.map(code => `${client_ClientErrorType}_${code}`);
 class src_client_KeetaNetClientError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -131397,6 +131400,7 @@ if (typeof WebSocket !== 'undefined') {
 ;// ./src/client/index.ts
 /* provided dependency */ var client_client_Buffer = __webpack_require__(8287)["Buffer"];
 var client_Client, client_UserClient;
+function client_client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
 function client_client_classPrivateGetter(s, r, a) { return a(client_client_assertClassBrand(s, r)); }
 function client_client_classPrivateMethodInitSpec(e, a) { client_client_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_client_classPrivateFieldInitSpec(e, t, a) { client_client_checkPrivateRedeclaration(e, t), t.set(e, a); }
@@ -131685,6 +131689,7 @@ class src_client_Client {
    * The `blocks` builder will be computed using {@link computeBuilderBlocks} and then transmitted.
    *
    * @param builder The UserClientBuilder to compute and transmit transmit
+   * @param options User provided options {@link PublishOptions }
    * @param network The network to use for the builder (if using a builder)
    * @return The result of the publish operation
    */
@@ -131716,7 +131721,7 @@ class src_client_Client {
         throw new Error('Votes require fees but generateFeeBlock was not defined');
       }
       const staple = src_client_VoteStaple.fromVotesAndBlocks(tempVotes, blocks);
-      const feeBlock = await options.generateFeeBlock(staple);
+      const feeBlock = await options.generateFeeBlock(staple, options);
       blocks.push(feeBlock);
     }
     const permVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, blocks, tempVotes);
@@ -132013,10 +132018,9 @@ class src_client_Client {
    *
    * @param account The account to get the head block for
    * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
-   * @return The head block for the account or null if the account has
-   *         not created any blocks
+   * @return The head block and height for the account or null if the account has not created any blocks
    */
-  async getHeadBlock(account) {
+  async getAccountHeadInfo(account) {
     let rep = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'ANY';
     account = client_src_lib.Account.toPublicKeyString(account);
     const result = await client_client_assertClassBrand(client_Client_brand, this, src_client_api).call(this, rep, 'GET /node/ledger/account/:account/head', {
@@ -132024,11 +132028,36 @@ class src_client_Client {
         account
       }
     });
-    if (result.block === null) {
+    if (result.block === null || result.height === null) {
       return null;
     }
     const block = new client_src_lib.Block(result.block);
-    return block;
+    return {
+      block,
+      height: BigInt(result.height)
+    };
+  }
+
+  /**
+   * Get the current head block for a given account.  This will return the
+   * entire block, or null if the account has not created any blocks.
+   *
+   * An account with no blocks may still have a balance because other users
+   * may have sent tokens to it.
+   *
+   * @param account The account to get the head block for
+   * @param rep The representative to get the head block from -- this is generally "ANY" in which case the best representative will be used, but it is possible to request a specific representative
+   * @return The head block for the account or null if the account has
+   *         not created any blocks
+   */
+  async getHeadBlock(account) {
+    let rep = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'ANY';
+    account = client_src_lib.Account.toPublicKeyString(account);
+    const headBlockInfo = await this.getAccountHeadInfo(account, rep);
+    if (headBlockInfo === null) {
+      return null;
+    }
+    return headBlockInfo.block;
   }
 
   /**
@@ -132583,9 +132612,11 @@ class src_client_Client {
    *
    * @param account Account to recover
    * @param publish Publish the recovered staple to the network (default is true)
+   * @param options options for publishing {@link PublishOptions }
    */
   async recoverAccount(account) {
     let publish = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+    let options = arguments.length > 2 ? arguments[2] : undefined;
     const successorBlock = await this.getPendingBlock(account);
     if (!successorBlock) {
       return null;
@@ -132683,13 +132714,30 @@ class src_client_Client {
       let newTempVotes = [];
       if (tempVotes.length !== client_client_classPrivateFieldGet(client_reps, this).length) {
         try {
-          newTempVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, votedOnBlocks, undefined, missingReps);
+          newTempVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, votedOnBlocks, undefined, missingReps, options === null || options === void 0 ? void 0 : options.quotes);
         } catch {
           /* Ignore */
         }
         tempVotes = [...tempVotes, ...newTempVotes];
       }
       const missingPermReps = client_client_classPrivateFieldGet(client_reps, this).filter(rep => !permReps.includes(rep));
+      // If any of the temporary votes require a fee, we need to generate a fee block
+      let requiresFee = false;
+      for (const vote of tempVotes) {
+        if (vote.fee !== undefined) {
+          requiresFee = true;
+        }
+      }
+
+      // If we need a fee block and don't have any permanent votes, we need to generate a fee block
+      if (requiresFee && permVotes.length === 0) {
+        if ((options === null || options === void 0 ? void 0 : options.generateFeeBlock) === undefined) {
+          throw new Error('Votes require fees but generateFeeBlock was not defined');
+        }
+        const staple = src_client_VoteStaple.fromVotesAndBlocks(tempVotes, votedOnBlocks);
+        const feeBlock = await options.generateFeeBlock(staple, options);
+        votedOnBlocks.push(feeBlock);
+      }
       try {
         const newPermVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, votedOnBlocks, tempVotes, missingPermReps);
         permVotes = [...permVotes, ...newPermVotes];
@@ -132718,6 +132766,7 @@ class src_client_Client {
    * @param publish Publish the synced staple to the network (default is true)
    */
   async syncAccount(account) {
+    var _accountInfoSorted$0$, _accountInfoSorted$in, _accountInfoSorted$0$2, _accountInfoSorted$0$3;
     let publish = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
     let reps = arguments.length > 2 ? arguments[2] : undefined;
     await client_client_classPrivateFieldGet(client_updateRepsPromise, this);
@@ -132727,7 +132776,7 @@ class src_client_Client {
     const repAccountInfoPromises = [];
     for (const rep of reps) {
       repAccountInfoPromises.push((async () => {
-        const info = await this.getAccountInfo(account, rep);
+        const info = await this.getAccountHeadInfo(account, rep);
         return {
           rep,
           info
@@ -132742,16 +132791,16 @@ class src_client_Client {
       }
     }
     const accountInfoSorted = accountInfo.sort(function (a, b) {
-      var _a$info$currentHeadBl, _b$info$currentHeadBl;
-      return Number(BigInt((_a$info$currentHeadBl = a.info.currentHeadBlockHeight) !== null && _a$info$currentHeadBl !== void 0 ? _a$info$currentHeadBl : -1) - BigInt((_b$info$currentHeadBl = b.info.currentHeadBlockHeight) !== null && _b$info$currentHeadBl !== void 0 ? _b$info$currentHeadBl : -1));
+      var _a$info$height, _a$info, _b$info$height, _b$info;
+      return Number(BigInt((_a$info$height = (_a$info = a.info) === null || _a$info === void 0 ? void 0 : _a$info.height) !== null && _a$info$height !== void 0 ? _a$info$height : -1) - BigInt((_b$info$height = (_b$info = b.info) === null || _b$info === void 0 ? void 0 : _b$info.height) !== null && _b$info$height !== void 0 ? _b$info$height : -1));
     });
-    if (accountInfoSorted[0].info.currentHeadBlockHeight === accountInfoSorted[accountInfoSorted.length - 1].info.currentHeadBlockHeight) {
+    if (((_accountInfoSorted$0$ = accountInfoSorted[0].info) === null || _accountInfoSorted$0$ === void 0 ? void 0 : _accountInfoSorted$0$.height) === ((_accountInfoSorted$in = accountInfoSorted[accountInfoSorted.length - 1].info) === null || _accountInfoSorted$in === void 0 ? void 0 : _accountInfoSorted$in.height)) {
       // Block Heights match so return
       return null;
     }
-    let lowestHead = accountInfoSorted[0].info.currentHeadBlock;
-    if (lowestHead === null) {
-      lowestHead = client_lib_block.getAccountOpeningHash(account).toString();
+    let lowestHead = (_accountInfoSorted$0$2 = accountInfoSorted[0].info) === null || _accountInfoSorted$0$2 === void 0 ? void 0 : _accountInfoSorted$0$2.block.hash;
+    if (lowestHead === null || lowestHead === undefined) {
+      lowestHead = client_lib_block.getAccountOpeningHash(account);
     }
 
     // Get the missing successor block and vote staple from the rep with the highest block height
@@ -132766,8 +132815,8 @@ class src_client_Client {
     if (publish === true) {
       await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
     }
-    const updatedAccountInfo = await this.getAccountInfo(account, accountInfoSorted[0].rep);
-    if (updatedAccountInfo.currentHeadBlockHeight === accountInfoSorted[0].info.currentHeadBlockHeight) {
+    const updatedAccountInfo = await this.getAccountHeadInfo(account, accountInfoSorted[0].rep);
+    if ((updatedAccountInfo === null || updatedAccountInfo === void 0 ? void 0 : updatedAccountInfo.height) === ((_accountInfoSorted$0$3 = accountInfoSorted[0].info) === null || _accountInfoSorted$0$3 === void 0 ? void 0 : _accountInfoSorted$0$3.height)) {
       throw new src_client_KeetaNetClientError('CLIENT_SYNC_PUBLISH_FAILED', `Client sync found a missing staple: ${successorStaple.blocksHash}, but it could not be published to rep: ${accountInfoSorted[0].rep.key.publicKeyString.get()}`);
     }
     return successorStaple;
@@ -132896,10 +132945,16 @@ async function client_apiRaw(rep, api, method) {
             const keetaNetError = client_KeetaNetError.fromJSON(errorInfo);
             try {
               if (src_client_KeetaNetLedgerVoteError.isInstance(keetaNetError)) {
+                let syncPerformed = false;
                 for (const account of keetaNetError.accounts) {
-                  await this.syncAccount(account);
+                  const successorStaple = await this.syncAccount(account);
+                  if (successorStaple !== null) {
+                    syncPerformed = true;
+                  }
                 }
-                continue;
+                if (syncPerformed) {
+                  continue;
+                }
               }
             } catch {
               // ignored error parsing KeetaNet Error just return original
@@ -133409,6 +133464,121 @@ class src_client_UserClient {
    */
 
   /**
+   * Initiate a swap request
+   *
+   * @param request {@link CreateSwapRequest}
+   * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+   * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+   * @param client either a UserClient instance or network and signer from which to create a UserClient
+   * @param options User client options (common options)
+   * @returns Swap {@link Block}
+   */
+  static async createSwapRequest(request, client, options) {
+    let userClient;
+    if (src_client_UserClient.isInstance(client)) {
+      userClient = client;
+    } else {
+      userClient = this.fromNetwork(client.network, client.signer, options);
+    }
+    if (userClient === undefined) {
+      throw new Error('UserClient Should have been defined for swap');
+    }
+    const {
+      from,
+      to
+    } = request;
+    if ((options === null || options === void 0 ? void 0 : options.account) !== undefined && !request.from.account.comparePublicKey(options.account)) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'account should be provided in the request instead of options');
+    }
+    const builder = userClient.initBuilder({
+      ...options,
+      account: request.from.account
+    });
+    builder.send(to.account, from.amount, from.token);
+    builder.receive(to.account, to.amount, to.token, true);
+    const blocks = await builder.computeBlocks();
+    if (blocks.blocks.length !== 1) {
+      throw new Error('Compute Swap Request Generated more than 1 block');
+    }
+    return blocks.blocks[0];
+  }
+
+  /**
+   * Finalize a swap request
+   *
+   * @param request {@link AcceptSwapRequest} initial swap request block and optional expected token and amounts
+   * @param builderOrUserClient User Client Options or optional builder to add the new block too
+   * @returns Swap Blocks
+   */
+
+  static async acceptSwapRequest(request, builderOrUserClient, options) {
+    var _request$expected, _request$expected2, _request$expected3, _request$expected4;
+    let builder;
+    let account;
+    if (src_client_UserClientBuilder.isInstance(builderOrUserClient)) {
+      builder = builderOrUserClient;
+      account = builder.defaultOptions.account;
+    } else {
+      let userClient;
+      if (src_client_UserClient.isInstance(builderOrUserClient)) {
+        userClient = builderOrUserClient;
+        account = builderOrUserClient.account;
+      } else try {
+        var _options$account;
+        var _usingCtx = client_client_usingCtx2();
+        // Use await using so this temporary client gets cleaned up
+        const temporaryClient = _usingCtx.a(this.fromNetwork(builderOrUserClient.network, builderOrUserClient.signer, options));
+        userClient = temporaryClient;
+        account = (_options$account = options === null || options === void 0 ? void 0 : options.account) !== null && _options$account !== void 0 ? _options$account : builderOrUserClient.signer;
+        if (account === null) {
+          throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Signer is required for building swap block');
+        }
+      } catch (_) {
+        _usingCtx.e = _;
+      } finally {
+        await _usingCtx.d();
+      }
+      builder = userClient.initBuilder(options);
+    }
+    if (account === undefined) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Unable to determine account for swap');
+    }
+    const sendOperation = request.block.operations.find(_ref => {
+      let {
+        type
+      } = _ref;
+      return client_lib_block.OperationType.SEND === type;
+    });
+    const receiveOperation = request.block.operations.find(_ref2 => {
+      let {
+        type
+      } = _ref2;
+      return client_lib_block.OperationType.RECEIVE === type;
+    });
+    if (!sendOperation || sendOperation.type !== client_lib_block.OperationType.SEND) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_MISSING_SEND', 'Swap Request is missing send');
+    }
+    if (!receiveOperation || receiveOperation.type !== client_lib_block.OperationType.RECEIVE) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_MISSING_RECEIVE', 'Swap Request is missing receive operation');
+    }
+    if (!sendOperation.to.comparePublicKey(receiveOperation.from)) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'The SEND and RECEIVE operations must have matching accounts.');
+    }
+    if (!sendOperation.to.comparePublicKey(account)) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_ACCOUNT_MISMATCH', 'Swap Request send account does not match');
+    }
+    if (((_request$expected = request.expected) === null || _request$expected === void 0 ? void 0 : _request$expected.token) !== undefined && !sendOperation.token.comparePublicKey((_request$expected2 = request.expected) === null || _request$expected2 === void 0 ? void 0 : _request$expected2.token)) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected');
+    }
+    if (((_request$expected3 = request.expected) === null || _request$expected3 === void 0 ? void 0 : _request$expected3.amount) !== undefined && sendOperation.amount !== ((_request$expected4 = request.expected) === null || _request$expected4 === void 0 ? void 0 : _request$expected4.amount)) {
+      throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected');
+    }
+    builder.send(request.block.account, receiveOperation.amount, receiveOperation.token);
+    const blocks = await builder.computeBlocks();
+    return [...blocks.blocks, request.block];
+  }
+
+  /**
    * Helper method to filter a list of vote staples into
    * a list of blocks and operations that are related to
    * a given account.
@@ -133517,8 +133687,8 @@ class src_client_UserClient {
     this.networkAddress = networkAddress;
     this.baseToken = baseToken;
     client_client_classPrivateFieldSet(client_client_config, this, {
-      generateFeeBlock: async staple => {
-        const builder = this.initBuilder();
+      generateFeeBlock: async (staple, options) => {
+        const builder = this.initBuilder(options);
         const block = await builder.computeFeeBlock(staple);
         return block;
       },
@@ -133692,6 +133862,24 @@ class src_client_UserClient {
   }
 
   /**
+   * Transmit a set of blocks to the network.  This will request short
+   * votes and permanent votes for the blocks and then publish them to
+   * the network.  Optionally it will generate a fee block from a user
+   * provided function if fees are required.
+   *
+   * @param blocks The blocks to transmit
+   * @param options User provided options {@link PublishOptions }
+   * @return The result of the publish operation
+   */
+  async transmit(blocks) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    if (options.generateFeeBlock === undefined) {
+      options.generateFeeBlock = client_client_classPrivateFieldGet(client_client_config, this).generateFeeBlock;
+    }
+    return await client_client_classPrivateFieldGet(client_client, this).transmit(blocks, options);
+  }
+
+  /**
    * Set the metadata for an account and publish the blocks to the
    * network.
    *
@@ -133767,9 +133955,9 @@ class src_client_UserClient {
    */
 
   async getCertificates(certificateHash) {
-    var _options$account;
+    var _options$account2;
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const account = (_options$account = options.account) !== null && _options$account !== void 0 ? _options$account : this.account;
+    const account = (_options$account2 = options.account) !== null && _options$account2 !== void 0 ? _options$account2 : this.account;
     if (certificateHash !== undefined) {
       return await client_client_classPrivateFieldGet(client_client, this).getCertificateByHash(account, certificateHash);
     }
@@ -134045,7 +134233,7 @@ class src_client_UserClient {
    */
   async recover(publish) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    return await client_client_classPrivateFieldGet(client_client, this).recoverAccount(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), publish);
+    return await client_client_classPrivateFieldGet(client_client, this).recoverAccount(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), publish, options);
   }
 
   /**
@@ -134068,6 +134256,34 @@ class src_client_UserClient {
   async sync(publish) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     return await client_client_classPrivateFieldGet(client_client, this).syncAccount(client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options), publish);
+  }
+
+  /**
+   * Initiate a swap request
+   *
+   * @param request {@link CreateSwapRequest}
+   * Defines what is being sent from {@link Account}, {@link TokenAddress} and Amount
+   * Defines what is being received from {@link Account}, {@link TokenAddress} and Converted Amount
+   * @param options User client options (common options)
+   * @returns Swap {@link Block}
+   */
+  async createSwapRequest(request, options) {
+    return await src_client_UserClient.createSwapRequest(request, this, options);
+  }
+
+  /**
+   * Finalize a swap request
+   *
+   * @param request {@link AcceptSwapRequest} initial swap request block and optional expected token and amounts
+   * @param builderOrOptions {@link UserClientBuilder} or {@link UserClientOptions} to use for building the swap block
+   * @returns Blocks
+   */
+  async acceptSwapRequest(request, builderOrOptions) {
+    if (src_client_UserClientBuilder.isInstance(builderOrOptions)) {
+      return await src_client_UserClient.acceptSwapRequest(request, builderOrOptions);
+    } else {
+      return await src_client_UserClient.acceptSwapRequest(request, this, builderOrOptions);
+    }
   }
 
   /**
@@ -134245,9 +134461,9 @@ class src_client_UserClient {
 /** @hidden */
 client_UserClient = src_client_UserClient;
 function client_getAccount() {
-  var _ref, _options$account2;
+  var _ref3, _options$account3;
   let options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  const retval = (_ref = (_options$account2 = options.account) !== null && _options$account2 !== void 0 ? _options$account2 : client_client_classPrivateFieldGet(client_client_config, this).account) !== null && _ref !== void 0 ? _ref : this.signer;
+  const retval = (_ref3 = (_options$account3 = options.account) !== null && _options$account3 !== void 0 ? _options$account3 : client_client_classPrivateFieldGet(client_client_config, this).account) !== null && _ref3 !== void 0 ? _ref3 : this.signer;
   if (retval === null) {
     throw new Error('No signer available in a read-only UserClient');
   }

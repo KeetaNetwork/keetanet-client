@@ -85,6 +85,7 @@ declare const rootTree: {
                         GET: (request: APIRequest, account: string | import("../lib/account").GenericAccount) => Promise<{
                             account: import("../lib/account").GenericAccount;
                             block: null | import("../lib/block").Block;
+                            height: null | bigint;
                         }>;
                     };
                     chain: {

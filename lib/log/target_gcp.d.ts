@@ -15,6 +15,14 @@ declare class LogTargetGCP implements LogTarget {
     readonly logLevel: LogTargetLevel;
     readonly filter: RegExp | null;
     constructor(config: LogTargetGCPConfig);
+    /**
+     * This function tries to log a test message to GCP Logging, and if it fails,
+     * it runs the provided `elseRun` function.
+     *
+     * This is useful for logging initialization, to ensure that GCP Logging
+     * is working, and if not, to fall back to another logging method.
+     */
+    test(canRun: () => Promise<void>, elseRun: () => Promise<void>): Promise<void>;
     emitLogs(input: LogEntry[]): Promise<void>;
 }
 export default LogTargetGCP;

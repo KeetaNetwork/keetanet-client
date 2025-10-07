@@ -97,6 +97,7 @@ declare function getBlockFromIdempotent(request: APIRequest, account: string, id
 declare function getAccountsHead(request: APIRequest, account: string | GenericAccount): Promise<{
     account: GenericAccount;
     block: null | Block;
+    height: null | bigint;
 }>;
 declare function getAccountBalance(request: APIRequest, account: string | GenericAccount, token: string | TokenAddress): Promise<{
     account: GenericAccount;

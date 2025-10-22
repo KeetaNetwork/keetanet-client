@@ -68442,17 +68442,31 @@ class LedgerAtomicInterface {
         return (retval);
     }
     async getHistory(account, start, limit = 25) {
-        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
-        const voteStapleHashes = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getHistory(transaction, account, start, limit);
-        const voteStaplesMap = await this.getVoteStaples(voteStapleHashes, 'main');
-        const voteStaples = voteStapleHashes.map(function (voteStapleHash) {
-            const voteStaple = voteStaplesMap.get(voteStapleHash);
-            if (voteStaple === undefined || voteStaple === null) {
-                throw (new Error(`internal error: missing vote staple for ${voteStapleHash}`));
-            }
-            return (voteStaple);
-        });
-        return (voteStaples);
+        const env_1 = { stack: [], error: void 0, hasError: false };
+        try {
+            const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+            const _getHistoryTiming = __addDisposableResource(env_1, transaction.node?.timing.startTime(`storage-getHistory`), false);
+            const voteStapleHashes = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getHistory(transaction, account, start, limit);
+            _getHistoryTiming?.end();
+            const _getVoteStaplesTiming = __addDisposableResource(env_1, transaction.node?.timing.startTime(`storage-getVoteStaples`), false);
+            const voteStaplesMap = await this.getVoteStaples(voteStapleHashes, 'main');
+            _getVoteStaplesTiming?.end();
+            const voteStaples = voteStapleHashes.map(function (voteStapleHash) {
+                const voteStaple = voteStaplesMap.get(voteStapleHash);
+                if (voteStaple === undefined || voteStaple === null) {
+                    throw (new Error(`internal error: missing vote staple for ${voteStapleHash}`));
+                }
+                return (voteStaple);
+            });
+            return (voteStaples);
+        }
+        catch (e_1) {
+            env_1.error = e_1;
+            env_1.hasError = true;
+        }
+        finally {
+            __disposeResources(env_1);
+        }
     }
     async getStaplesFromBlockHashes(hashes) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
@@ -69056,9 +69070,9 @@ class Ledger {
      * @returns The return value from "code"
      */
     async run(identifier, code, readOnly) {
-        const env_1 = { stack: [], error: void 0, hasError: false };
+        const env_2 = { stack: [], error: void 0, hasError: false };
         try {
-            const _timing = __addDisposableResource(env_1, this.node?.timing.startTime(`run-${identifier}`), false);
+            const _timing = __addDisposableResource(env_2, this.node?.timing.startTime(`run-${identifier}`), false);
             let retryConfig;
             if (__classPrivateFieldGet(this, _Ledger_config, "f").transactionRetries?.maxRetries !== undefined) {
                 retryConfig = {
@@ -69143,12 +69157,12 @@ class Ledger {
             this.node?.stats.incr('ledger', 'dbRetries', retryCount);
             return (retval);
         }
-        catch (e_1) {
-            env_1.error = e_1;
-            env_1.hasError = true;
+        catch (e_2) {
+            env_2.error = e_2;
+            env_2.hasError = true;
         }
         finally {
-            __disposeResources(env_1);
+            __disposeResources(env_2);
         }
     }
     async runReadOnly(identifier, code) {
@@ -69299,18 +69313,18 @@ class Ledger {
         }));
     }
     async stats() {
-        const env_2 = { stack: [], error: void 0, hasError: false };
+        const env_3 = { stack: [], error: void 0, hasError: false };
         try {
-            const _timing = __addDisposableResource(env_2, this.node?.timing.startTime('db-stats'), false);
+            const _timing = __addDisposableResource(env_3, this.node?.timing.startTime('db-stats'), false);
             const retval = await __classPrivateFieldGet(this, _Ledger_storage, "f").stats();
             return (retval);
         }
-        catch (e_2) {
-            env_2.error = e_2;
-            env_2.hasError = true;
+        catch (e_3) {
+            env_3.error = e_3;
+            env_3.hasError = true;
         }
         finally {
-            __disposeResources(env_2);
+            __disposeResources(env_3);
         }
     }
     async _testingRunStorageFunction(code) {
@@ -73284,6 +73298,37 @@ function isASN1Date(input) {
     }
     return (true);
 }
+function isASN1Struct(input) {
+    if (!isASN1Object(input)) {
+        return (false);
+    }
+    if (input.type !== 'struct') {
+        return (false);
+    }
+    if ('fieldNames' in input && input.fieldNames !== undefined) {
+        if (!Array.isArray(input.fieldNames)) {
+            return (false);
+        }
+        for (const fieldName of input.fieldNames) {
+            if (typeof fieldName !== 'string') {
+                return (false);
+            }
+        }
+    }
+    if (!('contains' in input) || typeof input.contains !== 'object' || input.contains === null) {
+        return (false);
+    }
+    return (true);
+}
+function isASN1ModifierOptional(input) {
+    if (typeof input !== 'object' || input === null) {
+        return (false);
+    }
+    if (!('optional' in input)) {
+        return (false);
+    }
+    return (true);
+}
 function isStringValidForKind(input, kind) {
     if (input === '') {
         return (true);
@@ -73316,7 +73361,8 @@ exports.ASN1CheckUtilities = {
     isASN1Set,
     isASN1ContextTag,
     isASN1BitString,
-    isASN1Date
+    isASN1Date,
+    isASN1Struct
 };
 /**
  * Checks if an ASN.1 sequence is valid based on a provided validation schema.
@@ -73484,6 +73530,22 @@ function jsJStoASN1(input, allowUndefined) {
             constructedObject.valueBlock.value.push(jsJStoASN1(input.contains));
             return (constructedObject);
         }
+    }
+    else if (isASN1Struct(input)) {
+        /* Structs are encoded as sequences */
+        const structContainer = new asn1js.Sequence();
+        if (input.fieldNames === undefined) {
+            throw (new Error('internal error: ASN1Struct is missing fieldNames'));
+        }
+        for (const fieldName of input.fieldNames) {
+            const fieldValue = input.contains[fieldName];
+            if (fieldValue === undefined) {
+                /* Skip over undefined values, they should be "optional" in the schema */
+                continue;
+            }
+            structContainer.valueBlock.value.push(jsJStoASN1(fieldValue, true));
+        }
+        return (structContainer);
     }
     else if (typeof input === 'string') {
         if (isStringValidForKind(input, 'printable')) {
@@ -73772,6 +73834,39 @@ exports.ASN1toJS = ASN1toJS;
 exports.JStoASN1 = JStoASN1;
 exports.ASN1IntegerToBigInt = ASN1IntegerToBigInt;
 exports.ASN1BigIntToBuffer = ASN1BigIntToBuffer;
+/**
+ * Helper class to validate ASN.1 values against schemas
+ *
+ * Some schemas are basic types, others are more complex
+ * Basic types are defined as:
+ * - {@link ValidateASN1.IsAny}
+ * - {@link ValidateASN1.IsUnknown}
+ * - {@link ValidateASN1.IsDate}
+ * - {@link ValidateASN1.IsAnyDate}
+ * - {@link ValidateASN1.IsString}
+ * - {@link ValidateASN1.IsAnyString}
+ * - {@link ValidateASN1.IsOctetString}
+ * - {@link ValidateASN1.IsBitString}
+ * - {@link ValidateASN1.IsInteger}
+ * - {@link ValidateASN1.IsBoolean}
+ * - {@link ValidateASN1.IsOID}
+ * - {@link ValidateASN1.IsSet}
+ * - {@link ValidateASN1.IsNull}
+ *
+ * More complex types are defined as:
+ * - Choice: `{ choice: [ schema1, schema2, ... ] }`
+ * - Sequence of: `{ sequenceOf: schema }`
+ * - Optional: `{ optional: schema }`
+ * - Context Tag: `{ type: 'context'; kind: 'implicit' | 'explicit'; contains: schema; value: number }`
+ * - OID: `{ type: 'oid'; oid: string }`
+ * - String: `{ type: 'string'; kind: 'printable' | 'ia5' | 'utf8' }`
+ * - Date: `{ type: 'date'; kind: 'utc' | 'general' }`
+ * - Fixed Integer: `bigint` (where the value is the exact integer required)
+ * - Sequence: `[ schema1, schema2, ... ]` (a tuple where each item is a schema)
+ *
+ * - Lazy Schema: `() => schema` (a function that returns a schema, useful for
+ *   recursive schemas)
+ */
 class ValidateASN1 {
     /**
      * Interpret an untagged type as a specific universal tag
@@ -73858,6 +73953,9 @@ class ValidateASN1 {
                             break;
                         case 'context':
                             throw (new Error('not implemented: Cannot interpret untagged type as Context Tag yet'));
+                        case 'struct':
+                            interpretTag = 16;
+                            break;
                         default:
                             (0, never_1.assertNever)(tag);
                     }
@@ -74077,6 +74175,36 @@ class ValidateASN1 {
                         }
                         needsMoreAnalysis = false;
                         break;
+                    case 'struct': {
+                        const outputStruct = {
+                            type: 'struct',
+                            fieldNames: schema.fieldNames,
+                            contains: {}
+                        };
+                        const schemaAsTuples = schema.fieldNames.map(function (fieldName) {
+                            return (schema.contains[fieldName]);
+                        });
+                        let valuesAsTuples;
+                        if (Array.isArray(input)) {
+                            valuesAsTuples = input;
+                        }
+                        else if (isASN1Struct(input)) {
+                            const x = input;
+                            valuesAsTuples = schema.fieldNames.map(function (fieldName) {
+                                return (x.contains[fieldName]);
+                            });
+                        }
+                        else {
+                            throw (new Error(`Expected Array or Struct, got ${typeof input} --> ${JSON.stringify((0, helper_1.debugPrintableObject)(input))}`));
+                        }
+                        // @ts-ignore
+                        const outputValuesTuples = ValidateASN1.againstSchema(valuesAsTuples, schemaAsTuples);
+                        schema.fieldNames.forEach(function (fieldName, index) {
+                            outputStruct.contains[fieldName] = outputValuesTuples[index];
+                        });
+                        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                        return outputStruct;
+                    }
                     default:
                         (0, never_1.assertNever)(schema);
                 }
@@ -74195,18 +74323,63 @@ class ValidateASN1 {
 }
 exports.ValidateASN1 = ValidateASN1;
 _ValidateASN1_schema = new WeakMap();
+/**
+ * Validate that the tag is any valid ASN.1 type
+ */
 ValidateASN1.IsAny = Symbol('IsAny');
+/**
+ * Validate that the tag is any valid ASN.1 type, but do not
+ * attempt to interpret it
+ */
 ValidateASN1.IsUnknown = Symbol('IsUnknown');
+/**
+ * Validate the tag is either a GeneralizedTime or UTCTime
+ * depending on the value (i.e. before or after 2050)
+ * as per RFC 5280
+ */
 ValidateASN1.IsDate = Symbol('IsDate');
+/**
+ * Validate the tag is either a GeneralizedTime or UTCTime
+ */
 ValidateASN1.IsAnyDate = Symbol('IsAnyDate');
+/**
+ * Validate that the tag is the least-requisite string type
+ * (i.e. PrintableString, IA5String, or UTF8String) for
+ * the value
+ */
 ValidateASN1.IsString = Symbol('IsString');
+/**
+ * Validate that the tag is any string type of PrintableString,
+ * IA5String, or UTF8String
+ */
 ValidateASN1.IsAnyString = Symbol('IsAnyString');
+/**
+ * Validate that the tag is an OctetString
+ */
 ValidateASN1.IsOctetString = Symbol('IsOctetString');
+/**
+ * Validate that the tag is a BitString
+ */
 ValidateASN1.IsBitString = Symbol('IsBitString');
+/**
+ * Validate that the tag is an Integer
+ */
 ValidateASN1.IsInteger = Symbol('IsInteger');
+/**
+ * Validate that the tag is a Boolean
+ */
 ValidateASN1.IsBoolean = Symbol('IsBoolean');
+/**
+ * Validate that the tag is an Object Identifier (OID)
+ */
 ValidateASN1.IsOID = Symbol('IsOID');
+/**
+ * Validate that the tag is a Set
+ */
 ValidateASN1.IsSet = Symbol('IsSet');
+/**
+ * Validate that the tag is a Null
+ */
 ValidateASN1.IsNull = Symbol('IsNull');
 /**
  * An ASN.1 object which contains the DER encoded value as well as the
@@ -76676,7 +76849,12 @@ function promiseGenerator() {
     }
     return ({ promise, resolve, reject });
 }
-function convertToJSON(_ignore_key, item) {
+function convertToJSON(key, item) {
+    // @ts-ignore
+    if (this !== undefined) {
+        // @ts-ignore
+        item = this[key];
+    }
     switch (typeof item) {
         case 'string':
         case 'boolean':
@@ -76716,6 +76894,9 @@ function convertToJSON(_ignore_key, item) {
     }
     if (util_1.types.isArrayBuffer(item)) {
         return (Buffer.from(item).toString('base64'));
+    }
+    if (typeof item === 'symbol') {
+        return (item.toString());
     }
     if (item instanceof Object) {
         if (item.toJSON !== undefined) {
@@ -78044,7 +78225,7 @@ class VoteQuote extends VoteLikeBase {
             throw (new vote_1.default('VOTE_EXPIRED', `VoteQuote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`));
         }
         if (!this.quote) {
-            throw (new vote_1.default('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but fee kind is note QUOTE`));
+            throw (new vote_1.default('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but kind is not QUOTE`));
         }
     }
 }
@@ -78795,7 +78976,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.8+g2ae53aba450fae088463ac1a8f545b6460825c5b';
+exports.version = '0.14.9+gdb1185935886a43e4feda1919fa65830dc656174';
 exports["default"] = exports.version;
 
 

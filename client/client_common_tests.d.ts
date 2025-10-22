@@ -52,14 +52,14 @@ export declare const clientTests: {
         options: {
             p2pTested: boolean;
             count: number;
+            timeout: number;
         };
     };
-    'Basic Client Tests (No Node)': {
+    'Non-Node Client Tests': {
         test: typeof runNonNodeTests;
         options: {
             p2pTested: boolean;
             count: number;
-            timeout: number;
         };
     };
     'Fee Block Tests': {

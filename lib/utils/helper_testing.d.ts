@@ -34,4 +34,5 @@ export declare function run(command: string, stdin: Buffer): {
     ok: boolean;
 };
 declare let testMethod: (..._ignore_args: any[]) => any;
-export { testMethod };
+declare function getJestPuppeteerSetupFile(skipDefaultOutput?: boolean): string;
+export { testMethod, getJestPuppeteerSetupFile };

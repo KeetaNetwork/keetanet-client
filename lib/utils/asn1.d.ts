@@ -2,7 +2,7 @@ import * as asn1js from 'asn1js';
 export declare const asn1: typeof asn1js;
 declare function jsBigIntToBuffer(value: bigint): Buffer;
 declare function jsIntegerToBigInt(value: asn1js.Integer | number): bigint;
-export type ASN1AnyJS = ASN1AnyJS[] | bigint | number | Date | Buffer | ASN1OID | ASN1Set | ASN1ContextTag | ASN1BitString | ASN1Date | ASN1String | string | boolean | null | undefined;
+export type ASN1AnyJS = ASN1AnyJS[] | bigint | number | Date | Buffer | ASN1OID | ASN1Set | ASN1ContextTag | ASN1BitString | ASN1Date | ASN1String | ASN1Struct | string | boolean | null | undefined;
 type ASN1AnyASN = InstanceType<typeof asn1js.Sequence> | InstanceType<typeof asn1js.Set> | InstanceType<typeof asn1js.Integer> | InstanceType<typeof asn1js.GeneralizedTime> | InstanceType<typeof asn1js.Null> | InstanceType<typeof asn1js.OctetString> | InstanceType<typeof asn1js.BitString> | InstanceType<typeof asn1js.ObjectIdentifier> | InstanceType<typeof asn1js.Constructed> | InstanceType<typeof asn1js.Boolean> | InstanceType<typeof asn1js.PrintableString> | InstanceType<typeof asn1js.IA5String> | InstanceType<typeof asn1js.Utf8String> | undefined;
 interface ASN1Object {
     type: string;
@@ -44,6 +44,16 @@ export interface ASN1String extends ASN1Object {
     kind: 'printable' | 'ia5' | 'utf8';
     value: string;
 }
+export interface ASN1Struct extends ASN1Object {
+    type: 'struct';
+    /**
+     * Field names are optional if they appear in the schema
+     */
+    fieldNames?: string[];
+    contains: {
+        [name: string]: ASN1AnyJS;
+    };
+}
 export declare function isASN1Object(input: unknown): input is ASN1Object;
 declare function isASN1OID(input: unknown): input is ASN1OID;
 declare function isASN1String(input: unknown): input is ASN1String;
@@ -53,6 +63,7 @@ declare function isASN1ContextTag<T extends ASN1ContextTag['kind']>(input: unkno
 }>;
 declare function isASN1BitString(input: unknown): input is ASN1BitString;
 declare function isASN1Date(input: unknown): input is ASN1Date;
+declare function isASN1Struct(input: unknown): input is ASN1Struct;
 export declare const ASN1CheckUtilities: {
     isASN1Object: typeof isASN1Object;
     isASN1OID: typeof isASN1OID;
@@ -61,6 +72,7 @@ export declare const ASN1CheckUtilities: {
     isASN1ContextTag: typeof isASN1ContextTag;
     isASN1BitString: typeof isASN1BitString;
     isASN1Date: typeof isASN1Date;
+    isASN1Struct: typeof isASN1Struct;
 };
 /**
  * Validation function for {@link isValidSequenceSchema}
@@ -104,6 +116,12 @@ export declare namespace ValidateASN1 {
     } | {
         type: 'date';
         kind: 'general';
+    } | {
+        type: 'struct';
+        fieldNames: string[];
+        contains: {
+            [name: string]: Schema;
+        };
     } | readonly [Schema, ...Schema[]] | (() => Schema);
     type BasicSchemaMap = {
         [ValidateASN1.IsAny]: ASN1AnyJS;
@@ -152,25 +170,114 @@ export declare namespace ValidateASN1 {
         kind: 'general' | 'utc';
     } ? Omit<ASN1Date, 'kind'> & {
         kind: T['kind'];
+    } : T extends {
+        type: 'struct';
+        fieldNames: infer F extends string[];
+        contains: infer C extends {
+            [name: string]: Schema;
+        };
+    } ? Omit<ASN1Struct, 'fieldNames' | 'contains'> & {
+        fieldNames: F;
+        contains: {
+            [K in F[number]]: C[K] extends Schema ? SchemaMap<C[K]> : never;
+        };
     } : T extends readonly [Schema, ...Schema[]] ? {
         [K in keyof T]: T[K] extends Schema ? SchemaMap<T[K]> : never;
     } : never;
     export {};
 }
+/**
+ * Helper class to validate ASN.1 values against schemas
+ *
+ * Some schemas are basic types, others are more complex
+ * Basic types are defined as:
+ * - {@link ValidateASN1.IsAny}
+ * - {@link ValidateASN1.IsUnknown}
+ * - {@link ValidateASN1.IsDate}
+ * - {@link ValidateASN1.IsAnyDate}
+ * - {@link ValidateASN1.IsString}
+ * - {@link ValidateASN1.IsAnyString}
+ * - {@link ValidateASN1.IsOctetString}
+ * - {@link ValidateASN1.IsBitString}
+ * - {@link ValidateASN1.IsInteger}
+ * - {@link ValidateASN1.IsBoolean}
+ * - {@link ValidateASN1.IsOID}
+ * - {@link ValidateASN1.IsSet}
+ * - {@link ValidateASN1.IsNull}
+ *
+ * More complex types are defined as:
+ * - Choice: `{ choice: [ schema1, schema2, ... ] }`
+ * - Sequence of: `{ sequenceOf: schema }`
+ * - Optional: `{ optional: schema }`
+ * - Context Tag: `{ type: 'context'; kind: 'implicit' | 'explicit'; contains: schema; value: number }`
+ * - OID: `{ type: 'oid'; oid: string }`
+ * - String: `{ type: 'string'; kind: 'printable' | 'ia5' | 'utf8' }`
+ * - Date: `{ type: 'date'; kind: 'utc' | 'general' }`
+ * - Fixed Integer: `bigint` (where the value is the exact integer required)
+ * - Sequence: `[ schema1, schema2, ... ]` (a tuple where each item is a schema)
+ *
+ * - Lazy Schema: `() => schema` (a function that returns a schema, useful for
+ *   recursive schemas)
+ */
 export declare class ValidateASN1<T extends ValidateASN1.Schema> {
     #private;
+    /**
+     * Validate that the tag is any valid ASN.1 type
+     */
     static readonly IsAny: unique symbol;
+    /**
+     * Validate that the tag is any valid ASN.1 type, but do not
+     * attempt to interpret it
+     */
     static readonly IsUnknown: unique symbol;
+    /**
+     * Validate the tag is either a GeneralizedTime or UTCTime
+     * depending on the value (i.e. before or after 2050)
+     * as per RFC 5280
+     */
     static readonly IsDate: unique symbol;
+    /**
+     * Validate the tag is either a GeneralizedTime or UTCTime
+     */
     static readonly IsAnyDate: unique symbol;
+    /**
+     * Validate that the tag is the least-requisite string type
+     * (i.e. PrintableString, IA5String, or UTF8String) for
+     * the value
+     */
     static readonly IsString: unique symbol;
+    /**
+     * Validate that the tag is any string type of PrintableString,
+     * IA5String, or UTF8String
+     */
     static readonly IsAnyString: unique symbol;
+    /**
+     * Validate that the tag is an OctetString
+     */
     static readonly IsOctetString: unique symbol;
+    /**
+     * Validate that the tag is a BitString
+     */
     static readonly IsBitString: unique symbol;
+    /**
+     * Validate that the tag is an Integer
+     */
     static readonly IsInteger: unique symbol;
+    /**
+     * Validate that the tag is a Boolean
+     */
     static readonly IsBoolean: unique symbol;
+    /**
+     * Validate that the tag is an Object Identifier (OID)
+     */
     static readonly IsOID: unique symbol;
+    /**
+     * Validate that the tag is a Set
+     */
     static readonly IsSet: unique symbol;
+    /**
+     * Validate that the tag is a Null
+     */
     static readonly IsNull: unique symbol;
     /**
      * Interpret an untagged type as a specific universal tag
@@ -200,7 +307,7 @@ type Mutable<T> = T extends Buffer | ArrayBuffer | Date ? T : T extends object ?
 export declare class BufferStorageASN1<T extends ASN1AnyJS | Readonly<ASN1AnyJS> = Readonly<ASN1AnyJS>, S extends ValidateASN1.Schema | undefined = undefined> {
     #private;
     static readonly Validate: typeof ValidateASN1;
-    static readonly isInstance: (obj: any, strict?: boolean) => obj is BufferStorageASN1<string | number | bigint | boolean | Date | Buffer | ASN1AnyJS[] | ASN1OID | ASN1Set | ASN1ExplicitContextTag | ASN1ImplicitContextTag | ASN1BitString | ASN1Date | ASN1String | readonly ASN1AnyJS[] | Readonly<Date> | Readonly<Buffer> | Readonly<ASN1OID> | Readonly<ASN1Set> | Readonly<ASN1ExplicitContextTag> | Readonly<ASN1ImplicitContextTag> | Readonly<ASN1BitString> | Readonly<ASN1Date> | Readonly<ASN1String> | null | undefined, ValidateASN1.Schema | undefined>;
+    static readonly isInstance: (obj: any, strict?: boolean) => obj is BufferStorageASN1<string | number | bigint | boolean | Date | Buffer | ASN1AnyJS[] | ASN1OID | ASN1Set | ASN1ExplicitContextTag | ASN1ImplicitContextTag | ASN1BitString | ASN1Date | ASN1String | ASN1Struct | readonly ASN1AnyJS[] | Readonly<Date> | Readonly<Buffer> | Readonly<ASN1OID> | Readonly<ASN1Set> | Readonly<ASN1ExplicitContextTag> | Readonly<ASN1ImplicitContextTag> | Readonly<ASN1BitString> | Readonly<ASN1Date> | Readonly<ASN1String> | Readonly<ASN1Struct> | null | undefined, ValidateASN1.Schema | undefined>;
     constructor(input: T | ArrayBuffer, schema?: S);
     getDER(): ArrayBuffer;
     getDERBuffer(): Buffer;

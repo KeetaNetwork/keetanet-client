@@ -105604,7 +105604,12 @@ function client_promiseGenerator() {
     reject
   };
 }
-function client_convertToJSON(_ignore_key, item) {
+function client_convertToJSON(key, item) {
+  // @ts-ignore
+  if (this !== undefined) {
+    // @ts-ignore
+    item = this[key];
+  }
   switch (typeof item) {
     case 'string':
     case 'boolean':
@@ -105643,6 +105648,9 @@ function client_convertToJSON(_ignore_key, item) {
   }
   if (client_util.types.isArrayBuffer(item)) {
     return src_client_Buffer.from(item).toString('base64');
+  }
+  if (typeof item === 'symbol') {
+    return item.toString();
   }
   if (item instanceof Object) {
     if (item.toJSON !== undefined) {
@@ -113255,6 +113263,37 @@ function client_isASN1Date(input) {
   }
   return true;
 }
+function client_isASN1Struct(input) {
+  if (!client_isASN1Object(input)) {
+    return false;
+  }
+  if (input.type !== 'struct') {
+    return false;
+  }
+  if ('fieldNames' in input && input.fieldNames !== undefined) {
+    if (!Array.isArray(input.fieldNames)) {
+      return false;
+    }
+    for (const fieldName of input.fieldNames) {
+      if (typeof fieldName !== 'string') {
+        return false;
+      }
+    }
+  }
+  if (!('contains' in input) || typeof input.contains !== 'object' || input.contains === null) {
+    return false;
+  }
+  return true;
+}
+function client_isASN1ModifierOptional(input) {
+  if (typeof input !== 'object' || input === null) {
+    return false;
+  }
+  if (!('optional' in input)) {
+    return false;
+  }
+  return true;
+}
 function client_isStringValidForKind(input, kind) {
   if (input === '') {
     return true;
@@ -113287,7 +113326,8 @@ const client_ASN1CheckUtilities = {
   isASN1Set: client_isASN1Set,
   isASN1ContextTag: client_isASN1ContextTag,
   isASN1BitString: client_isASN1BitString,
-  isASN1Date: client_isASN1Date
+  isASN1Date: client_isASN1Date,
+  isASN1Struct: client_isASN1Struct
 };
 
 /**
@@ -113465,6 +113505,21 @@ function client_jsJStoASN1(input, allowUndefined) {
       constructedObject.valueBlock.value.push(client_jsJStoASN1(input.contains));
       return constructedObject;
     }
+  } else if (client_isASN1Struct(input)) {
+    /* Structs are encoded as sequences */
+    const structContainer = new client_Sequence();
+    if (input.fieldNames === undefined) {
+      throw new Error('internal error: ASN1Struct is missing fieldNames');
+    }
+    for (const fieldName of input.fieldNames) {
+      const fieldValue = input.contains[fieldName];
+      if (fieldValue === undefined) {
+        /* Skip over undefined values, they should be "optional" in the schema */
+        continue;
+      }
+      structContainer.valueBlock.value.push(client_jsJStoASN1(fieldValue, true));
+    }
+    return structContainer;
   } else if (typeof input === 'string') {
     if (client_isStringValidForKind(input, 'printable')) {
       return new client_PrintableString({
@@ -113762,6 +113817,39 @@ const {
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 var client_schema = /*#__PURE__*/new WeakMap();
+/**
+ * Helper class to validate ASN.1 values against schemas
+ *
+ * Some schemas are basic types, others are more complex
+ * Basic types are defined as:
+ * - {@link ValidateASN1.IsAny}
+ * - {@link ValidateASN1.IsUnknown}
+ * - {@link ValidateASN1.IsDate}
+ * - {@link ValidateASN1.IsAnyDate}
+ * - {@link ValidateASN1.IsString}
+ * - {@link ValidateASN1.IsAnyString}
+ * - {@link ValidateASN1.IsOctetString}
+ * - {@link ValidateASN1.IsBitString}
+ * - {@link ValidateASN1.IsInteger}
+ * - {@link ValidateASN1.IsBoolean}
+ * - {@link ValidateASN1.IsOID}
+ * - {@link ValidateASN1.IsSet}
+ * - {@link ValidateASN1.IsNull}
+ *
+ * More complex types are defined as:
+ * - Choice: `{ choice: [ schema1, schema2, ... ] }`
+ * - Sequence of: `{ sequenceOf: schema }`
+ * - Optional: `{ optional: schema }`
+ * - Context Tag: `{ type: 'context'; kind: 'implicit' | 'explicit'; contains: schema; value: number }`
+ * - OID: `{ type: 'oid'; oid: string }`
+ * - String: `{ type: 'string'; kind: 'printable' | 'ia5' | 'utf8' }`
+ * - Date: `{ type: 'date'; kind: 'utc' | 'general' }`
+ * - Fixed Integer: `bigint` (where the value is the exact integer required)
+ * - Sequence: `[ schema1, schema2, ... ]` (a tuple where each item is a schema)
+ *
+ * - Lazy Schema: `() => schema` (a function that returns a schema, useful for
+ *   recursive schemas)
+ */
 class client_ValidateASN1 {
   /**
    * Interpret an untagged type as a specific universal tag
@@ -113846,6 +113934,9 @@ class client_ValidateASN1 {
               break;
             case 'context':
               throw new Error('not implemented: Cannot interpret untagged type as Context Tag yet');
+            case 'struct':
+              interpretTag = 16;
+              break;
             default:
               client_assertNever(tag);
           }
@@ -114095,6 +114186,37 @@ class client_ValidateASN1 {
             }
             needsMoreAnalysis = false;
             break;
+          case 'struct':
+            {
+              const outputStruct = {
+                type: 'struct',
+                fieldNames: schema.fieldNames,
+                contains: {}
+              };
+              const schemaAsTuples = schema.fieldNames.map(function (fieldName) {
+                return schema.contains[fieldName];
+              });
+              let valuesAsTuples;
+              if (Array.isArray(input)) {
+                valuesAsTuples = input;
+              } else if (client_isASN1Struct(input)) {
+                const x = input;
+                valuesAsTuples = schema.fieldNames.map(function (fieldName) {
+                  return x.contains[fieldName];
+                });
+              } else {
+                throw new Error(`Expected Array or Struct, got ${typeof input} --> ${JSON.stringify(client_debugPrintableObject(input))}`);
+              }
+
+              // @ts-ignore
+              const outputValuesTuples = client_ValidateASN1.againstSchema(valuesAsTuples, schemaAsTuples);
+              schema.fieldNames.forEach(function (fieldName, index) {
+                outputStruct.contains[fieldName] = outputValuesTuples[index];
+              });
+
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              return outputStruct;
+            }
           default:
             client_assertNever(schema);
         }
@@ -114218,18 +114340,63 @@ class client_ValidateASN1 {
  * Does not handle all possible objects, but those used
  * within the ASN1 encoder/decoder
  */
+/**
+ * Validate that the tag is any valid ASN.1 type
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsAny", Symbol('IsAny'));
+/**
+ * Validate that the tag is any valid ASN.1 type, but do not
+ * attempt to interpret it
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsUnknown", Symbol('IsUnknown'));
+/**
+ * Validate the tag is either a GeneralizedTime or UTCTime
+ * depending on the value (i.e. before or after 2050)
+ * as per RFC 5280
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsDate", Symbol('IsDate'));
+/**
+ * Validate the tag is either a GeneralizedTime or UTCTime
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsAnyDate", Symbol('IsAnyDate'));
+/**
+ * Validate that the tag is the least-requisite string type
+ * (i.e. PrintableString, IA5String, or UTF8String) for
+ * the value
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsString", Symbol('IsString'));
+/**
+ * Validate that the tag is any string type of PrintableString,
+ * IA5String, or UTF8String
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsAnyString", Symbol('IsAnyString'));
+/**
+ * Validate that the tag is an OctetString
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsOctetString", Symbol('IsOctetString'));
+/**
+ * Validate that the tag is a BitString
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsBitString", Symbol('IsBitString'));
+/**
+ * Validate that the tag is an Integer
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsInteger", Symbol('IsInteger'));
+/**
+ * Validate that the tag is a Boolean
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsBoolean", Symbol('IsBoolean'));
+/**
+ * Validate that the tag is an Object Identifier (OID)
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsOID", Symbol('IsOID'));
+/**
+ * Validate that the tag is a Set
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsSet", Symbol('IsSet'));
+/**
+ * Validate that the tag is a Null
+ */
 client_asn1_defineProperty(client_ValidateASN1, "IsNull", Symbol('IsNull'));
 var client_data = /*#__PURE__*/new WeakMap();
 /**
@@ -123374,7 +123541,7 @@ class src_client_VoteQuote extends src_client_VoteLikeBase {
       throw new src_client_KeetaNetVoteError('VOTE_EXPIRED', `VoteQuote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
     }
     if (!this.quote) {
-      throw new src_client_KeetaNetVoteError('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but fee kind is note QUOTE`);
+      throw new src_client_KeetaNetVoteError('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but kind is not QUOTE`);
     }
   }
 }
@@ -126782,17 +126949,29 @@ class client_LedgerAtomicInterface {
   }
   async getHistory(account, start) {
     let limit = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 25;
-    const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
-    const voteStapleHashes = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getHistory(transaction, account, start, limit);
-    const voteStaplesMap = await this.getVoteStaples(voteStapleHashes, 'main');
-    const voteStaples = voteStapleHashes.map(function (voteStapleHash) {
-      const voteStaple = voteStaplesMap.get(voteStapleHash);
-      if (voteStaple === undefined || voteStaple === null) {
-        throw new Error(`internal error: missing vote staple for ${voteStapleHash}`);
-      }
-      return voteStaple;
-    });
-    return voteStaples;
+    try {
+      var _transaction$node, _transaction$node2;
+      var _usingCtx = src_client_usingCtx2();
+      const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
+      const _getHistoryTiming = _usingCtx.u((_transaction$node = transaction.node) === null || _transaction$node === void 0 ? void 0 : _transaction$node.timing.startTime(`storage-getHistory`));
+      const voteStapleHashes = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getHistory(transaction, account, start, limit);
+      _getHistoryTiming === null || _getHistoryTiming === void 0 || _getHistoryTiming.end();
+      const _getVoteStaplesTiming = _usingCtx.u((_transaction$node2 = transaction.node) === null || _transaction$node2 === void 0 ? void 0 : _transaction$node2.timing.startTime(`storage-getVoteStaples`));
+      const voteStaplesMap = await this.getVoteStaples(voteStapleHashes, 'main');
+      _getVoteStaplesTiming === null || _getVoteStaplesTiming === void 0 || _getVoteStaplesTiming.end();
+      const voteStaples = voteStapleHashes.map(function (voteStapleHash) {
+        const voteStaple = voteStaplesMap.get(voteStapleHash);
+        if (voteStaple === undefined || voteStaple === null) {
+          throw new Error(`internal error: missing vote staple for ${voteStapleHash}`);
+        }
+        return voteStaple;
+      });
+      return voteStaples;
+    } catch (_) {
+      _usingCtx.e = _;
+    } finally {
+      _usingCtx.d();
+    }
   }
   async getStaplesFromBlockHashes(hashes) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
@@ -127482,8 +127661,8 @@ class src_client_Ledger {
   async run(identifier, code, readOnly) {
     try {
       var _this$node, _classPrivateFieldGet8, _classPrivateFieldGet9, _this$node4;
-      var _usingCtx = src_client_usingCtx2();
-      const _timing = _usingCtx.u((_this$node = this.node) === null || _this$node === void 0 ? void 0 : _this$node.timing.startTime(`run-${identifier}`));
+      var _usingCtx3 = src_client_usingCtx2();
+      const _timing = _usingCtx3.u((_this$node = this.node) === null || _this$node === void 0 ? void 0 : _this$node.timing.startTime(`run-${identifier}`));
       let retryConfig;
       if (((_classPrivateFieldGet8 = client_ledger_classPrivateFieldGet(src_client_config, this).transactionRetries) === null || _classPrivateFieldGet8 === void 0 ? void 0 : _classPrivateFieldGet8.maxRetries) !== undefined) {
         retryConfig = {
@@ -127565,9 +127744,9 @@ class src_client_Ledger {
       (_this$node4 = this.node) === null || _this$node4 === void 0 || _this$node4.stats.incr('ledger', 'dbRetries', retryCount);
       return retval;
     } catch (_) {
-      _usingCtx.e = _;
+      _usingCtx3.e = _;
     } finally {
-      _usingCtx.d();
+      _usingCtx3.d();
     }
   }
   async runReadOnly(identifier, code) {
@@ -127656,152 +127835,152 @@ class src_client_Ledger {
     });
   }
   async votingPower() {
-    for (var _len10 = arguments.length, args = new Array(_len10), _key10 = 0; _key10 < _len10; _key10++) {
-      args[_key10] = arguments[_key10];
+    for (var _len0 = arguments.length, args = new Array(_len0), _key0 = 0; _key0 < _len0; _key0++) {
+      args[_key0] = arguments[_key0];
     }
     return await this.runReadOnly('db-votingPower', async function (transaction) {
       return await transaction.votingPower(...args);
     });
   }
   async getVotes() {
-    for (var _len11 = arguments.length, args = new Array(_len11), _key11 = 0; _key11 < _len11; _key11++) {
-      args[_key11] = arguments[_key11];
+    for (var _len1 = arguments.length, args = new Array(_len1), _key1 = 0; _key1 < _len1; _key1++) {
+      args[_key1] = arguments[_key1];
     }
     return await this.runReadOnly('db-getVotes', async function (transaction) {
       return await transaction.getVotes(...args);
     });
   }
   async getVotesFromMultiplePrevious() {
-    for (var _len12 = arguments.length, args = new Array(_len12), _key12 = 0; _key12 < _len12; _key12++) {
-      args[_key12] = arguments[_key12];
+    for (var _len10 = arguments.length, args = new Array(_len10), _key10 = 0; _key10 < _len10; _key10++) {
+      args[_key10] = arguments[_key10];
     }
     return await this.runReadOnly('db-getVotesFromMultiplePrevious', async function (transaction) {
       return await transaction.getVotesFromMultiplePrevious(...args);
     });
   }
   async getBlockFromPrevious() {
-    for (var _len13 = arguments.length, args = new Array(_len13), _key13 = 0; _key13 < _len13; _key13++) {
-      args[_key13] = arguments[_key13];
+    for (var _len11 = arguments.length, args = new Array(_len11), _key11 = 0; _key11 < _len11; _key11++) {
+      args[_key11] = arguments[_key11];
     }
     return await this.runReadOnly('db-getBlockFromPrevious', async function (transaction) {
       return await transaction.getBlockFromPrevious(...args);
     });
   }
   async getHeadBlocks() {
-    for (var _len14 = arguments.length, args = new Array(_len14), _key14 = 0; _key14 < _len14; _key14++) {
-      args[_key14] = arguments[_key14];
+    for (var _len12 = arguments.length, args = new Array(_len12), _key12 = 0; _key12 < _len12; _key12++) {
+      args[_key12] = arguments[_key12];
     }
     return await this.runReadOnly('db-getHeadBlocks', async function (transaction) {
       return await transaction.getHeadBlocks(...args);
     });
   }
   async getHeadBlock() {
-    for (var _len15 = arguments.length, args = new Array(_len15), _key15 = 0; _key15 < _len15; _key15++) {
-      args[_key15] = arguments[_key15];
+    for (var _len13 = arguments.length, args = new Array(_len13), _key13 = 0; _key13 < _len13; _key13++) {
+      args[_key13] = arguments[_key13];
     }
     return await this.runReadOnly('db-getHeadBlock', async function (transaction) {
       return await transaction.getHeadBlock(...args);
     });
   }
   async getAccountRep() {
-    for (var _len16 = arguments.length, args = new Array(_len16), _key16 = 0; _key16 < _len16; _key16++) {
-      args[_key16] = arguments[_key16];
+    for (var _len14 = arguments.length, args = new Array(_len14), _key14 = 0; _key14 < _len14; _key14++) {
+      args[_key14] = arguments[_key14];
     }
     return await this.runReadOnly('db-getAccountRep', async function (transaction) {
       return await transaction.getAccountRep(...args);
     });
   }
   async getAccountInfo() {
-    for (var _len17 = arguments.length, args = new Array(_len17), _key17 = 0; _key17 < _len17; _key17++) {
-      args[_key17] = arguments[_key17];
+    for (var _len15 = arguments.length, args = new Array(_len15), _key15 = 0; _key15 < _len15; _key15++) {
+      args[_key15] = arguments[_key15];
     }
     return await this.runReadOnly('db-getAccountInfo', async function (transaction) {
       return await transaction.getAccountInfo(...args);
     });
   }
   async getBlock() {
-    for (var _len18 = arguments.length, args = new Array(_len18), _key18 = 0; _key18 < _len18; _key18++) {
-      args[_key18] = arguments[_key18];
+    for (var _len16 = arguments.length, args = new Array(_len16), _key16 = 0; _key16 < _len16; _key16++) {
+      args[_key16] = arguments[_key16];
     }
     return await this.runReadOnly('db-getBlock', async function (transaction) {
       return await transaction.getBlock(...args);
     });
   }
   async getAccountsBlockHeightInfo() {
-    for (var _len19 = arguments.length, args = new Array(_len19), _key19 = 0; _key19 < _len19; _key19++) {
-      args[_key19] = arguments[_key19];
+    for (var _len17 = arguments.length, args = new Array(_len17), _key17 = 0; _key17 < _len17; _key17++) {
+      args[_key17] = arguments[_key17];
     }
     return await this.runReadOnly('db-getAccountsBlockHeightInfo', async function (transaction) {
       return await transaction.getAccountsBlockHeightInfo(...args);
     });
   }
   async getVoteStaple() {
-    for (var _len20 = arguments.length, args = new Array(_len20), _key20 = 0; _key20 < _len20; _key20++) {
-      args[_key20] = arguments[_key20];
+    for (var _len18 = arguments.length, args = new Array(_len18), _key18 = 0; _key18 < _len18; _key18++) {
+      args[_key18] = arguments[_key18];
     }
     return await this.runReadOnly('db-getVoteStaple', async function (transaction) {
       return await transaction.getVoteStaple(...args);
     });
   }
   async getVoteStaples() {
-    for (var _len21 = arguments.length, args = new Array(_len21), _key21 = 0; _key21 < _len21; _key21++) {
-      args[_key21] = arguments[_key21];
+    for (var _len19 = arguments.length, args = new Array(_len19), _key19 = 0; _key19 < _len19; _key19++) {
+      args[_key19] = arguments[_key19];
     }
     return await this.runReadOnly('db-getVoteStaples', async function (transaction) {
       return await transaction.getVoteStaples(...args);
     });
   }
   async getHistory() {
-    for (var _len22 = arguments.length, args = new Array(_len22), _key22 = 0; _key22 < _len22; _key22++) {
-      args[_key22] = arguments[_key22];
+    for (var _len20 = arguments.length, args = new Array(_len20), _key20 = 0; _key20 < _len20; _key20++) {
+      args[_key20] = arguments[_key20];
     }
     return await this.runReadOnly('db-getHistory', async function (transaction) {
       return await transaction.getHistory(...args);
     });
   }
   async getStaplesFromBlockHashes() {
-    for (var _len23 = arguments.length, args = new Array(_len23), _key23 = 0; _key23 < _len23; _key23++) {
-      args[_key23] = arguments[_key23];
+    for (var _len21 = arguments.length, args = new Array(_len21), _key21 = 0; _key21 < _len21; _key21++) {
+      args[_key21] = arguments[_key21];
     }
     return await this.runReadOnly('db-getStaplesFromBlockHashes', async function (transaction) {
       return await transaction.getStaplesFromBlockHashes(...args);
     });
   }
   async getVoteStaplesAfter() {
-    for (var _len24 = arguments.length, args = new Array(_len24), _key24 = 0; _key24 < _len24; _key24++) {
-      args[_key24] = arguments[_key24];
+    for (var _len22 = arguments.length, args = new Array(_len22), _key22 = 0; _key22 < _len22; _key22++) {
+      args[_key22] = arguments[_key22];
     }
     return await this.runReadOnly('db-getVoteStaplesAfter', async function (transaction) {
       return await transaction.getVoteStaplesAfter(...args);
     });
   }
   async gc() {
-    for (var _len25 = arguments.length, args = new Array(_len25), _key25 = 0; _key25 < _len25; _key25++) {
-      args[_key25] = arguments[_key25];
+    for (var _len23 = arguments.length, args = new Array(_len23), _key23 = 0; _key23 < _len23; _key23++) {
+      args[_key23] = arguments[_key23];
     }
     return await this.run('db-gc', async function (transaction) {
       return await transaction.gc(...args);
     });
   }
   async getFee() {
-    for (var _len26 = arguments.length, args = new Array(_len26), _key26 = 0; _key26 < _len26; _key26++) {
-      args[_key26] = arguments[_key26];
+    for (var _len24 = arguments.length, args = new Array(_len24), _key24 = 0; _key24 < _len24; _key24++) {
+      args[_key24] = arguments[_key24];
     }
     return await this.runReadOnly('db-getFee', async function (transaction) {
       return await transaction.getFee(...args);
     });
   }
   async getIdempotentBlockHash() {
-    for (var _len27 = arguments.length, args = new Array(_len27), _key27 = 0; _key27 < _len27; _key27++) {
-      args[_key27] = arguments[_key27];
+    for (var _len25 = arguments.length, args = new Array(_len25), _key25 = 0; _key25 < _len25; _key25++) {
+      args[_key25] = arguments[_key25];
     }
     return await this.runReadOnly('db-getIdempotentBlockHash', async function (transaction) {
       return await transaction.getIdempotentBlockHash(...args);
     });
   }
   async getBlockFromIdempotent() {
-    for (var _len28 = arguments.length, args = new Array(_len28), _key28 = 0; _key28 < _len28; _key28++) {
-      args[_key28] = arguments[_key28];
+    for (var _len26 = arguments.length, args = new Array(_len26), _key26 = 0; _key26 < _len26; _key26++) {
+      args[_key26] = arguments[_key26];
     }
     return await this.runReadOnly('db-getBlockFromIdempotent', async function (transaction) {
       return await transaction.getBlockFromIdempotent(...args);
@@ -127810,14 +127989,14 @@ class src_client_Ledger {
   async stats() {
     try {
       var _this$node5;
-      var _usingCtx3 = src_client_usingCtx2();
-      const _timing = _usingCtx3.u((_this$node5 = this.node) === null || _this$node5 === void 0 ? void 0 : _this$node5.timing.startTime('db-stats'));
+      var _usingCtx4 = src_client_usingCtx2();
+      const _timing = _usingCtx4.u((_this$node5 = this.node) === null || _this$node5 === void 0 ? void 0 : _this$node5.timing.startTime('db-stats'));
       const retval = await client_ledger_classPrivateFieldGet(client_storage2, this).stats();
       return retval;
     } catch (_) {
-      _usingCtx3.e = _;
+      _usingCtx4.e = _;
     } finally {
-      _usingCtx3.d();
+      _usingCtx4.d();
     }
   }
   async _testingRunStorageFunction(code) {
@@ -127833,7 +128012,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.8+g2ae53aba450fae088463ac1a8f545b6460825c5b';
+const client_version = '0.14.9+gdb1185935886a43e4feda1919fa65830dc656174';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];

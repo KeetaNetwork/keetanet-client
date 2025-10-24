@@ -340,6 +340,7 @@ declare const schema: {
             readonly key: ColumnInterface<"IdempotentKey", false>;
             readonly onLedger: ColumnInterface<"LEDGER", false>;
             readonly blockHash: ColumnInterface<"BLOCKHASH", false>;
+            readonly expires: ColumnInterface<"TIMESTAMP", true>;
         };
         readonly key: readonly [Key];
     };

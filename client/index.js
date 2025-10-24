@@ -59143,7 +59143,7 @@ class Client {
         if (!successorBlock) {
             return (null);
         }
-        const getVotes = async (rep, hash) => {
+        const getVote = async (rep, hash) => {
             let votes = null;
             try {
                 votes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_getVotes).call(this, hash, 'side', rep);
@@ -59151,14 +59151,22 @@ class Client {
             catch {
                 /* Ignore */
             }
+            if (votes === null) {
+                return ({
+                    rep,
+                    vote: null
+                });
+            }
+            // Favor using permanent votes over short votes if the rep returns both
+            votes.sort((voteA, voteB) => voteB.validityTo.valueOf() - voteA.validityTo.valueOf());
             return ({
                 rep: rep,
-                votes: votes
+                vote: votes[0] ?? null
             });
         };
         const votePromises = [];
         for (const rep of __classPrivateFieldGet(this, _Client_reps, "f")) {
-            votePromises.push(getVotes(rep, successorBlock.hash));
+            votePromises.push(getVote(rep, successorBlock.hash));
         }
         const votesInfo = await Promise.all(votePromises);
         if (votesInfo.length === 0) {
@@ -59173,20 +59181,18 @@ class Client {
         /* Any reps that did not generate any vote */
         const missingReps = [];
         for (const repInfo of votesInfo) {
-            const repVotes = repInfo.votes;
-            if (repVotes === null) {
+            const repVote = repInfo.vote;
+            if (repVote === null) {
                 missingReps.push(repInfo.rep);
             }
             else {
-                for (const vote of repVotes) {
-                    if (vote.$permanent === true) {
-                        permVotes.push(vote);
-                        permReps.push(repInfo.rep);
-                    }
-                    else {
-                        tempVotes.push(vote);
-                        tempReps.push(repInfo.rep);
-                    }
+                if (repVote.$permanent === true) {
+                    permVotes.push(repVote);
+                    permReps.push(repInfo.rep);
+                }
+                else {
+                    tempVotes.push(repVote);
+                    tempReps.push(repInfo.rep);
                 }
             }
         }
@@ -59234,7 +59240,12 @@ class Client {
             let newTempVotes = [];
             if (tempVotes.length !== __classPrivateFieldGet(this, _Client_reps, "f").length) {
                 try {
-                    newTempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, undefined, missingReps, options?.quotes);
+                    /**
+                     * If we are trying to recover an old block that has some permanent votes, send those votes in the request
+                     * Otherwise the rep will reject the old block and won't issue a vote
+                     */
+                    const otherVotes = permVotes.length > 0 ? permVotes : undefined;
+                    newTempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, otherVotes, missingReps, options?.quotes);
                 }
                 catch {
                     /* Ignore */
@@ -59259,7 +59270,7 @@ class Client {
                 votedOnBlocks.push(feeBlock);
             }
             try {
-                const newPermVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, tempVotes, missingPermReps);
+                const newPermVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, votedOnBlocks, [...tempVotes, ...permVotes], missingPermReps);
                 permVotes = [...permVotes, ...newPermVotes];
             }
             catch {
@@ -59309,11 +59320,12 @@ class Client {
         const accountInfoSorted = accountInfo.sort(function (a, b) {
             return (Number(BigInt(a.info?.height ?? -1) - BigInt(b.info?.height ?? -1)));
         });
-        if (accountInfoSorted[0].info?.height === accountInfoSorted[accountInfoSorted.length - 1].info?.height) {
+        const lowestInfo = accountInfoSorted[0].info;
+        if (lowestInfo?.height === accountInfoSorted[accountInfoSorted.length - 1].info?.height) {
             // Block Heights match so return
             return (null);
         }
-        let lowestHead = accountInfoSorted[0].info?.block.hash;
+        let lowestHead = lowestInfo?.block.hash;
         if (lowestHead === null || lowestHead === undefined) {
             lowestHead = block_1.default.getAccountOpeningHash(account);
         }
@@ -59327,7 +59339,25 @@ class Client {
             return (null);
         }
         if (publish === true) {
-            await this.transmitStaple(successorStaple, [accountInfoSorted[0].rep]);
+            const allLowestReps = [];
+            for (const accountInfo of accountInfoSorted) {
+                // All lowest reps could be missing the opening block and info would be null so make sure we send to all of them
+                if (accountInfo.info?.height === lowestInfo?.height) {
+                    allLowestReps.push(accountInfo.rep);
+                }
+            }
+            for (const rep of allLowestReps) {
+                // we publish these serially to avoid transaction conflicts, but publish to all to ensure that every missing rep sees the staple
+                try {
+                    await this.transmitStaple(successorStaple, [rep]);
+                }
+                catch {
+                    /**
+                     * Ignore transmit errors like LEDGER_BLOCK_ALREADY_EXISTS
+                     * We will check block heights after to see if sync was performed
+                     */
+                }
+            }
         }
         const updatedAccountInfo = await this.getAccountHeadInfo(account, accountInfoSorted[0].rep);
         if (updatedAccountInfo?.height === accountInfoSorted[0].info?.height) {
@@ -65789,6 +65819,7 @@ const helper_1 = __webpack_require__(3208);
 const LedgerErrorType = 'LEDGER';
 exports.LedgerBaseErrorCodes = [
     'BLOCK_ALREADY_EXISTS',
+    'BLOCK_EXPIRED',
     'TRANSACTION_ABORTED',
     'INVALID_CHAIN',
     'INVALID_NETWORK',
@@ -65807,6 +65838,7 @@ exports.LedgerBaseErrorCodes = [
     'RECEIVE_NOT_MET',
     'DUPLICATE_VOTE_FOUND',
     'CANNOT_EXCHANGE_PERM_VOTE',
+    'TEMP_VOTE_INCLUDES_SELF',
     'BLOCKS_DIFFER_FROM_VOTED_ON',
     'NO_PERM_WITHOUT_SELF_TEMP',
     'DUPLICATE_VOTE_ISSUER_FOUND',
@@ -65817,7 +65849,7 @@ exports.LedgerBaseErrorCodes = [
     'FEE_TOKEN_MISMATCH',
     'FEE_MISSING',
     'MISSING_REQUIRED_FEE_BLOCK',
-    'PERM_VOTE_WITH_QUOTE',
+    'VOTE_WITH_QUOTE',
     'QUOTE_MISMATCH',
     'REQUIRED_FEE_MISMATCH'
 ];
@@ -67965,6 +67997,7 @@ const block_1 = __webpack_require__(6158);
 const account_1 = __importDefault(__webpack_require__(9415));
 const common_1 = __webpack_require__(5663);
 const helper_1 = __webpack_require__(3208);
+const never_1 = __webpack_require__(8692);
 const ledger_1 = __webpack_require__(452);
 const permissions_1 = __webpack_require__(5860);
 const effects_1 = __webpack_require__(7346);
@@ -68090,23 +68123,48 @@ class LedgerAtomicInterface {
         }
         const privateKey = __classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f");
         const ledgerPubKey = privateKey.publicKeyString.get();
+        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
+        /**
+         * If there are other votes, if all of them are permanent then
+         * we are requesting a temporary vote with a minority of permanent
+         * votes to disable the block timestamp checking;  otherwise if
+         * any are temporary we are requesting a permanent vote
+         *
+         * If there are no other votes, we need to produce a temporary
+         * vote.
+         */
+        let outcome = 'temporary';
+        let requireBlockTimestampCheck = true;
+        if (otherVotes !== undefined) {
+            const foundTemporary = otherVotes.some(function (checkVote) {
+                return (!checkVote.$permanent);
+            });
+            if (foundTemporary) {
+                outcome = 'permanent';
+            }
+            else {
+                outcome = 'temporary';
+                requireBlockTimestampCheck = false;
+            }
+        }
+        /*
+         * If we have a quote, ensure it is valid for this ledger and outcome
+         */
         if (quote !== undefined) {
-            if (otherVotes !== undefined) {
-                throw (new ledger_1.KeetaNetLedgerError('LEDGER_PERM_VOTE_WITH_QUOTE', 'Quote should not be included when requesting permanent votes'));
+            if (outcome === 'permanent') {
+                throw (new ledger_1.KeetaNetLedgerError('LEDGER_VOTE_WITH_QUOTE', 'Quote should not be included when requesting permanent votes'));
             }
             if (!quote.issuer.comparePublicKey(ledgerPubKey)) {
                 throw (new ledger_1.KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key'));
             }
         }
-        const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         /**
-         * If there are other votes, ensure one of them was issued by
-         * us and the blocks are in the same order as the set of
-         * blocks we are voting on now
+         * Verify some attributes about the other votes if they are provided
          */
         let hasFeeBlock = false;
-        if (otherVotes !== undefined) {
-            let foundOurVote = false;
+        let foundOurVote;
+        if (otherVotes) {
+            foundOurVote = false;
             const seenVoteUIDs = new Set();
             const seenVoteIssuers = new account_1.default.Set();
             let blockCount = blocks.length;
@@ -68118,7 +68176,7 @@ class LedgerAtomicInterface {
             const requiredFees = new Map();
             for (const checkVote of otherVotes) {
                 if (checkVote.quote === true) {
-                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_PERM_VOTE_WITH_QUOTE', 'Cannot request permanent votes with quotes'));
+                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_VOTE_WITH_QUOTE', 'Cannot request votes with quote as supporting votes'));
                 }
                 if (seenVoteUIDs.has(checkVote.$id)) {
                     throw (new ledger_1.KeetaNetLedgerError('LEDGER_DUPLICATE_VOTE_FOUND', 'Duplicate vote UID found'));
@@ -68131,12 +68189,19 @@ class LedgerAtomicInterface {
                 if (checkVote.fee !== undefined) {
                     requiredFees.set(checkVote.issuer, checkVote.fee);
                 }
-                if (checkVote.$permanent) {
-                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote for a permanent vote'));
+                /*
+                 * Handle errors specific to requesting a permanent vote
+                 */
+                if (outcome === 'permanent') {
+                    if (checkVote.$permanent && checkVote.issuer.comparePublicKey(ledgerPubKey)) {
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote from us for a permanent vote from us'));
+                    }
                 }
+                /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
                 let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blockCount;
                 /* If they do not differ from length alone, compare block hashes */
                 if (!blocksDifferFromVoteBlocks) {
+                    /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
                     for (let blockIndex = 0; blockIndex < blockCount; blockIndex++) {
                         if (!blocks[blockIndex].hash.compareHexString(checkVote.blocks[blockIndex])) {
                             blocksDifferFromVoteBlocks = true;
@@ -68151,35 +68216,78 @@ class LedgerAtomicInterface {
                     foundOurVote = true;
                 }
             }
-            if (requiredFees.size > 0) {
-                if (!hasFeeBlock) {
-                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
-                }
-                if (requiredFees.size !== possibleFeeBlock?.operations.length) {
-                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
-                }
-            }
-            // Verify that all required fees have been included in the fee block
-            for (const [issuer, fee] of requiredFees) {
-                const foundFee = possibleFeeBlock?.operations.find((operation) => {
-                    const expectedPayTo = fee.payTo ?? issuer;
-                    const expectedToken = fee.token ?? __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").baseToken;
-                    if (operation.type === operations_1.OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
-                        if (operation.amount !== fee.amount) {
-                            throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`));
-                        }
-                        if (!operation.token.comparePublicKey(expectedToken)) {
-                            throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`));
-                        }
-                        return (true);
+            /*
+             * We only care about fees if we are issuing a permanent vote,
+             * if we are issuing a temporary vote the fees will be checked
+             * when the permanent vote is requested
+             */
+            if (outcome === 'permanent') {
+                if (requiredFees.size > 0) {
+                    if (!hasFeeBlock) {
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
                     }
-                    return (false);
-                });
-                if (foundFee === undefined) {
-                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${fee.payTo?.publicKeyString.get() ?? issuer.publicKeyString.get()}`));
+                    if (requiredFees.size !== possibleFeeBlock?.operations.length) {
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
+                    }
+                }
+                // Verify that all required fees have been included in the fee block
+                for (const [issuer, fee] of requiredFees) {
+                    const foundFee = possibleFeeBlock?.operations.find((operation) => {
+                        const expectedPayTo = fee.payTo ?? issuer;
+                        const expectedToken = fee.token ?? __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").baseToken;
+                        if (operation.type === operations_1.OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
+                            if (operation.amount !== fee.amount) {
+                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`));
+                            }
+                            if (!operation.token.comparePublicKey(expectedToken)) {
+                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`));
+                            }
+                            return (true);
+                        }
+                        return (false);
+                    });
+                    if (foundFee === undefined) {
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${fee.payTo?.publicKeyString.get() ?? issuer.publicKeyString.get()}`));
+                    }
                 }
             }
-            if (!foundOurVote) {
+            else if (outcome === 'temporary') {
+                if (foundOurVote) {
+                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_TEMP_VOTE_INCLUDES_SELF', 'Temporary vote request cannot include a vote from self'));
+                }
+                /* XXX:TODO: We need to check the fee block to find out the fee paid to us and include that in our temporary vote so that it can be verified later */
+            }
+            else {
+                (0, never_1.assertNever)(outcome);
+            }
+        }
+        /**
+         * If the outcome is a temporary vote and the are other votes
+         * ensure that the temporary votes represent a minority of
+         * the voting weight and do not include a vote from us
+         */
+        if (outcome === 'temporary' && otherVotes !== undefined) {
+            const totalVotingPower = await this.votingPower();
+            const minVotingWeight = (totalVotingPower / 4n);
+            const combinedVotingPower = (await Promise.all(otherVotes.map(async (vote) => {
+                return (await this.votingPower(vote.issuer));
+            }))).reduce(function (sum, value) {
+                return (sum + value);
+            }, 0n);
+            if (combinedVotingPower <= minVotingWeight) {
+                throw (new ledger_1.KeetaNetLedgerError('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Temporary vote must represent at least a minority of the voting weight'));
+            }
+        }
+        /**
+         * If there are other votes, ensure one of them was issued by
+         * us and the blocks are in the same order as the set of
+         * blocks we are voting on now
+         */
+        if (outcome === 'permanent') {
+            if (otherVotes === undefined) {
+                throw (new Error('internal error: Outcome permanent but otherVotes is undefined'));
+            }
+            if (foundOurVote !== true) {
                 throw (new ledger_1.KeetaNetLedgerError('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us'));
             }
         }
@@ -68223,7 +68331,12 @@ class LedgerAtomicInterface {
                  * and it's a short vote
                  */
                 let mayReplace = false;
-                if (previousVotes.length === 1 && otherVotes !== undefined && otherVotes.length !== 0) {
+                if (previousVotes.length === 1 && outcome === 'permanent') {
+                    const otherVotesCount = otherVotes?.length ?? 0;
+                    if (otherVotesCount < 1) {
+                        throw (new Error('internal error: outcome permanent but otherVotes is empty or undefined'));
+                    }
+                    ;
                     const ourVote = previousVotes[0];
                     mayReplace = !ourVote.$permanent && ourVote.issuer.comparePublicKey(ledgerPubKey);
                 }
@@ -68233,13 +68346,22 @@ class LedgerAtomicInterface {
             }
         }
         /**
-         * If no other votes have been supplied, validate that the blocks are valid, and issue a short vote
+         * If we are producing a temporary vote, do it now and return
          */
-        if (otherVotes === undefined) {
-            const vote = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_voteOrQuoteWithFees).call(this, blocks, 'VOTE', quote);
+        if (outcome === 'temporary') {
+            const vote = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_voteOrQuoteWithFees).call(this, blocks, 'VOTE', quote, {
+                requireBlockTimestampCheck
+            });
             const blocksAndVote = vote_1.VoteStaple.fromVotesAndBlocks([vote], blocks);
             await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").addPendingVote(transaction, blocksAndVote);
             return (vote);
+        }
+        /**
+         * From here on we are producing a permanent vote but we need
+         * to narrow some types for TypeScript
+         */
+        if (otherVotes === undefined) {
+            throw (new Error('internal error: Outcome permanent but otherVotes is undefined'));
         }
         /**
          * Validate ledger outcome again before permanent votes if blocks includes a fee block
@@ -68963,7 +69085,7 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
         allLedgerHeads,
         allLedgerIdempotentKeys
     });
-}, _LedgerAtomicInterface_voteOrQuoteWithFees = async function _LedgerAtomicInterface_voteOrQuoteWithFees(blocks, type, quote) {
+}, _LedgerAtomicInterface_voteOrQuoteWithFees = async function _LedgerAtomicInterface_voteOrQuoteWithFees(blocks, type, quote, options) {
     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode !== 'read-write') {
         throw (new Error(`May not issue votes in read-only mode, in ${__classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").ledgerWriteMode} mode`));
     }
@@ -68972,15 +69094,23 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     }
     __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
     const effects = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateLedgerOutcome).call(this, blocks);
-    const now = Date.now();
-    for (const block of blocks) {
-        const blockDate = block.date.valueOf();
-        const timeOffset = 5 /* m */ * 60 /* s */ * 1000 /* ms */;
-        /**
-         * Do not allow short votes on blocks from the distant past
-         */
-        if (blockDate < (now - timeOffset) || blockDate > (now + timeOffset)) {
-            throw (new Error(`Refusing to issue vote for block dated ${block.date.toISOString()}`));
+    /*
+     * Ensure the block is relatively recent, otherwise a found
+     * block for an account could be used to indefinitely delay voting
+     * by continuously requesting votes on old blocks
+     */
+    const requireBlockTimestampCheck = options?.requireBlockTimestampCheck ?? true;
+    if (requireBlockTimestampCheck) {
+        const now = __classPrivateFieldGet(this, _LedgerAtomicInterface_transaction, "f")?.moment.valueOf() ?? Date.now();
+        for (const block of blocks) {
+            const blockDate = block.date.valueOf();
+            const timeOffset = 5 /* m */ * 60 /* s */ * 1000 /* ms */;
+            /**
+             * Do not allow short votes on blocks from the distant past
+             */
+            if (blockDate < (now - timeOffset) || blockDate > (now + timeOffset)) {
+                throw (new ledger_1.KeetaNetLedgerError('LEDGER_BLOCK_EXPIRED', `Refusing to issue vote for block dated ${block.date.toISOString()}`));
+            }
         }
     }
     /**
@@ -78976,7 +79106,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.9+gdb1185935886a43e4feda1919fa65830dc656174';
+exports.version = '0.14.10+g915d941de2a9b7990a6a140496a0e142eafaa9b7';
 exports["default"] = exports.version;
 
 

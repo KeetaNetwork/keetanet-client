@@ -1,4 +1,5 @@
 import _crypto from 'crypto';
+import { inspect as nodeUtilsInspect, types as nodeUtilsTypes } from 'util';
 import type { JSONSerializable } from './conversion';
 export type DistributiveOmit<T, P extends PropertyKey> = T extends T ? Omit<T, P> : never;
 export declare function validateBase64ToBuffer(input: string): Buffer;
@@ -82,5 +83,11 @@ export declare const crypto: {
     randomBytes: typeof _crypto.randomBytes;
     createCipheriv: typeof _crypto.createCipheriv;
     createDecipheriv: typeof _crypto.createDecipheriv;
+    createHash: typeof _crypto.createHash;
+    createHmac: typeof _crypto.createHmac;
+};
+export declare const util: {
+    inspect: typeof nodeUtilsInspect;
+    types: typeof nodeUtilsTypes;
 };
 export {};

@@ -65849,6 +65849,7 @@ exports.LedgerBaseErrorCodes = [
     'FEE_TOKEN_MISMATCH',
     'FEE_MISSING',
     'MISSING_REQUIRED_FEE_BLOCK',
+    'MULTIPLE_FEE_BLOCK',
     'VOTE_WITH_QUOTE',
     'QUOTE_MISMATCH',
     'REQUIRED_FEE_MISMATCH'
@@ -68115,6 +68116,9 @@ class LedgerAtomicInterface {
         if (blocks.length === 0) {
             throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_BLOCKS', 'At least one block is required to issue a vote'));
         }
+        if (blocks[0].purpose === block_1.Block.Purpose.FEE) {
+            throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_BLOCKS', 'First block cannot be a fee block'));
+        }
         if (!__classPrivateFieldGet(this, _LedgerAtomicInterface_privateKey, "f")) {
             throw (new Error('Cannot vote on block, no private key loaded'));
         }
@@ -68171,7 +68175,14 @@ class LedgerAtomicInterface {
             const possibleFeeBlock = blocks.at(-1);
             if (possibleFeeBlock?.purpose === block_1.BlockPurpose.FEE) {
                 hasFeeBlock = true;
-                blockCount--;
+                /**
+                 * If permanent votes were provided then all votes should include the fee block
+                 * So only decrement block count if otherVotes are all temporary votes
+                 */
+                const otherVotesAllTemporary = !otherVotes.some(function (checkVote) { return (checkVote.$permanent); });
+                if (otherVotesAllTemporary) {
+                    blockCount--;
+                }
             }
             const requiredFees = new Map();
             for (const checkVote of otherVotes) {
@@ -68197,11 +68208,9 @@ class LedgerAtomicInterface {
                         throw (new ledger_1.KeetaNetLedgerError('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote from us for a permanent vote from us'));
                     }
                 }
-                /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
                 let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blockCount;
                 /* If they do not differ from length alone, compare block hashes */
                 if (!blocksDifferFromVoteBlocks) {
-                    /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
                     for (let blockIndex = 0; blockIndex < blockCount; blockIndex++) {
                         if (!blocks[blockIndex].hash.compareHexString(checkVote.blocks[blockIndex])) {
                             blocksDifferFromVoteBlocks = true;
@@ -69032,7 +69041,16 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     const allLedgerHeads = new Map();
     const allLedgerIdempotentKeys = new Map();
     const allLedgerIdempotentKeysReverse = new Map();
+    let foundFeeBlock = false;
     for (const block of blocks) {
+        if (block.purpose === block_1.Block.Purpose.FEE) {
+            if (foundFeeBlock) {
+                throw (new ledger_1.KeetaNetLedgerError('LEDGER_MULTIPLE_FEE_BLOCK', 'Should only contain 1 fee block'));
+            }
+            else {
+                foundFeeBlock = true;
+            }
+        }
         const prevBlockHash = block.previous;
         seenBlockHashes.add(block.hash);
         if (block.network !== __classPrivateFieldGet(this, _LedgerAtomicInterface_network, "f")) {
@@ -69129,10 +69147,14 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
     }
     /**
      * If a quote was provided use it as the fee, otherwise generate new fee
+     * If we are creating a vote with permanent `otherVotes` then do not include the fee.
+     * TODO - considering changing how fees are handled when recovering
      */
-    const fee = quote?.fee ?? await this.getFee(blocks, effects);
-    if (fee !== null) {
-        builder.addFee(fee);
+    if (requireBlockTimestampCheck) {
+        const fee = quote?.fee ?? await this.getFee(blocks, effects);
+        if (fee !== null) {
+            builder.addFee(fee);
+        }
     }
     const voteOrQuote = await builder.seal(serial, pendingVoteExpiry);
     return (voteOrQuote);
@@ -76825,7 +76847,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _AsyncDisposableStackPolyfill_instances, _AsyncDisposableStackPolyfill_toDispose, _AsyncDisposableStackPolyfill_validateNotDisposed, _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.crypto = exports.AsyncDisposableStack = void 0;
+exports.util = exports.crypto = exports.AsyncDisposableStack = void 0;
 exports.validateBase64ToBuffer = validateBase64ToBuffer;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
 exports.bufferToBigInt = bufferToBigInt;
@@ -77318,7 +77340,13 @@ exports.crypto = {
     randomUUID: randomUUID,
     randomBytes: randomBytes,
     createCipheriv: crypto_1.default.createCipheriv.bind(crypto_1.default),
-    createDecipheriv: crypto_1.default.createDecipheriv.bind(crypto_1.default)
+    createDecipheriv: crypto_1.default.createDecipheriv.bind(crypto_1.default),
+    createHash: crypto_1.default.createHash.bind(crypto_1.default),
+    createHmac: crypto_1.default.createHmac.bind(crypto_1.default)
+};
+exports.util = {
+    inspect: util_1.inspect,
+    types: util_1.types
 };
 
 
@@ -79106,7 +79134,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.10+g915d941de2a9b7990a6a140496a0e142eafaa9b7';
+exports.version = '0.14.11+gfb27e304d06f586fd5f3532fae4f1504a46d359b';
 exports["default"] = exports.version;
 
 

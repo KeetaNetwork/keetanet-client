@@ -1,7 +1,7 @@
-import type { LogTargetLevel, Logger, LogTarget } from './common';
+import type { LogLevel, LogTargetLevel, Logger, LogTarget } from './common';
 import type { LogOptionsParam } from './helper.generated';
 import LogTargetConsole from './target_console';
-export type { Logger };
+export type { Logger, LogTargetLevel, LogLevel };
 /**
  * Options for a Log instance
  */

@@ -101243,6 +101243,7 @@ __webpack_require__.d(client_helper_namespaceObject, {
   randomInt: () => (client_randomInt),
   randomString: () => (client_randomString),
   setGenerator: () => (client_setGenerator),
+  util: () => (client_helper_util),
   validateBase64ToBuffer: () => (client_validateBase64ToBuffer),
   waitTicks: () => (client_waitTicks)
 });
@@ -105947,7 +105948,13 @@ const client_helper_crypto = {
   randomUUID: client_helper_randomUUID,
   randomBytes: client_helper_randomBytes,
   createCipheriv: client_crypto_default().createCipheriv.bind((client_crypto_default())),
-  createDecipheriv: client_crypto_default().createDecipheriv.bind((client_crypto_default()))
+  createDecipheriv: client_crypto_default().createDecipheriv.bind((client_crypto_default())),
+  createHash: client_crypto_default().createHash.bind((client_crypto_default())),
+  createHmac: client_crypto_default().createHmac.bind((client_crypto_default()))
+};
+const client_helper_util = {
+  inspect: client_util.inspect,
+  types: client_util.types
 };
 ;// ./node_modules/rfc4648/lib/rfc4648.js
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
@@ -116914,7 +116921,7 @@ function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 const client_LedgerErrorType = 'LEDGER';
 const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'BLOCK_EXPIRED', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'TEMP_VOTE_INCLUDES_SELF', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
 // Fee Errors
-'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
+'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'MULTIPLE_FEE_BLOCK', 'VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
 
 // Errors that can trigger rep sync
 const client_LedgerVoteErrorCodes = ['NOT_SUCCESSOR', 'NOT_OPENING'];
@@ -126564,6 +126571,9 @@ class client_LedgerAtomicInterface {
     if (blocks.length === 0) {
       throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_BLOCKS', 'At least one block is required to issue a vote');
     }
+    if (blocks[0].purpose === src_client_Block.Purpose.FEE) {
+      throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_BLOCKS', 'First block cannot be a fee block');
+    }
     if (!client_ledger_classPrivateFieldGet(client_ledger_privateKey, this)) {
       throw new Error('Cannot vote on block, no private key loaded');
     }
@@ -126622,7 +126632,16 @@ class client_LedgerAtomicInterface {
       const possibleFeeBlock = blocks.at(-1);
       if ((possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.purpose) === client_BlockPurpose.FEE) {
         hasFeeBlock = true;
-        blockCount--;
+        /**
+         * If permanent votes were provided then all votes should include the fee block
+         * So only decrement block count if otherVotes are all temporary votes
+         */
+        const otherVotesAllTemporary = !otherVotes.some(function (checkVote) {
+          return checkVote.$permanent;
+        });
+        if (otherVotesAllTemporary) {
+          blockCount--;
+        }
       }
       const requiredFees = new Map();
       for (const checkVote of otherVotes) {
@@ -126649,13 +126668,9 @@ class client_LedgerAtomicInterface {
             throw new client_ledger_KeetaNetLedgerError('LEDGER_CANNOT_EXCHANGE_PERM_VOTE', 'Asked to exchange a permanent vote from us for a permanent vote from us');
           }
         }
-
-        /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
         let blocksDifferFromVoteBlocks = checkVote.blocks.length !== blockCount;
-
         /* If they do not differ from length alone, compare block hashes */
         if (!blocksDifferFromVoteBlocks) {
-          /* XXX:TODO: Need to account for fee blocks if the input is a permanent vote */
           for (let blockIndex = 0; blockIndex < blockCount; blockIndex++) {
             if (!blocks[blockIndex].hash.compareHexString(checkVote.blocks[blockIndex])) {
               blocksDifferFromVoteBlocks = true;
@@ -127584,7 +127599,15 @@ async function client_validateBlocksForVote(blocks) {
   const allLedgerHeads = new Map();
   const allLedgerIdempotentKeys = new Map();
   const allLedgerIdempotentKeysReverse = new Map();
+  let foundFeeBlock = false;
   for (const block of blocks) {
+    if (block.purpose === src_client_Block.Purpose.FEE) {
+      if (foundFeeBlock) {
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_MULTIPLE_FEE_BLOCK', 'Should only contain 1 fee block');
+      } else {
+        foundFeeBlock = true;
+      }
+    }
     const prevBlockHash = block.previous;
     seenBlockHashes.add(block.hash);
     if (block.network !== client_ledger_classPrivateFieldGet(client_network, this)) {
@@ -127641,7 +127664,7 @@ async function client_validateBlocksForVote(blocks) {
   };
 }
 async function client_voteOrQuoteWithFees(blocks, type, quote, options) {
-  var _options$requireBlock, _quote$fee;
+  var _options$requireBlock;
   if (client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode !== 'read-write') {
     throw new Error(`May not issue votes in read-only mode, in ${client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode} mode`);
   }
@@ -127691,10 +127714,15 @@ async function client_voteOrQuoteWithFees(blocks, type, quote, options) {
 
   /**
    * If a quote was provided use it as the fee, otherwise generate new fee
+   * If we are creating a vote with permanent `otherVotes` then do not include the fee.
+   * TODO - considering changing how fees are handled when recovering
    */
-  const fee = (_quote$fee = quote === null || quote === void 0 ? void 0 : quote.fee) !== null && _quote$fee !== void 0 ? _quote$fee : await this.getFee(blocks, effects);
-  if (fee !== null) {
-    builder.addFee(fee);
+  if (requireBlockTimestampCheck) {
+    var _quote$fee;
+    const fee = (_quote$fee = quote === null || quote === void 0 ? void 0 : quote.fee) !== null && _quote$fee !== void 0 ? _quote$fee : await this.getFee(blocks, effects);
+    if (fee !== null) {
+      builder.addFee(fee);
+    }
   }
   const voteOrQuote = await builder.seal(serial, pendingVoteExpiry);
   return voteOrQuote;
@@ -128122,7 +128150,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.10+g915d941de2a9b7990a6a140496a0e142eafaa9b7';
+const client_version = '0.14.11+gfb27e304d06f586fd5f3532fae4f1504a46d359b';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];

@@ -22,6 +22,10 @@ export interface LogTarget {
     emitLogs(logs: LogEntry[]): Promise<void>;
 }
 export interface Logger {
+    /**
+     * Optional method to ask a logger to perform a sync operation
+     */
+    sync?: () => Promise<void>;
     log(options: LogEntry['options'], from: string, ...args: unknown[]): void;
     log(from: string, ...args: unknown[]): void;
     debug(options: LogEntry['options'], from: string, ...args: unknown[]): void;

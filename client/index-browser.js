@@ -113844,7 +113844,8 @@ var client_schema = /*#__PURE__*/new WeakMap();
  * - {@link ValidateASN1.IsNull}
  *
  * More complex types are defined as:
- * - Choice: `{ choice: [ schema1, schema2, ... ] }`
+ * - Choice (named): `{ choice: { name1: schema1, name2: schema2, ... } }` - Converts to `{ name1: value }` or `{ name2: value }`
+ * - Choice (legacy array): `{ choice: [ schema1, schema2, ... ] }` - Converts to union type (ambiguous for re-encoding)
  * - Sequence of: `{ sequenceOf: schema }`
  * - Optional: `{ optional: schema }`
  * - Context Tag: `{ type: 'context'; kind: 'implicit' | 'explicit'; contains: schema; value: number }`
@@ -114197,6 +114198,7 @@ class client_ValidateASN1 {
             {
               const outputStruct = {
                 type: 'struct',
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                 fieldNames: schema.fieldNames,
                 contains: {}
               };
@@ -114228,6 +114230,49 @@ class client_ValidateASN1 {
             client_assertNever(schema);
         }
       } else if ('choice' in schema) {
+        // Handle named choices: { choice: { a: schema1, b: schema2 } }
+        if (!Array.isArray(schema.choice)) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          const choiceObj = schema.choice;
+
+          // For context tags, match by value and kind
+          if (client_isASN1ContextTag(input)) {
+            const inputAsChoice = input;
+            for (const choiceName in choiceObj) {
+              const choice = choiceObj[choiceName];
+              if (choice === undefined) {
+                continue;
+              }
+              if (!client_isASN1ContextTag(choice)) {
+                continue;
+              }
+              if (choice.value !== inputAsChoice.value) {
+                continue;
+              }
+              if (choice.kind !== inputAsChoice.kind) {
+                continue;
+              }
+              return client_ValidateASN1.againstSchema(input, choice);
+            }
+            throw new Error('No valid choice found');
+          }
+
+          // Try each choice
+          for (const choiceName in choiceObj) {
+            const choice = choiceObj[choiceName];
+            if (choice === undefined) {
+              continue;
+            }
+            try {
+              return client_ValidateASN1.againstSchema(input, choice);
+            } catch (_ignored_checkError) {
+              /* Ignored error */
+            }
+          }
+          throw new Error('No valid choice found');
+        }
+
+        // Handle array choices (legacy)
         if (client_isASN1ContextTag(input)) {
           const inputAsChoice = input;
           const matchingSchema = schema.choice.find(function (choice) {
@@ -114249,7 +114294,6 @@ class client_ValidateASN1 {
         }
         for (const choice of schema.choice) {
           try {
-            // @ts-ignore
             return client_ValidateASN1.againstSchema(input, choice);
           } catch (_ignored_checkError) {
             /* Ignored error */
@@ -114338,6 +114382,578 @@ class client_ValidateASN1 {
   }
   validate(input) {
     return client_ValidateASN1.againstSchema(input, client_asn1_classPrivateFieldGet(client_schema, this));
+  }
+
+  /**
+   * Convert an ASN.1 object to a JavaScript object (including primitives)
+   * based on the schema.
+   *
+   * Converts ASN1 objects to plain JavaScript objects according to the schema:
+   * - Structs are converted to plain objects with field names as keys
+   * - For ambiguous types (IsAnyString, IsAnyDate), returns ASN.1-like objects: { type: 'string', kind: 'utf8', value: 'text' }
+   * - Arrays/sequences are preserved as arrays
+   * - Primitive types (bigint, string, boolean, null, Buffer, Date) are preserved
+   *
+   * Example schema: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: ValidateASN1.IsAnyString, age: ValidateASN1.IsInteger } }
+   * Input: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n } }
+   * Output: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n }
+   */
+  toJavaScriptObject(input) {
+    this.validate(input);
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return client_ValidateASN1.toPlainObject(input, client_asn1_classPrivateFieldGet(client_schema, this));
+  }
+
+  /**
+   * Convert a plain JavaScript object back to an ASN.1 object based on the schema.
+   *
+   * Converts plain JavaScript objects back to ASN1 representation according to the schema:
+   * - Plain objects with field names are converted to ASN1Struct
+   * - For ambiguous schemas, recognizes ASN.1-like objects: { type: 'string', kind: 'utf8', value: 'text' }
+   * - Arrays are preserved as sequences
+   * - Primitive types are preserved or wrapped in appropriate ASN1 types
+   *
+   * Example schema: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: ValidateASN1.IsAnyString, age: ValidateASN1.IsInteger } }
+   * Input: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n }
+   * Output: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n } }
+   */
+  fromJavaScriptObject(input) {
+    const retval = client_ValidateASN1.fromPlainObject(input, client_asn1_classPrivateFieldGet(client_schema, this));
+    this.validate(retval);
+    return retval;
+  }
+
+  /**
+   * Convert an ASN.1 object to a plain JavaScript object based on a schema
+   */
+  static toPlainObject(input, schemaIn) {
+    let schema = schemaIn;
+    if (typeof schema === 'function') {
+      schema = schema();
+    }
+
+    // Handle choice schemas first (before primitive checks)
+    // This ensures named choices wrap their values correctly
+    if (typeof schema === 'object' && schema !== null && 'choice' in schema) {
+      // Handle named choices: { choice: { a: schema1, b: schema2 } }
+      if (!Array.isArray(schema.choice)) {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const choiceObj = schema.choice;
+        for (const choiceName in choiceObj) {
+          const choiceSchema = choiceObj[choiceName];
+          if (choiceSchema === undefined) {
+            continue;
+          }
+          try {
+            // Validate that the input matches this choice schema
+            client_ValidateASN1.againstSchema(input, choiceSchema);
+            // If validation passes, convert and wrap in named object
+            const converted = client_ValidateASN1.toPlainObject(input, choiceSchema);
+            return {
+              [choiceName]: converted
+            };
+          } catch {
+            // Try next choice
+          }
+        }
+        throw new Error('No valid choice found');
+      }
+
+      // Handle array choices (legacy): { choice: [schema1, schema2] }
+      // For choices, recursively convert the selected choice
+      for (const choice of schema.choice) {
+        try {
+          return client_ValidateASN1.toPlainObject(input, choice);
+        } catch {
+          // Try next choice
+        }
+      }
+      throw new Error('No valid choice found');
+    }
+
+    // Handle primitives that don't need conversion
+    if (typeof input === 'bigint' || typeof input === 'boolean' || input === null || client_isBuffer(input) || client_util.types.isDate(input)) {
+      return input;
+    }
+
+    // Handle plain strings
+    if (typeof input === 'string') {
+      return input;
+    }
+
+    // Handle basic schema types
+    if (typeof schema === 'symbol') {
+      switch (schema) {
+        case client_ValidateASN1.IsInteger:
+        case client_ValidateASN1.IsBoolean:
+        case client_ValidateASN1.IsNull:
+        case client_ValidateASN1.IsOctetString:
+        case client_ValidateASN1.IsString:
+        case client_ValidateASN1.IsDate:
+          return input;
+        case client_ValidateASN1.IsAnyString:
+          if (client_isASN1String(input)) {
+            // For ambiguous schemas, return ASN.1-like object
+            return {
+              type: 'string',
+              kind: input.kind,
+              value: input.value
+            };
+          }
+          return input;
+        case client_ValidateASN1.IsAnyDate:
+          if (client_isASN1Date(input)) {
+            // For ambiguous schemas, return ASN.1-like object
+            return {
+              type: 'date',
+              kind: input.kind,
+              value: input.date
+            };
+          }
+          return input;
+        case client_ValidateASN1.IsBitString:
+          if (client_isASN1BitString(input)) {
+            // Use expanded form to preserve unusedBits information
+            // This distinguishes between bit strings like 111 and 0111
+            return {
+              type: 'bitstring',
+              value: input.value,
+              unusedBits: input.unusedBits
+            };
+          }
+          return input;
+        case client_ValidateASN1.IsOID:
+          if (client_isASN1OID(input)) {
+            return input.oid;
+          }
+          return input;
+        case client_ValidateASN1.IsSet:
+          return input;
+        case client_ValidateASN1.IsAny:
+        case client_ValidateASN1.IsUnknown:
+          return input;
+      }
+    }
+
+    // Handle bigint schema (fixed value)
+    if (typeof schema === 'bigint') {
+      return input;
+    }
+
+    // Handle object schemas
+    if (typeof schema === 'object' && schema !== null) {
+      if ('type' in schema) {
+        switch (schema.type) {
+          case 'struct':
+            {
+              if (!client_isASN1Struct(input)) {
+                throw new Error('Expected ASN1Struct');
+              }
+              const result = {};
+              for (const fieldName of schema.fieldNames) {
+                const fieldValue = input.contains[fieldName];
+                if (fieldValue === undefined) {
+                  continue;
+                }
+                const fieldSchema = schema.contains[fieldName];
+                if (client_isASN1ContextTag(fieldValue)) {
+                  // Context tags are metadata like optional - unwrap them completely
+                  // Need to unwrap optional and get the context tag schema
+                  let contextSchema = fieldSchema;
+                  if (typeof contextSchema === 'object' && contextSchema !== null && 'optional' in contextSchema) {
+                    contextSchema = contextSchema.optional;
+                  }
+
+                  // For implicit context tags with ArrayBuffer, can't convert further
+                  if (fieldValue.kind === 'implicit' && client_util.types.isArrayBuffer(fieldValue.contains)) {
+                    result[fieldName] = fieldValue.contains;
+                  } else if (typeof contextSchema === 'object' && contextSchema !== null && 'type' in contextSchema && contextSchema.type === 'context' && 'contains' in contextSchema) {
+                    // Unwrap the context tag - just convert the inner value
+                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                    result[fieldName] = client_ValidateASN1.toPlainObject(fieldValue.contains, contextSchema.contains);
+                  } else {
+                    // Fallback: convert the inner value with full field schema
+                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                    result[fieldName] = client_ValidateASN1.toPlainObject(fieldValue.contains, fieldSchema);
+                  }
+                } else {
+                  // For all other types (including strings and dates), recursively convert
+                  const plainValue = client_ValidateASN1.toPlainObject(fieldValue, fieldSchema);
+                  result[fieldName] = plainValue;
+                }
+              }
+              return result;
+            }
+          case 'string':
+            if (client_isASN1String(input)) {
+              return input.value;
+            }
+            return input;
+          case 'date':
+            if (client_isASN1Date(input)) {
+              return input.date;
+            }
+            return input;
+          case 'oid':
+            if (client_isASN1OID(input)) {
+              return input.oid;
+            }
+            return input;
+          case 'context':
+            if (client_isASN1ContextTag(input)) {
+              // For implicit context tags with ArrayBuffer, we can't convert further
+              if (input.kind === 'implicit' && client_util.types.isArrayBuffer(input.contains)) {
+                return input.contains;
+              }
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              return client_ValidateASN1.toPlainObject(input.contains, schema.contains);
+            }
+            return input;
+        }
+      }
+      if ('sequenceOf' in schema) {
+        if (!Array.isArray(input)) {
+          throw new Error('Expected array for sequenceOf');
+        }
+        return input.map(item => client_ValidateASN1.toPlainObject(item, schema.sequenceOf));
+      }
+      if ('optional' in schema) {
+        if (input === undefined) {
+          return undefined;
+        }
+        return client_ValidateASN1.toPlainObject(input, schema.optional);
+      }
+      if (Array.isArray(schema)) {
+        if (!Array.isArray(input)) {
+          throw new Error('Expected array');
+        }
+        const result = [];
+        for (let i = 0; i < Math.min(input.length, schema.length); i++) {
+          const item = input[i];
+          if (item === undefined) {
+            result.push(undefined);
+          } else {
+            result.push(client_ValidateASN1.toPlainObject(item, schema[i]));
+          }
+        }
+        return result;
+      }
+    }
+    return input;
+  }
+
+  /**
+   * Convert a plain JavaScript object to an ASN.1 object based on a schema
+   */
+  static fromPlainObject(input, schemaIn) {
+    let schema = schemaIn;
+    if (typeof schema === 'function') {
+      schema = schema();
+    }
+
+    // Handle null/undefined
+    if (input === null || input === undefined) {
+      /* Verify that the schema for this is actually is nullable */
+      let nullable = false;
+      if (schema === client_ValidateASN1.IsNull) {
+        nullable = true;
+      } else if (typeof schema === 'object' && schema !== null) {
+        if ('optional' in schema) {
+          nullable = true;
+        }
+      }
+      if (!nullable) {
+        throw new Error(`Expected non-null value, got ${input}`);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return input;
+    }
+
+    // For ambiguous schemas (IsAnyString, IsAnyDate), check if input is already in ASN.1-like format
+    // These are objects like { type: 'string', kind: 'utf8', value: 'text' } or { type: 'date', kind: 'general', value: Date }
+    // Also handle expanded bitstring format: { type: 'bitstring', value: Buffer, unusedBits: number }
+    if (typeof input === 'object' && input !== null && !client_isBuffer(input) && !client_util.types.isDate(input) && !Array.isArray(input)) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const inputObj = input;
+
+      // Check for string-like format: { type: 'string', kind, value }
+      if (inputObj.type === 'string' && typeof inputObj.kind === 'string' && 'value' in inputObj) {
+        const kind = inputObj.kind;
+        if (kind === 'printable' || kind === 'ia5' || kind === 'utf8') {
+          if (typeof inputObj.value === 'string') {
+            return {
+              type: 'string',
+              kind,
+              value: inputObj.value
+            };
+          }
+        }
+      }
+
+      // Check for date-like format: { type: 'date', kind, value }
+      if (inputObj.type === 'date' && typeof inputObj.kind === 'string' && 'value' in inputObj) {
+        const kind = inputObj.kind;
+        if (kind === 'utc' || kind === 'general') {
+          if (client_util.types.isDate(inputObj.value)) {
+            return {
+              type: 'date',
+              kind,
+              date: inputObj.value
+            };
+          }
+        }
+      }
+
+      // Check for bitstring format: { type: 'bitstring', value, unusedBits }
+      if (inputObj.type === 'bitstring' && 'value' in inputObj && 'unusedBits' in inputObj) {
+        if (client_isBuffer(inputObj.value) && typeof inputObj.unusedBits === 'number') {
+          return {
+            type: 'bitstring',
+            value: inputObj.value,
+            unusedBits: inputObj.unusedBits
+          };
+        }
+      }
+    }
+
+    // Check schema FIRST before doing any primitive handling
+    // This is important for context tags and other wrappers
+
+    // Handle object schemas
+    if (typeof schema === 'object' && schema !== null) {
+      if ('type' in schema) {
+        switch (schema.type) {
+          case 'context':
+            {
+              // Context tags: reconstruct from schema definition (metadata like optional)
+              // Schema has the kind and value, input is the plain value
+              // At this point we know schema.type === 'context', so it must have kind, value, contains
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              const contextTagSchema = schema;
+              return {
+                type: 'context',
+                kind: contextTagSchema.kind,
+                value: contextTagSchema.value,
+                contains: client_ValidateASN1.fromPlainObject(input, contextTagSchema.contains)
+              };
+            }
+          case 'struct':
+            {
+              if (typeof input !== 'object' || input === null) {
+                throw new Error('Expected object for struct');
+              }
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              const inputObj = input;
+              const result = {
+                type: 'struct',
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                fieldNames: schema.fieldNames,
+                contains: {}
+              };
+              for (const fieldName of schema.fieldNames) {
+                const fieldValue = inputObj[fieldName];
+                if (fieldValue === undefined) {
+                  continue;
+                }
+                const fieldSchema = schema.contains[fieldName];
+                result.contains[fieldName] = client_ValidateASN1.fromPlainObject(fieldValue, fieldSchema);
+              }
+              return result;
+            }
+          case 'string':
+            if (typeof input === 'string') {
+              return {
+                type: 'string',
+                kind: schema.kind,
+                value: input
+              };
+            }
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            return input;
+          case 'date':
+            if (client_util.types.isDate(input)) {
+              return {
+                type: 'date',
+                kind: schema.kind,
+                date: input
+              };
+            }
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            return input;
+          case 'oid':
+            if (typeof input === 'string') {
+              return {
+                type: 'oid',
+                oid: input
+              };
+            }
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            return input;
+        }
+      }
+      if ('choice' in schema) {
+        // Handle named choices: { choice: { a: schema1, b: schema2 } }
+        if (!Array.isArray(schema.choice)) {
+          if (typeof input === 'object' && input !== null && !client_isBuffer(input) && !client_util.types.isDate(input)) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            const inputObj = input;
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            const choiceObj = schema.choice;
+
+            // Find which choice name is present in the input
+            for (const choiceName in choiceObj) {
+              if (choiceName in inputObj) {
+                const choiceSchema = choiceObj[choiceName];
+                if (choiceSchema === undefined) {
+                  continue;
+                }
+                const choiceValue = inputObj[choiceName];
+                return client_ValidateASN1.fromPlainObject(choiceValue, choiceSchema);
+              }
+            }
+          }
+          throw new Error('No valid choice found for input - expected object with one of: ' + Object.keys(schema.choice).join(', '));
+        }
+
+        // Handle array choices (legacy): { choice: [schema1, schema2] }
+        // For choices, try to convert with each choice schema
+        for (const choice of schema.choice) {
+          try {
+            return client_ValidateASN1.fromPlainObject(input, choice);
+          } catch {
+            // Try next choice
+          }
+        }
+        throw new Error('No valid choice found for input');
+      }
+      if ('sequenceOf' in schema) {
+        if (!Array.isArray(input)) {
+          throw new Error('Expected array for sequenceOf');
+        }
+        return input.map(item => client_ValidateASN1.fromPlainObject(item, schema.sequenceOf));
+      }
+      if ('optional' in schema) {
+        return client_ValidateASN1.fromPlainObject(input, schema.optional);
+      }
+      if (Array.isArray(schema)) {
+        if (!Array.isArray(input)) {
+          throw new Error('Expected array');
+        }
+        const result = [];
+        for (let i = 0; i < schema.length; i++) {
+          if (i < input.length && input[i] !== undefined) {
+            result.push(client_ValidateASN1.fromPlainObject(input[i], schema[i]));
+          } else if (client_isASN1ModifierOptional(schema[i])) {
+            result.push(undefined);
+          } else {
+            throw new Error(`Missing required field at index ${i}`);
+          }
+        }
+        return result;
+      }
+    }
+
+    // Handle symbol schemas (basic types)
+    if (typeof schema === 'symbol') {
+      switch (schema) {
+        case client_ValidateASN1.IsInteger:
+        case client_ValidateASN1.IsBoolean:
+        case client_ValidateASN1.IsNull:
+        case client_ValidateASN1.IsDate:
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsOctetString:
+          // OctetString can accept a Buffer directly
+          if (client_isBuffer(input)) {
+            return input;
+          }
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsString:
+          if (typeof input === 'string') {
+            return input;
+          }
+          throw new Error('Expected string');
+        case client_ValidateASN1.IsAnyString:
+          if (typeof input === 'string') {
+            // Determine appropriate string kind
+            if (client_isStringValidForKind(input, 'printable')) {
+              return {
+                type: 'string',
+                kind: 'printable',
+                value: input
+              };
+            } else if (client_isStringValidForKind(input, 'ia5')) {
+              return {
+                type: 'string',
+                kind: 'ia5',
+                value: input
+              };
+            } else {
+              return {
+                type: 'string',
+                kind: 'utf8',
+                value: input
+              };
+            }
+          }
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsAnyDate:
+          if (client_util.types.isDate(input)) {
+            if (input.getUTCFullYear() < 2050) {
+              return {
+                type: 'date',
+                kind: 'utc',
+                date: input
+              };
+            } else {
+              return {
+                type: 'date',
+                kind: 'general',
+                date: input
+              };
+            }
+          }
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsBitString:
+          if (client_isBuffer(input)) {
+            return {
+              type: 'bitstring',
+              value: input,
+              unusedBits: 0
+            };
+          }
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsOID:
+          if (typeof input === 'string') {
+            return {
+              type: 'oid',
+              oid: input
+            };
+          }
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+        case client_ValidateASN1.IsSet:
+        case client_ValidateASN1.IsAny:
+        case client_ValidateASN1.IsUnknown:
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          return input;
+      }
+    }
+
+    // Handle bigint schema (fixed value)
+    if (typeof schema === 'bigint') {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return input;
+    }
+
+    // Default: return input as-is
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return input;
   }
 }
 
@@ -125606,6 +126222,10 @@ class client_Log {
    * Register a new logging target (sink) to send logs to
    */
   registerTarget(target) {
+    if (client_log_classPrivateFieldGet(client_destroyed, this)) {
+      throw new Error('Cannot register target on destroyed Log instance');
+    }
+
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const id = Symbol('LogTargetID');
     client_log_classPrivateFieldGet(client_targets, this).set(id, target);
@@ -125627,6 +126247,9 @@ class client_Log {
    * Unregister a logging target (sink) to stop sending logs to
    */
   unregisterTarget(id) {
+    if (client_log_classPrivateFieldGet(client_destroyed, this)) {
+      return;
+    }
     client_log_classPrivateFieldGet(client_targets, this).delete(id);
   }
 
@@ -125644,6 +126267,9 @@ class client_Log {
    */
   startAutoSync() {
     let rate = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
+    if (client_log_classPrivateFieldGet(client_destroyed, this)) {
+      throw new Error('Cannot start auto sync on destroyed Log instance');
+    }
     this.stopAutoSync();
     client_log_classPrivateFieldSet(client_autoSyncInterval, this, setInterval(async () => {
       try {
@@ -125722,6 +126348,15 @@ class client_Log {
   }
 
   /**
+   * Dispose of the logger instance, syncing all logs, and clearing targets
+   */
+  async [Symbol.asyncDispose]() {
+    client_log_classPrivateFieldSet(client_destroyed, this, true);
+    await this.sync();
+    this.destroy();
+  }
+
+  /**
    * Terminate the logger instance, clearing all logs and targets
    */
   destroy() {
@@ -125735,6 +126370,9 @@ class client_Log {
   }
 }
 function client_log_log(level, options, from) {
+  if (client_log_classPrivateFieldGet(client_destroyed, this)) {
+    return;
+  }
   for (var _len6 = arguments.length, args = new Array(_len6 > 3 ? _len6 - 3 : 0), _key6 = 3; _key6 < _len6; _key6++) {
     args[_key6 - 3] = arguments[_key6];
   }
@@ -125794,7 +126432,6 @@ function client_timing_classPrivateFieldSet(s, a, r) { return s.set(client_timin
 function client_timing_classPrivateFieldGet(s, a) { return s.get(client_timing_assertClassBrand(s, a)); }
 function client_timing_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
 
-
 /**
  * Support the old way of doing timing where the callers could call
  * startTime/endTime with the same string to terminate a timing section
@@ -125820,8 +126457,13 @@ class client_RequestTiming {
   constructor() {
     client_timing_classPrivateFieldInitSpec(this, client_timing, new Map());
     client_timing_classPrivateFieldInitSpec(this, client_counter, 0);
-    client_timing_defineProperty(this, "log", client_RequestTiming.defaultLogger);
+    if (client_RequestTiming.defaultLogger === '@legacy') {
+      this.log = src_client_log.Legacy();
+    } else {
+      this.log = client_RequestTiming.defaultLogger;
+    }
   }
+
   /**
    * Start timing a section of code
    * @param section Name of the section to time -- should be unique within the code base so that it can be identified later
@@ -125835,12 +126477,17 @@ class client_RequestTiming {
       start: Date.now()
     };
     client_timing_classPrivateFieldGet(client_timing, this).set(id, data);
+    let endCalled = false;
     return {
-      id,
+      id: id,
       end: () => {
+        endCalled = true;
         this.endTime(id);
       },
       [Symbol.dispose]: () => {
+        if (endCalled) {
+          return;
+        }
         this.endTime(id);
       }
     };
@@ -125859,11 +126506,11 @@ class client_RequestTiming {
     if (typeof section === 'symbol') {
       const timingInfo = client_timing_classPrivateFieldGet(client_timing, this).get(section);
       if (timingInfo === undefined) {
-        this.log.error(`Timing section ${String(section)} does not exist but "end" was called on it!`);
+        this.log.error('timing::endTime', `Timing section ${String(section)} does not exist but "end" was called on it!`);
         return;
       }
       if (timingInfo.end !== undefined) {
-        this.log.error(`Timing section ${timingInfo.id} already ended but "end" was called on it again!`);
+        this.log.error('timing::endTime', `Timing section ${timingInfo.id} already ended but "end" was called on it again!`);
         return;
       }
       timingInfo.end = Date.now();
@@ -125963,7 +126610,7 @@ class client_RequestTiming {
     return client_timing_classPrivateFieldSet(client_counter, this, (_this$counter = client_timing_classPrivateFieldGet(client_counter, this), _this$counter2 = _this$counter++, _this$counter)), _this$counter2;
   }
 }
-client_timing_defineProperty(client_RequestTiming, "defaultLogger", src_client_log.Legacy());
+client_timing_defineProperty(client_RequestTiming, "defaultLogger", '@legacy');
 /* harmony default export */ const src_client_timing = (client_RequestTiming);
 ;// ./src/lib/kv/index.ts
 function client_kv_defineProperty(e, r, t) { return (r = client_kv_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -128150,7 +128797,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.11+gfb27e304d06f586fd5f3532fae4f1504a46d359b';
+const client_version = '0.14.12+g091eeeea12610658c71c9ee6a7c5e2eac6aabdde';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];

@@ -7,13 +7,13 @@ export type KVStorageProviderRedisConfig = {
     host: string;
     password: string;
     port?: number;
-    log?: typeof KVStorageProviderRedis['defaultLogger'];
+    log?: Logger;
     node?: KVGenericOptionsType['node'];
 };
 export declare class KVStorageProviderRedis extends KVStorageProviderBase implements KVStorageProviderAPI {
     #private;
-    static defaultLogger: Logger;
-    log: Logger;
+    static defaultLogger: Logger | '@legacy';
+    readonly log: Logger;
     constructor(config: KVStorageProviderRedisConfig);
     private node;
     destroy(options?: KVGenericOptionsType): Promise<void>;

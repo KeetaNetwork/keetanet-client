@@ -95,6 +95,10 @@ declare class Log implements Logger {
      */
     [Symbol.dispose](): void;
     /**
+     * Dispose of the logger instance, syncing all logs, and clearing targets
+     */
+    [Symbol.asyncDispose](): Promise<void>;
+    /**
      * Terminate the logger instance, clearing all logs and targets
      */
     destroy(): void;

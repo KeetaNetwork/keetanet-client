@@ -22,7 +22,7 @@ declare class LogTargetGCP implements LogTarget {
      * This is useful for logging initialization, to ensure that GCP Logging
      * is working, and if not, to fall back to another logging method.
      */
-    test(canRun: () => Promise<void>, elseRun: () => Promise<void>): Promise<void>;
+    test(canRun: () => Promise<void>, elseRun: (error: unknown) => Promise<void>): Promise<void>;
     emitLogs(input: LogEntry[]): Promise<void>;
 }
 export default LogTargetGCP;

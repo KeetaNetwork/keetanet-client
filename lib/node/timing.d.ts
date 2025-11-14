@@ -1,4 +1,4 @@
-import Log from '../log';
+import type { Logger } from '../log';
 interface DisposableTimingHandle extends Disposable {
     /**
      * Unique identifier for the timing section
@@ -15,8 +15,9 @@ interface DisposableTimingHandle extends Disposable {
 }
 export declare class RequestTiming {
     #private;
-    static defaultLogger: Log;
-    log: Log;
+    static defaultLogger: Logger | '@legacy';
+    log: Logger;
+    constructor();
     /**
      * Start timing a section of code
      * @param section Name of the section to time -- should be unique within the code base so that it can be identified later

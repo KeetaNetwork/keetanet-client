@@ -90,6 +90,12 @@ export declare namespace ValidateASN1 {
     export type Schema = keyof BasicSchemaMap | {
         choice: Schema[] | readonly Schema[];
     } | {
+        choice: {
+            [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
+        };
+    } | {
         sequenceOf: Schema;
     } | {
         optional: Schema;
@@ -118,9 +124,11 @@ export declare namespace ValidateASN1 {
         kind: 'general';
     } | {
         type: 'struct';
-        fieldNames: string[];
+        fieldNames: string[] | readonly string[];
         contains: {
             [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
         };
     } | readonly [Schema, ...Schema[]] | (() => Schema);
     type BasicSchemaMap = {
@@ -143,6 +151,14 @@ export declare namespace ValidateASN1 {
     } ? SchemaMap<T['choice'][number]> : T extends {
         choice: readonly Schema[];
     } ? SchemaMap<T['choice'][number]> : T extends {
+        choice: infer C extends {
+            [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
+        };
+    } ? {
+        [K in keyof C]: C[K] extends Schema ? SchemaMap<C[K]> : never;
+    }[keyof C] : T extends {
         sequenceOf: Schema;
     } ? SchemaMap<T['sequenceOf']>[] : T extends {
         optional: Schema;
@@ -172,18 +188,98 @@ export declare namespace ValidateASN1 {
         kind: T['kind'];
     } : T extends {
         type: 'struct';
-        fieldNames: infer F extends string[];
+        fieldNames: infer F extends readonly string[] | string[];
         contains: infer C extends {
             [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
         };
     } ? Omit<ASN1Struct, 'fieldNames' | 'contains'> & {
-        fieldNames: F;
+        fieldNames: F extends readonly string[] ? F : string[];
         contains: {
-            [K in F[number]]: C[K] extends Schema ? SchemaMap<C[K]> : never;
+            [K in (F extends readonly (infer U)[] ? U : F extends (infer U)[] ? U : never) & string]: K extends keyof C ? (C[K] extends Schema ? SchemaMap<C[K]> : never) : never;
         };
     } : T extends readonly [Schema, ...Schema[]] ? {
         [K in keyof T]: T[K] extends Schema ? SchemaMap<T[K]> : never;
     } : never;
+    type BasicSchemaMapJS = {
+        [ValidateASN1.IsAny]: ASN1AnyJS;
+        [ValidateASN1.IsUnknown]: unknown;
+        [ValidateASN1.IsDate]: Date;
+        [ValidateASN1.IsAnyDate]: {
+            type: 'date';
+            kind: 'utc' | 'general' | 'default';
+            value: Date;
+        };
+        [ValidateASN1.IsString]: string;
+        [ValidateASN1.IsAnyString]: {
+            type: 'string';
+            kind: 'printable' | 'ia5' | 'utf8';
+            value: string;
+        };
+        [ValidateASN1.IsOctetString]: Buffer;
+        [ValidateASN1.IsBitString]: {
+            type: 'bitstring';
+            value: Buffer;
+            unusedBits: number;
+        };
+        [ValidateASN1.IsInteger]: bigint;
+        [ValidateASN1.IsBoolean]: boolean;
+        [ValidateASN1.IsOID]: string;
+        [ValidateASN1.IsSet]: ASN1Set;
+        [ValidateASN1.IsNull]: null;
+    };
+    /**
+     * Maps a Schema to its plain JavaScript object representation
+     * (without ASN.1 wrapper types). For structs with kind-ed fields,
+     * metadata fields like '$<field>.kind' are added.
+     * For named choices, returns an object with one property matching the choice name.
+     */
+    export type SchemaMapJS<T extends Schema> = T extends () => infer U ? U extends Schema ? SchemaMapJS<U> : never : T extends keyof BasicSchemaMapJS ? BasicSchemaMapJS[T] : T extends {
+        choice: Schema[];
+    } ? SchemaMapJS<T['choice'][number]> : T extends {
+        choice: readonly Schema[];
+    } ? SchemaMapJS<T['choice'][number]> : T extends {
+        choice: infer C extends {
+            [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
+        };
+    } ? {
+        [K in keyof C]: {
+            [P in K]: C[K] extends Schema ? SchemaMapJS<C[K]> : unknown;
+        };
+    }[keyof C] : T extends {
+        sequenceOf: Schema;
+    } ? SchemaMapJS<T['sequenceOf']>[] : T extends {
+        optional: Schema;
+    } ? SchemaMapJS<T['optional']> | undefined : T extends bigint ? T : T extends {
+        type: 'context';
+        kind: infer _U extends ASN1ContextTag['kind'];
+        value: number;
+        contains: Schema;
+    } ? SchemaMapJS<T['contains']> : T extends {
+        type: 'oid';
+        oid: string;
+    } ? T['oid'] : T extends {
+        type: 'string';
+        kind: 'printable' | 'ia5' | 'utf8';
+    } ? string : T extends {
+        type: 'date';
+        kind: 'general' | 'utc';
+    } ? Date : T extends {
+        type: 'struct';
+        fieldNames: infer F extends readonly string[] | string[];
+        contains: infer C extends {
+            [name: string]: Schema;
+        } | {
+            readonly [name: string]: Schema;
+        };
+    } ? {
+        [K in (F extends readonly (infer U)[] ? U : F extends (infer U)[] ? U : never) & string]: K extends keyof C ? (C[K] extends Schema ? SchemaMapJS<C[K]> : unknown) : unknown;
+    } : T extends readonly [Schema, ...Schema[]] ? {
+        [K in keyof T]: T[K] extends Schema ? SchemaMapJS<T[K]> : never;
+    } : unknown;
     export {};
 }
 /**
@@ -206,7 +302,8 @@ export declare namespace ValidateASN1 {
  * - {@link ValidateASN1.IsNull}
  *
  * More complex types are defined as:
- * - Choice: `{ choice: [ schema1, schema2, ... ] }`
+ * - Choice (named): `{ choice: { name1: schema1, name2: schema2, ... } }` - Converts to `{ name1: value }` or `{ name2: value }`
+ * - Choice (legacy array): `{ choice: [ schema1, schema2, ... ] }` - Converts to union type (ambiguous for re-encoding)
  * - Sequence of: `{ sequenceOf: schema }`
  * - Optional: `{ optional: schema }`
  * - Context Tag: `{ type: 'context'; kind: 'implicit' | 'explicit'; contains: schema; value: number }`
@@ -290,6 +387,43 @@ export declare class ValidateASN1<T extends ValidateASN1.Schema> {
     static againstSchema<T extends ValidateASN1.Schema>(input: ASN1AnyJS, schemaIn: T): ValidateASN1.SchemaMap<T>;
     constructor(schema: T);
     validate(input: ASN1AnyJS): ValidateASN1.SchemaMap<T>;
+    /**
+     * Convert an ASN.1 object to a JavaScript object (including primitives)
+     * based on the schema.
+     *
+     * Converts ASN1 objects to plain JavaScript objects according to the schema:
+     * - Structs are converted to plain objects with field names as keys
+     * - For ambiguous types (IsAnyString, IsAnyDate), returns ASN.1-like objects: { type: 'string', kind: 'utf8', value: 'text' }
+     * - Arrays/sequences are preserved as arrays
+     * - Primitive types (bigint, string, boolean, null, Buffer, Date) are preserved
+     *
+     * Example schema: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: ValidateASN1.IsAnyString, age: ValidateASN1.IsInteger } }
+     * Input: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n } }
+     * Output: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n }
+     */
+    toJavaScriptObject(input: ASN1AnyJS): ValidateASN1.SchemaMapJS<T>;
+    /**
+     * Convert a plain JavaScript object back to an ASN.1 object based on the schema.
+     *
+     * Converts plain JavaScript objects back to ASN1 representation according to the schema:
+     * - Plain objects with field names are converted to ASN1Struct
+     * - For ambiguous schemas, recognizes ASN.1-like objects: { type: 'string', kind: 'utf8', value: 'text' }
+     * - Arrays are preserved as sequences
+     * - Primitive types are preserved or wrapped in appropriate ASN1 types
+     *
+     * Example schema: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: ValidateASN1.IsAnyString, age: ValidateASN1.IsInteger } }
+     * Input: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n }
+     * Output: { type: 'struct', fieldNames: ['name', 'age'], contains: { name: { type: 'string', kind: 'utf8', value: 'John Doe' }, age: 30n } }
+     */
+    fromJavaScriptObject(input: unknown): ASN1AnyJS;
+    /**
+     * Convert an ASN.1 object to a plain JavaScript object based on a schema
+     */
+    private static toPlainObject;
+    /**
+     * Convert a plain JavaScript object to an ASN.1 object based on a schema
+     */
+    private static fromPlainObject;
 }
 /**
  * Create a Mutable type from a given Readonly type

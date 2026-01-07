@@ -182,7 +182,7 @@ export declare class Block implements Omit<BlockV2Canonical, 'version'> {
     }[Version]);
     constructor(input: Buffer | ArrayBuffer | BlockJSON | BlockJSONOutput | BlockJSONOutputSerialized | Block | string);
     static getAccountOpeningHash(account: GenericAccount): BlockHash;
-    toBytes(includeSignatures?: boolean): ArrayBuffer;
+    toBytes(includeSignatures?: boolean, useCached?: boolean): ArrayBuffer;
     protected static getV1ASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical): BlockV1ASN1WithoutSignature;
     protected static getV2ASN1ContainerWithoutSignature(input: BlockV2UnsignedCanonical | BlockV2Canonical): BlockV2ASN1WithoutSignature;
     protected static getASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical | BlockV2UnsignedCanonical | BlockV2Canonical): BlockASN1SchemaWithoutSignature;

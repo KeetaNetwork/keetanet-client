@@ -59991,7 +59991,7 @@ class UserClient {
         }
         const builder = userClient.initBuilder({ ...options, account: request.from.account });
         builder.send(to.account, from.amount, from.token);
-        builder.receive(to.account, to.amount, to.token, true);
+        builder.receive(to.account, to.amount, to.token, request.to.exact ?? false);
         const blocks = await builder.computeBlocks();
         if (blocks.blocks.length !== 1) {
             throw (new Error('Compute Swap Request Generated more than 1 block'));
@@ -60009,7 +60009,7 @@ class UserClient {
             let userClient;
             if (UserClient.isInstance(builderOrUserClient)) {
                 userClient = builderOrUserClient;
-                account = builderOrUserClient.account;
+                account = options?.account ?? builderOrUserClient.account;
             }
             else {
                 const env_1 = { stack: [], error: void 0, hasError: false };
@@ -60051,13 +60051,41 @@ class UserClient {
         if (!sendOperation.to.comparePublicKey(account)) {
             throw (new client_1.default('CLIENT_SWAP_SEND_ACCOUNT_MISMATCH', 'Swap Request send account does not match'));
         }
-        if (request.expected?.token !== undefined && !sendOperation.token.comparePublicKey(request.expected?.token)) {
-            throw (new client_1.default('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected'));
+        let sendAmount = receiveOperation.amount;
+        if (request.expected) {
+            let expectedReceive;
+            let expectedSend;
+            if ('receive' in request.expected || 'send' in request.expected) {
+                expectedReceive = request.expected?.receive;
+                expectedSend = request.expected?.send;
+            }
+            else if ('token' in request.expected || 'amount' in request.expected) {
+                expectedReceive = request.expected;
+            }
+            if (expectedReceive) {
+                if (expectedReceive.token !== undefined && !sendOperation.token.comparePublicKey(expectedReceive.token)) {
+                    throw (new client_1.default('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected'));
+                }
+                if (expectedReceive.amount !== undefined && sendOperation.amount !== expectedReceive.amount) {
+                    throw (new client_1.default('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected'));
+                }
+            }
+            if (expectedSend) {
+                if (expectedSend.token !== undefined && !(expectedSend.token.comparePublicKey(receiveOperation.token))) {
+                    throw (new client_1.default('CLIENT_SWAP_SEND_TOKEN_MISMATCH', 'Swap acceptance send token does not match swap request receive token'));
+                }
+                if (expectedSend.amount !== undefined) {
+                    if (expectedSend.amount < receiveOperation.amount) {
+                        throw (new client_1.default('CLIENT_SWAP_SEND_AMOUNT_TOO_LOW', 'Send amount must be at least the receive amount specified in the swap request'));
+                    }
+                    if (receiveOperation.exact && receiveOperation.amount !== expectedSend.amount) {
+                        throw (new client_1.default('CLIENT_SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH', 'Send value is not allowed to differ from expected receive amount for exact receives'));
+                    }
+                    sendAmount = expectedSend.amount;
+                }
+            }
         }
-        if (request.expected?.amount !== undefined && sendOperation.amount !== request.expected?.amount) {
-            throw (new client_1.default('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected'));
-        }
-        builder.send(request.block.account, receiveOperation.amount, receiveOperation.token);
+        builder.send(request.block.account, sendAmount, receiveOperation.token);
         const blocks = await builder.computeBlocks();
         return ([...blocks.blocks, request.block]);
     }
@@ -62822,7 +62850,7 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Block_instances, _a, _Block_valueBytes, _Block_valueHash, _Block_getSortedRequiredSigners, _Block_validateOperationsPurpose, _Block_validateSignerField, _Block_validateSignatures, _BlockBuilder_block;
+var _Block_instances, _a, _Block_valueBytes, _Block_valueHash, _Block_getSortedRequiredSigners, _Block_validateBytes, _Block_validateOperationsPurpose, _Block_validateSignerField, _Block_validateSignatures, _BlockBuilder_block;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BlockBuilder = exports.Block = exports.BlockHash = exports.AdjustMethod = exports.BlockPurpose = void 0;
 exports.toAdjustMethod = toAdjustMethod;
@@ -63501,6 +63529,7 @@ class Block {
         if (this.account.isMultisig()) {
             throw (new block_1.default('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account'));
         }
+        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateBytes).call(this);
         __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignerField).call(this);
         __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateOperationsPurpose).call(this);
         __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignatures).call(this);
@@ -63508,9 +63537,11 @@ class Block {
     static getAccountOpeningHash(account) {
         return (BlockHash.getAccountOpeningHash(account));
     }
-    toBytes(includeSignatures = true) {
-        if (__classPrivateFieldGet(this, _Block_valueBytes, "f") !== undefined && includeSignatures) {
-            return (__classPrivateFieldGet(this, _Block_valueBytes, "f"));
+    toBytes(includeSignatures = true, useCached = true) {
+        if (useCached) {
+            if (__classPrivateFieldGet(this, _Block_valueBytes, "f") !== undefined && includeSignatures) {
+                return (__classPrivateFieldGet(this, _Block_valueBytes, "f"));
+            }
         }
         const sharedBlockValues = {
             previous: this.previous,
@@ -63712,6 +63743,18 @@ _a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(),
         }
     }
     return (out);
+}, _Block_validateBytes = function _Block_validateBytes() {
+    const existingBytes = __classPrivateFieldGet(this, _Block_valueBytes, "f");
+    if (existingBytes === undefined) {
+        return;
+    }
+    const recalculatedBytesBuffer = Buffer.from(this.toBytes(true, false));
+    const existingBytesBuffer = Buffer.from(existingBytes);
+    if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
+        const existingBytesHash = Buffer.from((0, hash_1.Hash)(existingBytesBuffer)).toString('hex').toUpperCase();
+        const recalculatedBytesHash = Buffer.from((0, hash_1.Hash)(recalculatedBytesBuffer)).toString('hex').toUpperCase();
+        throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash})`));
+    }
 }, _Block_validateOperationsPurpose = function _Block_validateOperationsPurpose() {
     /**
      * Do not allow blocks to contain invalid constructions
@@ -63767,7 +63810,7 @@ _a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(),
         const signature = new buffer_1.BufferStorage(this.signatures[i], 64);
         const valid = signers[i].verify(this.hash.get(), signature.get());
         if (valid !== true) {
-            throw (new Error(`Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i]} for account ${signers[i].publicKeyString.get()}`));
+            throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`));
         }
     }
 };
@@ -64354,7 +64397,11 @@ class BlockOperation {
         if (amount === undefined || amount === null) {
             throw (new Error('internal error: "amount" is invalid'));
         }
-        return (BigInt(amount));
+        const bigintAmount = BigInt(amount);
+        if (bigintAmount < 0n) {
+            throw (new block_1.default('BLOCK_AMOUNT_BELOW_ZERO', 'value cannot be negative'));
+        }
+        return (bigintAmount);
     }
 }
 BlockOperation.isInstance = (0, helper_1.checkableGenerator)(BlockOperation);
@@ -64550,7 +64597,7 @@ class BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockOperation {
         }
         __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token, __classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_instances, "m", _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken).call(this, input.token), "f");
         __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_amount, this.computeAmount(input.amount), "f");
-        __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, input.method, "f");
+        __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, (0, _1.toAdjustMethod)(input.method), "f");
     }
     set token(token) {
         __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token, __classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_instances, "m", _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken).call(this, token), "f");
@@ -64559,7 +64606,7 @@ class BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockOperation {
         return (__classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token, "f"));
     }
     set method(newMethod) {
-        __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, newMethod, "f");
+        __classPrivateFieldSet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, (0, _1.toAdjustMethod)(newMethod), "f");
     }
     get method() {
         return (Number(__classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method, "f")));
@@ -64846,7 +64893,7 @@ class BlockOperationMODIFY_PERMISSIONS extends BlockOperation {
         }
         __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_principal, this.computeTo(input.principal), "f");
         __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_target, account_1.default.toAccount(input.target), "f");
-        __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_method, input.method, "f");
+        __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_method, (0, _1.toAdjustMethod)(input.method), "f");
         __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_permissions, __classPrivateFieldGet(this, _BlockOperationMODIFY_PERMISSIONS_instances, "m", _BlockOperationMODIFY_PERMISSIONS_computePermissions).call(this, input.permissions), "f");
     }
     set principal(principal) {
@@ -64868,7 +64915,7 @@ class BlockOperationMODIFY_PERMISSIONS extends BlockOperation {
         return (__classPrivateFieldGet(this, _BlockOperationMODIFY_PERMISSIONS_target, "f"));
     }
     set method(method) {
-        __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_method, method, "f");
+        __classPrivateFieldSet(this, _BlockOperationMODIFY_PERMISSIONS_method, (0, _1.toAdjustMethod)(method), "f");
     }
     get method() {
         return (Number(__classPrivateFieldGet(this, _BlockOperationMODIFY_PERMISSIONS_method, "f")));
@@ -65495,47 +65542,49 @@ const base_1 = __webpack_require__(1096);
 const helper_1 = __webpack_require__(3208);
 const BlockErrorType = 'BLOCK';
 exports.BlockErrorCodes = [
+    'AMOUNT_BELOW_ZERO',
+    'CANNOT_FORWARD_TO_SELF',
+    'CANNOT_SEND_NON_TOKEN',
+    'CERTIFICATE_SUBJECT_MISMATCH',
+    'EXACT_TRUE_WHEN_FORWARDING',
+    'EXTERNAL_INVALID',
+    'EXTERNAL_MISSING',
+    'EXTERNAL_TOO_LONG',
+    'GENERAL_FIELD_INVALID',
+    'IDENTIFIER_INVALID',
+    'IDENTIFIER_NEED_DEFAULT_PERMISSIONS',
+    'INTERMEDIATE_CERTIFICATES_ONLY_ADD',
+    'INVALID_ACCOUNT_TYPE',
+    'INVALID_CERTIFICATE_VALUE',
+    'INVALID_CREATE_IDENTIFIER_ARGS',
+    'INVALID_IDEMPOTENT_FORMAT',
+    'INVALID_IDEMPOTENT_LENGTH',
+    'INVALID_MULTISIG_QUORUM',
+    'INVALID_MULTISIG_SIGNER_COUNT',
+    'INVALID_MULTISIG_SIGNER_DEPTH',
+    'INVALID_MULTISIG_SIGNER_DUPLICATE',
+    'INVALID_PURPOSE_VALIDATION',
+    'INVALID_SIGNATURE',
+    'INVALID_SIGNER',
     'INVALID_TYPE',
     'INVALID_VERSION',
-    'NO_MULTIPLE_SET_REP',
-    'IDENTIFIER_NEED_DEFAULT_PERMISSIONS',
-    'CANNOT_SEND_NON_TOKEN',
-    'TOKEN_RECEIVE_DIFFERS',
-    'ONLY_TOKEN_OP',
-    'ONLY_IDENTIFIER_OP',
-    'NO_TOKEN_OP',
+    'NO_ADMIN_ON_TARGET',
+    'NO_DELEGATE_ADMIN',
+    'NO_DUPLICATE_CERTIFICATE_OPERATION',
     'NO_IDENTIFIER_OP',
-    'INVALID_SIGNER',
-    'INVALID_PURPOSE_VALIDATION',
-    'INVALID_MULTISIG_QUORUM',
-    'INVALID_MULTISIG_SIGNER_DEPTH',
-    'INVALID_MULTISIG_SIGNER_COUNT',
-    'INVALID_MULTISIG_SIGNER_DUPLICATE',
-    'INVALID_CREATE_IDENTIFIER_ARGS',
+    'NO_MODIFY_PERMISSION_DUPE',
+    'NO_MULTIPLE_SET_REP',
     'NO_MULTISIG_OP',
-    'IDENTIFIER_INVALID',
-    'GENERAL_FIELD_INVALID',
+    'NO_TOKEN_OP',
+    'ONLY_IDENTIFIER_OP',
+    'ONLY_TOKEN_OP',
     'PERMISSIONS_INVALID_DEFAULT',
     'PERMISSIONS_INVALID_ENTITY',
     'PERMISSIONS_INVALID_PRINCIPAL',
     'PERMISSIONS_INVALID_TARGET',
-    'INVALID_ACCOUNT_TYPE',
-    'NO_ADMIN_ON_TARGET',
     'PREVIOUS_SELF',
-    'NO_DELEGATE_ADMIN',
-    'NO_MODIFY_PERMISSION_DUPE',
-    'CANNOT_FORWARD_TO_SELF',
-    'EXACT_TRUE_WHEN_FORWARDING',
-    'CERTIFICATE_SUBJECT_MISMATCH',
-    'NO_DUPLICATE_CERTIFICATE_OPERATION',
-    'INTERMEDIATE_CERTIFICATES_ONLY_ADD',
-    'INVALID_CERTIFICATE_VALUE',
-    'EXTERNAL_TOO_LONG',
-    'EXTERNAL_INVALID',
-    'EXTERNAL_MISSING',
     'SUPPLY_INVALID',
-    'INVALID_IDEMPOTENT_FORMAT',
-    'INVALID_IDEMPOTENT_LENGTH'
+    'TOKEN_RECEIVE_DIFFERS'
 ];
 exports.FullBlockErrorCodes = exports.BlockErrorCodes.map(code => `${BlockErrorType}_${code}`);
 class KeetaNetBlockError extends base_1.KeetaNetErrorBase {
@@ -65611,6 +65660,9 @@ exports.ClientErrorCodes = [
     'SWAP_MISSING_RECEIVE',
     'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH',
     'SWAP_SEND_ACCOUNT_MISMATCH',
+    'SWAP_SEND_TOKEN_MISMATCH',
+    'SWAP_SEND_AMOUNT_TOO_LOW',
+    'SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH',
     'SWAP_REQUEST_TOKEN_MISMATCH',
     'SWAP_REQUEST_AMOUNT_MISMATCH'
 ];
@@ -67334,6 +67386,9 @@ function updateAccountInfoInState(state, account, info) {
  * Compute the effect of a SEND operation
  */
 function computeEffectOfOperationSEND(state, block, operation) {
+    if (operation.amount < 0n) {
+        throw (new Error('Internal error: SEND operation with negative amount'));
+    }
     // Decrement sender balance
     const senderChange = {
         state,
@@ -67361,6 +67416,9 @@ function computeEffectOfOperationSEND(state, block, operation) {
  * Compute the effect of a RECEIVE operation
  */
 function computeEffectOfOperationRECEIVE(state, block, operation) {
+    if (operation.amount < 0n) {
+        throw (new Error('Internal error: RECEIVE operation with negative amount'));
+    }
     // Increment recipient balance
     const recipientChange = {
         state,
@@ -67396,6 +67454,9 @@ function computeEffectOfOperationRECEIVE(state, block, operation) {
     }
 }
 function computeEffectOfOperationTOKEN_ADMIN_MODIFY_BALANCE(state, block, operation) {
+    if (operation.amount < 0n) {
+        throw (new Error('Internal error: TOKEN_ADMIN_MODIFY_BALANCE operation with negative amount'));
+    }
     if (operation.method === block_1.Block.AdjustMethod.SET) {
         const setChange = {
             state,
@@ -67465,6 +67526,9 @@ function computeEffectOfOperationCREATE_IDENTIFIER(state, block, operation, cont
             throw (new Error('Invalid identifier creation arguments'));
         }
         updateAccountInfoInState(state, operation.identifier, { multisigQuorum: operation.createArguments.quorum });
+        if (operation.createArguments.quorum < 1n || operation.createArguments.quorum > BigInt(operation.createArguments.signers.length)) {
+            throw (new Error('Internal error: operation.createArguments.quorum is invalid'));
+        }
         for (const multisigSigner of operation.createArguments.signers) {
             state.possibleNewAccounts.add(multisigSigner);
             addPermission(state, {
@@ -67506,6 +67570,9 @@ function computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operation) {
     });
 }
 function computeEffectOfOperationTOKEN_ADMIN_SUPPLY(state, block, operation) {
+    if (operation.amount < 0n) {
+        throw (new Error('Internal error: TOKEN_ADMIN_SUPPLY operation with negative amount'));
+    }
     const tokenPubKey = block.account.publicKeyString.get();
     let value = 0n;
     switch (operation.method) {
@@ -79699,7 +79766,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.12+g091eeeea12610658c71c9ee6a7c5e2eac6aabdde';
+exports.version = '0.14.13+g566b8de2c01660608e6eb5257113db271d7fc075';
 exports["default"] = exports.version;
 
 

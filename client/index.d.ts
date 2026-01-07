@@ -783,13 +783,45 @@ interface CreateSwapRequest {
         account: GenericAccount;
         token: TokenAddress;
         amount: bigint;
+        /**
+         * Indication of whether or not the received amount must be exact, defaults to false
+         */
+        exact?: boolean;
     };
 }
+/**
+ * @deprecated Use the new structure with `receive` and `send` fields instead
+ */
+type AcceptSwapRequestExpectedDeprecated = {
+    token?: TokenAddress;
+    amount?: bigint;
+};
 interface AcceptSwapRequest {
     block: Block;
-    expected?: {
-        token?: TokenAddress;
-        amount?: bigint;
+    /**
+     * The expected parameters for the swap acceptance, to validate the swap, or to modify the send parameters
+     */
+    expected?: AcceptSwapRequestExpectedDeprecated | {
+        /**
+         * Validate the receive parameters (what the other party is sending) for the swap acceptance
+         */
+        receive?: {
+            token?: TokenAddress;
+            amount?: bigint;
+        };
+        /**
+         * Validate or change the send parameters for the swap acceptance
+         */
+        send?: {
+            /**
+             * If provided, will assert that the other party is expecting to receive this token
+             */
+            token?: TokenAddress;
+            /**
+             * If provided, will attempt to send this amount instead of the minimum required amount
+             */
+            amount?: bigint;
+        };
     };
 }
 interface UserClientListenerTypes {

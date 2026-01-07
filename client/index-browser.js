@@ -116013,7 +116013,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['INVALID_TYPE', 'INVALID_VERSION', 'NO_MULTIPLE_SET_REP', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'CANNOT_SEND_NON_TOKEN', 'TOKEN_RECEIVE_DIFFERS', 'ONLY_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'NO_TOKEN_OP', 'NO_IDENTIFIER_OP', 'INVALID_SIGNER', 'INVALID_PURPOSE_VALIDATION', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'NO_MULTISIG_OP', 'IDENTIFIER_INVALID', 'GENERAL_FIELD_INVALID', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'INVALID_ACCOUNT_TYPE', 'NO_ADMIN_ON_TARGET', 'PREVIOUS_SELF', 'NO_DELEGATE_ADMIN', 'NO_MODIFY_PERMISSION_DUPE', 'CANNOT_FORWARD_TO_SELF', 'EXACT_TRUE_WHEN_FORWARDING', 'CERTIFICATE_SUBJECT_MISMATCH', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_CERTIFICATE_VALUE', 'EXTERNAL_TOO_LONG', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'SUPPLY_INVALID', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH'];
+const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -118623,7 +118623,11 @@ class src_client_BlockOperation {
     if (amount === undefined || amount === null) {
       throw new Error('internal error: "amount" is invalid');
     }
-    return BigInt(amount);
+    const bigintAmount = BigInt(amount);
+    if (bigintAmount < 0n) {
+      throw new src_client_KeetaNetBlockError('BLOCK_AMOUNT_BELOW_ZERO', 'value cannot be negative');
+    }
+    return bigintAmount;
   }
 }
 client_BlockOperation = src_client_BlockOperation;
@@ -118842,7 +118846,7 @@ class src_client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends src_client_Blo
     }
     client_operations_classPrivateFieldSet(client_token3, this, client_operations_assertClassBrand(client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_brand, this, client_computeToken3).call(this, input.token));
     client_operations_classPrivateFieldSet(client_amount3, this, this.computeAmount(input.amount));
-    client_operations_classPrivateFieldSet(client_method, this, input.method);
+    client_operations_classPrivateFieldSet(client_method, this, client_toAdjustMethod(input.method));
   }
   set token(token) {
     client_operations_classPrivateFieldSet(client_token3, this, client_operations_assertClassBrand(client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_brand, this, client_computeToken3).call(this, token));
@@ -118851,7 +118855,7 @@ class src_client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends src_client_Blo
     return client_operations_classPrivateFieldGet(client_token3, this);
   }
   set method(newMethod) {
-    client_operations_classPrivateFieldSet(client_method, this, newMethod);
+    client_operations_classPrivateFieldSet(client_method, this, client_toAdjustMethod(newMethod));
   }
   get method() {
     return Number(client_operations_classPrivateFieldGet(client_method, this));
@@ -119189,7 +119193,7 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
     }
     client_operations_classPrivateFieldSet(client_principal, this, this.computeTo(input.principal));
     client_operations_classPrivateFieldSet(client_target, this, client_lib_account.toAccount(input.target));
-    client_operations_classPrivateFieldSet(client_method2, this, input.method);
+    client_operations_classPrivateFieldSet(client_method2, this, client_toAdjustMethod(input.method));
     client_operations_classPrivateFieldSet(client_permissions, this, client_operations_assertClassBrand(client_BlockOperationMODIFY_PERMISSIONS_brand, this, client_computePermissions).call(this, input.permissions));
   }
   set principal(principal) {
@@ -119211,7 +119215,7 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
     return client_operations_classPrivateFieldGet(client_target, this);
   }
   set method(method) {
-    client_operations_classPrivateFieldSet(client_method2, this, method);
+    client_operations_classPrivateFieldSet(client_method2, this, client_toAdjustMethod(method));
   }
   get method() {
     return Number(client_operations_classPrivateFieldGet(client_method2, this));
@@ -120493,6 +120497,7 @@ class src_client_Block {
     if (this.account.isMultisig()) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account');
     }
+    client_block_assertClassBrand(client_Block_brand, this, client_validateBytes).call(this);
     client_block_assertClassBrand(client_Block_brand, this, client_validateSignerField).call(this);
     client_block_assertClassBrand(client_Block_brand, this, client_validateOperationsPurpose).call(this);
     client_block_assertClassBrand(client_Block_brand, this, client_validateSignatures).call(this);
@@ -120502,8 +120507,11 @@ class src_client_Block {
   }
   toBytes() {
     let includeSignatures = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
-    if (client_block_classPrivateFieldGet(client_valueBytes, this) !== undefined && includeSignatures) {
-      return client_block_classPrivateFieldGet(client_valueBytes, this);
+    let useCached = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+    if (useCached) {
+      if (client_block_classPrivateFieldGet(client_valueBytes, this) !== undefined && includeSignatures) {
+        return client_block_classPrivateFieldGet(client_valueBytes, this);
+      }
     }
     const sharedBlockValues = {
       previous: this.previous,
@@ -120693,6 +120701,19 @@ function client_getSortedRequiredSigners(input) {
   }
   return out;
 }
+function client_validateBytes() {
+  const existingBytes = client_block_classPrivateFieldGet(client_valueBytes, this);
+  if (existingBytes === undefined) {
+    return;
+  }
+  const recalculatedBytesBuffer = client_block_Buffer.from(this.toBytes(true, false));
+  const existingBytesBuffer = client_block_Buffer.from(existingBytes);
+  if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
+    const existingBytesHash = client_block_Buffer.from(client_hash_Hash(existingBytesBuffer)).toString('hex').toUpperCase();
+    const recalculatedBytesHash = client_block_Buffer.from(client_hash_Hash(recalculatedBytesBuffer)).toString('hex').toUpperCase();
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash})`);
+  }
+}
 function client_validateOperationsPurpose() {
   /**
    * Do not allow blocks to contain invalid constructions
@@ -120750,7 +120771,7 @@ function client_validateSignatures() {
     const signature = new src_client_BufferStorage(this.signatures[i], 64);
     const valid = signers[i].verify(this.hash.get(), signature.get());
     if (valid !== true) {
-      throw new Error(`Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i]} for account ${signers[i].publicKeyString.get()}`);
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`);
     }
   }
 }
@@ -125208,6 +125229,10 @@ function client_updateAccountInfoInState(state, account, info) {
  * Compute the effect of a SEND operation
  */
 function client_computeEffectOfOperationSEND(state, block, operation) {
+  if (operation.amount < 0n) {
+    throw new Error('Internal error: SEND operation with negative amount');
+  }
+
   // Decrement sender balance
   const senderChange = {
     state,
@@ -125237,6 +125262,10 @@ function client_computeEffectOfOperationSEND(state, block, operation) {
  * Compute the effect of a RECEIVE operation
  */
 function client_computeEffectOfOperationRECEIVE(state, block, operation) {
+  if (operation.amount < 0n) {
+    throw new Error('Internal error: RECEIVE operation with negative amount');
+  }
+
   // Increment recipient balance
   const recipientChange = {
     state,
@@ -125272,6 +125301,9 @@ function client_computeEffectOfOperationRECEIVE(state, block, operation) {
   }
 }
 function client_computeEffectOfOperationTOKEN_ADMIN_MODIFY_BALANCE(state, block, operation) {
+  if (operation.amount < 0n) {
+    throw new Error('Internal error: TOKEN_ADMIN_MODIFY_BALANCE operation with negative amount');
+  }
   if (operation.method === src_client_Block.AdjustMethod.SET) {
     const setChange = {
       state,
@@ -125348,6 +125380,9 @@ function client_computeEffectOfOperationCREATE_IDENTIFIER(state, block, operatio
     client_updateAccountInfoInState(state, operation.identifier, {
       multisigQuorum: operation.createArguments.quorum
     });
+    if (operation.createArguments.quorum < 1n || operation.createArguments.quorum > BigInt(operation.createArguments.signers.length)) {
+      throw new Error('Internal error: operation.createArguments.quorum is invalid');
+    }
     for (const multisigSigner of operation.createArguments.signers) {
       state.possibleNewAccounts.add(multisigSigner);
       client_addPermission(state, {
@@ -125389,6 +125424,9 @@ function client_computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operati
 }
 function client_computeEffectOfOperationTOKEN_ADMIN_SUPPLY(state, block, operation) {
   var _state$accounts$token;
+  if (operation.amount < 0n) {
+    throw new Error('Internal error: TOKEN_ADMIN_SUPPLY operation with negative amount');
+  }
   const tokenPubKey = block.account.publicKeyString.get();
   let value = 0n;
   switch (operation.method) {
@@ -128797,7 +128835,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.12+g091eeeea12610658c71c9ee6a7c5e2eac6aabdde';
+const client_version = '0.14.13+g566b8de2c01660608e6eb5257113db271d7fc075';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -131032,7 +131070,7 @@ function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_ClientErrorType = 'CLIENT';
-const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED', 'SWAP_INVALID_ACCOUNT_OPTION', 'SWAP_OPTIONS_INVALID', 'SWAP_MISSING_SEND', 'SWAP_MISSING_RECEIVE', 'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'SWAP_SEND_ACCOUNT_MISMATCH', 'SWAP_REQUEST_TOKEN_MISMATCH', 'SWAP_REQUEST_AMOUNT_MISMATCH'];
+const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED', 'SWAP_INVALID_ACCOUNT_OPTION', 'SWAP_OPTIONS_INVALID', 'SWAP_MISSING_SEND', 'SWAP_MISSING_RECEIVE', 'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'SWAP_SEND_ACCOUNT_MISMATCH', 'SWAP_SEND_TOKEN_MISMATCH', 'SWAP_SEND_AMOUNT_TOO_LOW', 'SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH', 'SWAP_REQUEST_TOKEN_MISMATCH', 'SWAP_REQUEST_AMOUNT_MISMATCH'];
 const client_FullClientErrorCodes = client_ClientErrorCodes.map(code => `${client_ClientErrorType}_${code}`);
 class src_client_KeetaNetClientError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -134333,6 +134371,9 @@ client_src_client_defineProperty(src_client_Client, "Config", client_config_name
 client_src_client_defineProperty(src_client_Client, "DefaultLogger", console);
 client_src_client_defineProperty(src_client_Client, "updateRepsInterval", 5 * 60 * 1000);
 client_src_client_defineProperty(src_client_Client, "isInstance", client_checkableGenerator(client_Client));
+/**
+ * @deprecated Use the new structure with `receive` and `send` fields instead
+ */
 const client_defaultListenerOptions = {
   change: {
     fallbackFrequency: 60 * 1000
@@ -134470,6 +134511,7 @@ class src_client_UserClient {
    * @returns Swap {@link Block}
    */
   static async createSwapRequest(request, client, options) {
+    var _request$to$exact;
     let userClient;
     if (src_client_UserClient.isInstance(client)) {
       userClient = client;
@@ -134491,7 +134533,7 @@ class src_client_UserClient {
       account: request.from.account
     });
     builder.send(to.account, from.amount, from.token);
-    builder.receive(to.account, to.amount, to.token, true);
+    builder.receive(to.account, to.amount, to.token, (_request$to$exact = request.to.exact) !== null && _request$to$exact !== void 0 ? _request$to$exact : false);
     const blocks = await builder.computeBlocks();
     if (blocks.blocks.length !== 1) {
       throw new Error('Compute Swap Request Generated more than 1 block');
@@ -134508,7 +134550,6 @@ class src_client_UserClient {
    */
 
   static async acceptSwapRequest(request, builderOrUserClient, options) {
-    var _request$expected, _request$expected2, _request$expected3, _request$expected4;
     let builder;
     let account;
     if (src_client_UserClientBuilder.isInstance(builderOrUserClient)) {
@@ -134517,15 +134558,16 @@ class src_client_UserClient {
     } else {
       let userClient;
       if (src_client_UserClient.isInstance(builderOrUserClient)) {
-        userClient = builderOrUserClient;
-        account = builderOrUserClient.account;
-      } else try {
         var _options$account;
+        userClient = builderOrUserClient;
+        account = (_options$account = options === null || options === void 0 ? void 0 : options.account) !== null && _options$account !== void 0 ? _options$account : builderOrUserClient.account;
+      } else try {
+        var _options$account2;
         var _usingCtx = client_client_usingCtx2();
         // Use await using so this temporary client gets cleaned up
         const temporaryClient = _usingCtx.a(this.fromNetwork(builderOrUserClient.network, builderOrUserClient.signer, options));
         userClient = temporaryClient;
-        account = (_options$account = options === null || options === void 0 ? void 0 : options.account) !== null && _options$account !== void 0 ? _options$account : builderOrUserClient.signer;
+        account = (_options$account2 = options === null || options === void 0 ? void 0 : options.account) !== null && _options$account2 !== void 0 ? _options$account2 : builderOrUserClient.signer;
         if (account === null) {
           throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Signer is required for building swap block');
         }
@@ -134563,13 +134605,41 @@ class src_client_UserClient {
     if (!sendOperation.to.comparePublicKey(account)) {
       throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_ACCOUNT_MISMATCH', 'Swap Request send account does not match');
     }
-    if (((_request$expected = request.expected) === null || _request$expected === void 0 ? void 0 : _request$expected.token) !== undefined && !sendOperation.token.comparePublicKey((_request$expected2 = request.expected) === null || _request$expected2 === void 0 ? void 0 : _request$expected2.token)) {
-      throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected');
+    let sendAmount = receiveOperation.amount;
+    if (request.expected) {
+      let expectedReceive;
+      let expectedSend;
+      if ('receive' in request.expected || 'send' in request.expected) {
+        var _request$expected, _request$expected2;
+        expectedReceive = (_request$expected = request.expected) === null || _request$expected === void 0 ? void 0 : _request$expected.receive;
+        expectedSend = (_request$expected2 = request.expected) === null || _request$expected2 === void 0 ? void 0 : _request$expected2.send;
+      } else if ('token' in request.expected || 'amount' in request.expected) {
+        expectedReceive = request.expected;
+      }
+      if (expectedReceive) {
+        if (expectedReceive.token !== undefined && !sendOperation.token.comparePublicKey(expectedReceive.token)) {
+          throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_TOKEN_MISMATCH', 'Swap Request send token does not match expected');
+        }
+        if (expectedReceive.amount !== undefined && sendOperation.amount !== expectedReceive.amount) {
+          throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected');
+        }
+      }
+      if (expectedSend) {
+        if (expectedSend.token !== undefined && !expectedSend.token.comparePublicKey(receiveOperation.token)) {
+          throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_TOKEN_MISMATCH', 'Swap acceptance send token does not match swap request receive token');
+        }
+        if (expectedSend.amount !== undefined) {
+          if (expectedSend.amount < receiveOperation.amount) {
+            throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_AMOUNT_TOO_LOW', 'Send amount must be at least the receive amount specified in the swap request');
+          }
+          if (receiveOperation.exact && receiveOperation.amount !== expectedSend.amount) {
+            throw new src_client_KeetaNetClientError('CLIENT_SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH', 'Send value is not allowed to differ from expected receive amount for exact receives');
+          }
+          sendAmount = expectedSend.amount;
+        }
+      }
     }
-    if (((_request$expected3 = request.expected) === null || _request$expected3 === void 0 ? void 0 : _request$expected3.amount) !== undefined && sendOperation.amount !== ((_request$expected4 = request.expected) === null || _request$expected4 === void 0 ? void 0 : _request$expected4.amount)) {
-      throw new src_client_KeetaNetClientError('CLIENT_SWAP_REQUEST_AMOUNT_MISMATCH', 'Swap Request send amount does not match expected');
-    }
-    builder.send(request.block.account, receiveOperation.amount, receiveOperation.token);
+    builder.send(request.block.account, sendAmount, receiveOperation.token);
     const blocks = await builder.computeBlocks();
     return [...blocks.blocks, request.block];
   }
@@ -134951,9 +135021,9 @@ class src_client_UserClient {
    */
 
   async getCertificates(certificateHash) {
-    var _options$account2;
+    var _options$account3;
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const account = (_options$account2 = options.account) !== null && _options$account2 !== void 0 ? _options$account2 : this.account;
+    const account = (_options$account3 = options.account) !== null && _options$account3 !== void 0 ? _options$account3 : this.account;
     if (certificateHash !== undefined) {
       return await client_client_classPrivateFieldGet(client_client, this).getCertificateByHash(account, certificateHash);
     }
@@ -135457,9 +135527,9 @@ class src_client_UserClient {
 /** @hidden */
 client_UserClient = src_client_UserClient;
 function client_getAccount() {
-  var _ref3, _options$account3;
+  var _ref3, _options$account4;
   let options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-  const retval = (_ref3 = (_options$account3 = options.account) !== null && _options$account3 !== void 0 ? _options$account3 : client_client_classPrivateFieldGet(client_client_config, this).account) !== null && _ref3 !== void 0 ? _ref3 : this.signer;
+  const retval = (_ref3 = (_options$account4 = options.account) !== null && _options$account4 !== void 0 ? _options$account4 : client_client_classPrivateFieldGet(client_client_config, this).account) !== null && _ref3 !== void 0 ? _ref3 : this.signer;
   if (retval === null) {
     throw new Error('No signer available in a read-only UserClient');
   }

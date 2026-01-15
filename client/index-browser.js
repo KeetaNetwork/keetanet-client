@@ -106251,6 +106251,9 @@ class src_client_BufferStorage {
         throw new Error(`Unsupported conversion: ${encoding}`);
     }
   }
+  toJSON() {
+    return this.toString('hex');
+  }
   toBigInt() {
     const hex_value = `0x${this.toString('hex')}`;
     const value = BigInt(hex_value);
@@ -113092,6 +113095,7 @@ const client_asn1 = client_asn1_namespaceObject;
  * native bindings.
  */
 const client_ASN1_ENCODE_DECODE_PARANOID = client_asn1_process.env['KEETANET_NODE_ASN1_ENCODE_DECODE_PARANOID'] === '1';
+const client_MAXIMUM_BIGINT_BYTE_LENGTH = 1024;
 function client_jsBigIntToBuffer(value) {
   /**
    * Convert value to Hex
@@ -113113,21 +113117,39 @@ function client_jsBigIntToBuffer(value) {
   if (valueStr.length % 2 !== 0) {
     valueStr = '0' + valueStr;
   }
+  if (isNegative) {
+    // Convert to minimal two's complement
+    let n = BigInt('0x' + valueStr);
+    n = -n;
+    // Find minimal byte length
+    const leader = Number('0x' + valueStr.slice(0, 2));
+    let extraByteLength = 0;
+    if (leader > 0x80) {
+      extraByteLength = 1;
+    }
+    const byteLength = valueStr.length / 2 + extraByteLength;
 
-  /*
-   * Pad with a leading 0 byte if the MSB is 1 to avoid writing a
-   * negative number
-   */
-  const leader = valueStr.slice(0, 2);
-  const leaderValue = Number(`0x${leader}`);
-  if (!isNegative) {
+    // Compute two's complement
+    const mod = 1n << BigInt(8 * byteLength);
+    const twos = mod + n;
+    let hex = twos.toString(16);
+    if (hex.length % 2 !== 0) {
+      hex = '0' + hex;
+    }
+    // Remove redundant leading ff bytes
+    while (hex.length > 2 && hex.startsWith('ff') && Number.parseInt(hex.slice(2, 4), 16) >= 0x80) {
+      hex = hex.slice(2);
+    }
+    valueStr = hex;
+  } else {
+    const leader = valueStr.slice(0, 2);
+    const leaderValue = Number(`0x${leader}`);
     if (leaderValue > 127) {
       valueStr = '00' + valueStr;
     }
-  } else {
-    if (leaderValue <= 127) {
-      valueStr = 'FF' + valueStr;
-    }
+  }
+  if (valueStr.length / 2 >= client_MAXIMUM_BIGINT_BYTE_LENGTH) {
+    throw new Error(`jsBigIntToBuffer: Unable to encode bigint, too large, goes over maximum byte length of ${client_MAXIMUM_BIGINT_BYTE_LENGTH}`);
   }
 
   /*
@@ -113136,16 +113158,42 @@ function client_jsBigIntToBuffer(value) {
   const valueBuffer = client_asn1_Buffer.from(valueStr, 'hex');
   return valueBuffer;
 }
+function client_assertDERInteger(data) {
+  const buf = client_asn1_Buffer.from(data.valueBlock.valueHex);
 
-/* XXX:TODO: This does not correctly deal with negative values */
-function client_jsIntegerToBigInt(value) {
-  let valueStr;
-  if (value instanceof client_Integer) {
-    valueStr = value.toString().split(':')[1].trim();
-  } else {
-    valueStr = value;
+  // Check for zero-length integer
+  if (buf.length === 0) {
+    throw new Error('Invalid DER: Integer has zero length');
   }
-  return BigInt(valueStr);
+
+  // Check for unnecessary leading zeros (positive numbers)
+  // Only check multi-byte integers
+  if (buf.length > 1 && buf[0] === 0x00 && (buf[1] & 0x80) === 0) {
+    throw new Error('Invalid DER: Integer has unnecessary leading zero byte');
+  }
+
+  // Check for unnecessary leading 0xFF (negative numbers)
+  // Only check multi-byte integers
+  if (buf.length > 1 && buf[0] === 0xFF && (buf[1] & 0x80) !== 0) {
+    throw new Error('Invalid DER: Integer has unnecessary leading 0xFF byte');
+  }
+}
+function client_jsIntegerToBigInt(value) {
+  if (typeof value === 'number') {
+    return BigInt(value);
+  }
+  client_assertDERInteger(value);
+  const buf = client_asn1_Buffer.from(value.valueBlock.valueHex);
+  const isNegative = (buf[0] & 0x80) !== 0;
+  if (!isNegative) {
+    return BigInt('0x' + buf.toString('hex'));
+  } else {
+    // Two's complement: value = unsigned - 2^(8*len)
+    const unsigned = BigInt('0x' + buf.toString('hex'));
+    const bits = BigInt(buf.length * 8);
+    const twosComp = unsigned - (1n << bits);
+    return twosComp;
+  }
 }
 function client_isASN1Object(input) {
   if (input === null || input === undefined || typeof input !== 'object') {
@@ -115163,6 +115211,9 @@ const client_baseValidationConfig = {
       maxLength: 256,
       regex: /^[-_A-Za-z0-9+/= ]+$/,
       canBeEmpty: true
+    },
+    validateNumericValues: {
+      cutoffEpoch: 1763683200000n // 2025-11-21T00:00:00.000Z
     }
   },
   idempotentKey: {
@@ -117694,6 +117745,16 @@ function client_validateSupply(amount, network) {
     throw new src_client_KeetaNetBlockError('BLOCK_SUPPLY_INVALID', `supply does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`);
   }
 }
+function client_validateNumericValue(value, block, fieldName, context) {
+  if (value >= 0n) {
+    return;
+  }
+  const config = client_getValidation(block.network).blockOperations.validateNumericValues;
+  if (BigInt(block.date.valueOf()) < config.cutoffEpoch) {
+    return;
+  }
+  throw new src_client_KeetaNetBlockError('BLOCK_AMOUNT_BELOW_ZERO', `${fieldName !== null && fieldName !== void 0 ? fieldName : 'value'} cannot be negative`);
+}
 function client_validateBlockSignerCount(amount, network) {
   const {
     maxValue
@@ -118623,11 +118684,7 @@ class src_client_BlockOperation {
     if (amount === undefined || amount === null) {
       throw new Error('internal error: "amount" is invalid');
     }
-    const bigintAmount = BigInt(amount);
-    if (bigintAmount < 0n) {
-      throw new src_client_KeetaNetBlockError('BLOCK_AMOUNT_BELOW_ZERO', 'value cannot be negative');
-    }
-    return bigintAmount;
+    return BigInt(amount);
   }
 }
 client_BlockOperation = src_client_BlockOperation;
@@ -118675,6 +118732,7 @@ class src_client_BlockOperationSEND extends src_client_BlockOperation {
       block
     } = context;
     const account = block.account;
+    client_validateNumericValue(this.amount, block, 'amount');
 
     // Only allow tokens to use send if they are the token being sent
     if (account.keyType === client_AccountKeyAlgorithm.TOKEN && this.token.comparePublicKey(account) === false) {
@@ -118782,6 +118840,7 @@ class src_client_BlockOperationRECEIVE extends src_client_BlockOperation {
       block
     } = context;
     const account = block.account;
+    client_validateNumericValue(this.amount, block, 'amount');
     if (account.isToken()) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_TOKEN_OP', 'Token addresses cannot use RECEIVE');
     }
@@ -118870,6 +118929,7 @@ class src_client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends src_client_Blo
     const {
       block
     } = context;
+    client_validateNumericValue(client_operations_classPrivateFieldGet(client_amount3, this), block, 'amount');
     if (block.account.keyType === client_AccountKeyAlgorithm.TOKEN) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_TOKEN_OP', 'You cannot use TOKEN_ADMIN_MODIFY_BALANCE on a token account');
     }
@@ -119337,6 +119397,7 @@ class src_client_BlockOperationTOKEN_ADMIN_SUPPLY extends src_client_BlockOperat
     const {
       block
     } = context;
+    client_validateNumericValue(client_operations_classPrivateFieldGet(client_amount4, this), block, 'amount');
     if (block.account.keyType !== client_AccountKeyAlgorithm.TOKEN) {
       throw new src_client_KeetaNetBlockError('BLOCK_ONLY_TOKEN_OP', 'Only token accounts can use TOKEN_ADMIN_SUPPLY');
     }
@@ -120802,10 +120863,12 @@ class src_client_BlockBuilder {
         client_block_classPrivateFieldSet(client_block, this, new src_client_Block(block));
       } else {
         const incompleteBlockJSON = {
-          date: new Date().toISOString(),
           version: 1,
           ...block
         };
+        if (incompleteBlockJSON.date === undefined) {
+          incompleteBlockJSON.date = new Date().toISOString();
+        }
 
         /*
          * Map input to our values
@@ -125229,10 +125292,6 @@ function client_updateAccountInfoInState(state, account, info) {
  * Compute the effect of a SEND operation
  */
 function client_computeEffectOfOperationSEND(state, block, operation) {
-  if (operation.amount < 0n) {
-    throw new Error('Internal error: SEND operation with negative amount');
-  }
-
   // Decrement sender balance
   const senderChange = {
     state,
@@ -125262,10 +125321,6 @@ function client_computeEffectOfOperationSEND(state, block, operation) {
  * Compute the effect of a RECEIVE operation
  */
 function client_computeEffectOfOperationRECEIVE(state, block, operation) {
-  if (operation.amount < 0n) {
-    throw new Error('Internal error: RECEIVE operation with negative amount');
-  }
-
   // Increment recipient balance
   const recipientChange = {
     state,
@@ -125301,9 +125356,6 @@ function client_computeEffectOfOperationRECEIVE(state, block, operation) {
   }
 }
 function client_computeEffectOfOperationTOKEN_ADMIN_MODIFY_BALANCE(state, block, operation) {
-  if (operation.amount < 0n) {
-    throw new Error('Internal error: TOKEN_ADMIN_MODIFY_BALANCE operation with negative amount');
-  }
   if (operation.method === src_client_Block.AdjustMethod.SET) {
     const setChange = {
       state,
@@ -125424,9 +125476,6 @@ function client_computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operati
 }
 function client_computeEffectOfOperationTOKEN_ADMIN_SUPPLY(state, block, operation) {
   var _state$accounts$token;
-  if (operation.amount < 0n) {
-    throw new Error('Internal error: TOKEN_ADMIN_SUPPLY operation with negative amount');
-  }
   const tokenPubKey = block.account.publicKeyString.get();
   let value = 0n;
   switch (operation.method) {
@@ -126199,6 +126248,10 @@ class client_Log {
      * The maximum number of log entries to send to each target at a time
      */
     client_log_defineProperty(this, "batchSize", 10);
+    /**
+     * Parent logger, if any -- used for creating hierarchical loggers
+     */
+    client_log_defineProperty(this, "parent", null);
     if ((_options === null || _options === void 0 ? void 0 : _options.logDebugTracing) !== undefined) {
       client_log_classPrivateFieldSet(client_logDebugTracing, this, _options.logDebugTracing);
     }
@@ -126263,10 +126316,14 @@ class client_Log {
     if (client_log_classPrivateFieldGet(client_destroyed, this)) {
       throw new Error('Cannot register target on destroyed Log instance');
     }
-
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const id = Symbol('LogTargetID');
-    client_log_classPrivateFieldGet(client_targets, this).set(id, target);
+    let id;
+    if (this.parent) {
+      id = this.parent.registerTarget(target);
+    } else {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      id = Symbol('LogTargetID');
+      client_log_classPrivateFieldGet(client_targets, this).set(id, target);
+    }
     return id;
   }
 
@@ -126288,7 +126345,48 @@ class client_Log {
     if (client_log_classPrivateFieldGet(client_destroyed, this)) {
       return;
     }
-    client_log_classPrivateFieldGet(client_targets, this).delete(id);
+    if (this.parent) {
+      this.parent.unregisterTarget(id);
+    } else {
+      client_log_classPrivateFieldGet(client_targets, this).delete(id);
+    }
+  }
+
+  /**
+   * Get the currently registered log targets.
+   *
+   * If this is a child logger, this will return the parent's targets
+   * because child loggers share the same targets as their parent.
+   */
+  get targets() {
+    if (client_log_classPrivateFieldGet(client_destroyed, this)) {
+      return [];
+    }
+    if (this.parent) {
+      return this.parent.targets;
+    }
+    return Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
+  }
+  /**
+   * Create a child logger instance that shares the same targets as this instance
+   * but has its own log queue, this is useful for creating hierarchical loggers
+   * which can call sync independently.
+   *
+   * Since the child shares the same targets, registering or unregistering targets
+   * from either the parent or child will affect both.
+   */
+  createChild() {
+    var _this$parent;
+    const child = new client_Log({
+      logDebugTracing: client_log_classPrivateFieldGet(client_logDebugTracing, this)
+    });
+
+    /**
+     * Attach child nodes to our own parent to collapse
+     * chains of loggers
+     */
+    child.parent = (_this$parent = this.parent) !== null && _this$parent !== void 0 ? _this$parent : this;
+    return child;
   }
 
   /**
@@ -126338,7 +126436,7 @@ class client_Log {
      * in case a target is added later;  However, if there are
      * too many logs, drop the oldest ones
      */
-    if (client_log_classPrivateFieldGet(client_targets, this).size === 0) {
+    if (this.targets.length === 0) {
       if (client_log_classPrivateFieldGet(client_logs, this).length > client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
         client_log_classPrivateFieldGet(client_logs, this).splice(0, client_log_classPrivateFieldGet(client_logs, this).length - client_MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
       }
@@ -126363,7 +126461,7 @@ class client_Log {
      * while a sync is in progress -- they will continue to be sent
      * to the registered targets at the time of the sync
      */
-    const targets = Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
+    const targets = [...this.targets];
     do {
       try {
         client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
@@ -128118,6 +128216,13 @@ async function client_validateBlockOperations(blocks) {
   for (const block of blocks) {
     for (const operation of block.operations) {
       switch (operation.type) {
+        case src_client_Block.OperationType.RECEIVE:
+        case src_client_Block.OperationType.SEND:
+        case src_client_Block.OperationType.TOKEN_ADMIN_SUPPLY:
+          if (operation.amount < 0n) {
+            throw new Error(`Operation amount cannot be negative: ${operation.amount}`);
+          }
+          break;
         case src_client_Block.OperationType.SET_REP:
           if (client_ledger_classPrivateFieldGet(client_operations, this).setRep !== undefined) {
             const validRep = await client_ledger_classPrivateFieldGet(client_operations, this).setRep(block.account, operation.to);
@@ -128129,6 +128234,9 @@ async function client_validateBlockOperations(blocks) {
         case src_client_Block.OperationType.TOKEN_ADMIN_MODIFY_BALANCE:
           if (!client_ledger_classPrivateFieldGet(client_operations, this).enableTokenAdminModifyBalance) {
             throw new client_ledger_KeetaNetLedgerError('LEDGER_OPERATION_NOT_SUPPORTED', 'TOKEN_ADMIN_MODIFY_BALANCE operation not supported');
+          }
+          if (operation.amount < 0n) {
+            throw new Error(`Operation amount cannot be negative: ${operation.amount}`);
           }
           break;
         default:
@@ -128835,7 +128943,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.13+g566b8de2c01660608e6eb5257113db271d7fc075';
+const client_version = '0.14.14+gdd8e58acb0e1edfb9050da584aaa65b7e5f722a2';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -133279,13 +133387,15 @@ class src_client_Client {
    * @param account The account to get the history for -- if null then the history for all accounts will be returned
    * @param options The options to use for the request
    * @param options.startBlocksHash The block hash to start from -- this is used to paginate the request
-   * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned
+   * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned, default is everything)
+   * @param options.pageSize How large of a page size to request at a given time (default is 200)
    * @return The history of vote staples for the given account, in reverse order starting with the most recent vote staple
    */
   async getHistory(account) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     const {
       depth = Infinity,
+      pageSize = 200,
       startBlocksHash
     } = options;
     account = client_lib_account.toPublicKeyString(account);
@@ -133299,7 +133409,7 @@ class src_client_Client {
     }
     const retval = [];
     while (retval.length < depth) {
-      const limit = Math.min(depth - retval.length, 200);
+      const limit = Math.min(depth - retval.length, pageSize);
       const query = {
         limit: String(limit)
       };
@@ -133336,7 +133446,15 @@ class src_client_Client {
           break;
         }
       }
-      startVoteStapleID = history.history.slice(-1)[0]['$id'];
+      if (typeof history.nextKey === 'string' || history.nextKey === null) {
+        if (history.nextKey === null) {
+          break;
+        }
+        startVoteStapleID = history.nextKey;
+      } else {
+        /* @deprecated -- workaround broken API */
+        startVoteStapleID = history.history.slice(-1)[0]['$id'];
+      }
     }
     return retval;
   }

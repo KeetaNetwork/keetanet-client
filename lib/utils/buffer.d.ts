@@ -23,6 +23,7 @@ export declare class BufferStorage {
     get length(): number;
     getBuffer(): Buffer;
     toString(encoding?: 'hex' | 'base32' | 'base64'): string;
+    toJSON(): string;
     toBigInt(): bigint;
     compare(compareWith: typeof this | undefined | null): boolean;
     compareHexString(compareWith: BufferStorage | string | undefined | null): boolean;

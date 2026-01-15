@@ -615,12 +615,14 @@ export declare class Client {
      * @param account The account to get the history for -- if null then the history for all accounts will be returned
      * @param options The options to use for the request
      * @param options.startBlocksHash The block hash to start from -- this is used to paginate the request
-     * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned
+     * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned, default is everything)
+     * @param options.pageSize How large of a page size to request at a given time (default is 200)
      * @return The history of vote staples for the given account, in reverse order starting with the most recent vote staple
      */
     getHistory(account: GenericAccount | string | null, options?: {
         startBlocksHash?: VoteBlocksHash | string;
         depth?: number;
+        pageSize?: number;
     }): Promise<{
         voteStaple: VoteStaple;
     }[]>;

@@ -75,6 +75,26 @@ declare class Log implements Logger {
      */
     unregisterTarget(id: LogTargetID): void;
     /**
+     * Get the currently registered log targets.
+     *
+     * If this is a child logger, this will return the parent's targets
+     * because child loggers share the same targets as their parent.
+     */
+    protected get targets(): LogTarget[];
+    /**
+     * Parent logger, if any -- used for creating hierarchical loggers
+     */
+    protected parent: Log | null;
+    /**
+     * Create a child logger instance that shares the same targets as this instance
+     * but has its own log queue, this is useful for creating hierarchical loggers
+     * which can call sync independently.
+     *
+     * Since the child shares the same targets, registering or unregistering targets
+     * from either the parent or child will affect both.
+     */
+    createChild(): Log;
+    /**
      * Emit a set of logs to all registered targets
      */
     private emitLogs;

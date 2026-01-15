@@ -57,6 +57,9 @@ interface ComputeLedgerEffectOptions<T extends boolean, P extends boolean, W ext
     baseToken: TokenAddress;
 }
 export declare function validateSupply(amount: bigint, network: bigint): void;
+export declare function validateNumericValue(value: bigint, block: Pick<Block, 'network' | 'date'>, fieldName?: string, context?: {
+    block: Block;
+}): void;
 export declare function validateBlockSignerCount(amount: bigint, network: bigint): void;
 export declare function validateBlockSignerDepth(depth: bigint, network: bigint): void;
 /**

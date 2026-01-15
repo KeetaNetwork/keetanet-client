@@ -58806,11 +58806,12 @@ class Client {
      * @param account The account to get the history for -- if null then the history for all accounts will be returned
      * @param options The options to use for the request
      * @param options.startBlocksHash The block hash to start from -- this is used to paginate the request
-     * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned
+     * @param options.depth The maximum number of vote staples to return -- this is used to limit the number of vote staples returned, default is everything)
+     * @param options.pageSize How large of a page size to request at a given time (default is 200)
      * @return The history of vote staples for the given account, in reverse order starting with the most recent vote staple
      */
     async getHistory(account, options = {}) {
-        const { depth = Infinity, startBlocksHash } = options;
+        const { depth = Infinity, pageSize = 200, startBlocksHash } = options;
         account = account_1.default.toPublicKeyString(account);
         let startVoteStapleID = undefined;
         if (startBlocksHash !== undefined) {
@@ -58823,7 +58824,7 @@ class Client {
         }
         const retval = [];
         while (retval.length < depth) {
-            const limit = Math.min(depth - retval.length, 200);
+            const limit = Math.min(depth - retval.length, pageSize);
             const query = {
                 limit: String(limit)
             };
@@ -58861,7 +58862,16 @@ class Client {
                     break;
                 }
             }
-            startVoteStapleID = history.history.slice(-1)[0]['$id'];
+            if (typeof history.nextKey === 'string' || history.nextKey === null) {
+                if (history.nextKey === null) {
+                    break;
+                }
+                startVoteStapleID = history.nextKey;
+            }
+            else {
+                /* @deprecated -- workaround broken API */
+                startVoteStapleID = history.history.slice(-1)[0]['$id'];
+            }
         }
         return (retval);
     }
@@ -61090,6 +61100,9 @@ exports.baseValidationConfig = {
             maxLength: 256,
             regex: /^[-_A-Za-z0-9+/= ]+$/,
             canBeEmpty: true
+        },
+        validateNumericValues: {
+            cutoffEpoch: 1763683200000n // 2025-11-21T00:00:00.000Z
         }
     },
     idempotentKey: {
@@ -63842,11 +63855,10 @@ class BlockBuilder {
                 __classPrivateFieldSet(this, _BlockBuilder_block, new Block(block), "f");
             }
             else {
-                const incompleteBlockJSON = {
-                    date: (new Date()).toISOString(),
-                    version: 1,
-                    ...block
-                };
+                const incompleteBlockJSON = { version: 1, ...block };
+                if (incompleteBlockJSON.date === undefined) {
+                    incompleteBlockJSON.date = (new Date()).toISOString();
+                }
                 /*
                  * Map input to our values
                  */
@@ -64397,11 +64409,7 @@ class BlockOperation {
         if (amount === undefined || amount === null) {
             throw (new Error('internal error: "amount" is invalid'));
         }
-        const bigintAmount = BigInt(amount);
-        if (bigintAmount < 0n) {
-            throw (new block_1.default('BLOCK_AMOUNT_BELOW_ZERO', 'value cannot be negative'));
-        }
-        return (bigintAmount);
+        return (BigInt(amount));
     }
 }
 BlockOperation.isInstance = (0, helper_1.checkableGenerator)(BlockOperation);
@@ -64442,6 +64450,7 @@ class BlockOperationSEND extends BlockOperation {
     validate(context) {
         const { block } = context;
         const account = block.account;
+        (0, common_1.validateNumericValue)(this.amount, block, 'amount');
         // Only allow tokens to use send if they are the token being sent
         if (account.keyType === account_1.AccountKeyAlgorithm.TOKEN && this.token.comparePublicKey(account) === false) {
             throw (new block_1.default('BLOCK_NO_TOKEN_OP', 'Tokens cannot use SEND, did you mean to use TOKEN_ADMIN_MODIFY_BALANCE'));
@@ -64540,6 +64549,7 @@ class BlockOperationRECEIVE extends BlockOperation {
     validate(context) {
         const { block } = context;
         const account = block.account;
+        (0, common_1.validateNumericValue)(this.amount, block, 'amount');
         if (account.isToken()) {
             throw (new block_1.default('BLOCK_NO_TOKEN_OP', 'Token addresses cannot use RECEIVE'));
         }
@@ -64619,6 +64629,7 @@ class BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockOperation {
     }
     validate(context) {
         const { block } = context;
+        (0, common_1.validateNumericValue)(__classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_amount, "f"), block, 'amount');
         if (block.account.keyType === account_1.AccountKeyAlgorithm.TOKEN) {
             throw (new block_1.default('BLOCK_NO_TOKEN_OP', 'You cannot use TOKEN_ADMIN_MODIFY_BALANCE on a token account'));
         }
@@ -65019,6 +65030,7 @@ class BlockOperationTOKEN_ADMIN_SUPPLY extends BlockOperation {
     }
     validate(context) {
         const { block } = context;
+        (0, common_1.validateNumericValue)(__classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_SUPPLY_amount, "f"), block, 'amount');
         if (block.account.keyType !== account_1.AccountKeyAlgorithm.TOKEN) {
             throw (new block_1.default('BLOCK_ONLY_TOKEN_OP', 'Only token accounts can use TOKEN_ADMIN_SUPPLY'));
         }
@@ -66492,6 +66504,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LedgerStorageBase = void 0;
 exports.findPermissionMatch = findPermissionMatch;
 exports.validateSupply = validateSupply;
+exports.validateNumericValue = validateNumericValue;
 exports.validateBlockSignerCount = validateBlockSignerCount;
 exports.validateBlockSignerDepth = validateBlockSignerDepth;
 exports.computeLedgerEffect = computeLedgerEffect;
@@ -66532,6 +66545,16 @@ function validateSupply(amount, network) {
     if (amount > maxValue) {
         throw (new block_2.default('BLOCK_SUPPLY_INVALID', `supply does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`));
     }
+}
+function validateNumericValue(value, block, fieldName, context) {
+    if (value >= 0n) {
+        return;
+    }
+    const config = (0, config_1.getValidation)(block.network).blockOperations.validateNumericValues;
+    if (BigInt(block.date.valueOf()) < config.cutoffEpoch) {
+        return;
+    }
+    throw (new block_2.default('BLOCK_AMOUNT_BELOW_ZERO', `${fieldName ?? 'value'} cannot be negative`));
 }
 function validateBlockSignerCount(amount, network) {
     const { maxValue } = (0, config_1.getValidation)(network).accountInfoFieldRules['blockSignerCount'];
@@ -67386,9 +67409,6 @@ function updateAccountInfoInState(state, account, info) {
  * Compute the effect of a SEND operation
  */
 function computeEffectOfOperationSEND(state, block, operation) {
-    if (operation.amount < 0n) {
-        throw (new Error('Internal error: SEND operation with negative amount'));
-    }
     // Decrement sender balance
     const senderChange = {
         state,
@@ -67416,9 +67436,6 @@ function computeEffectOfOperationSEND(state, block, operation) {
  * Compute the effect of a RECEIVE operation
  */
 function computeEffectOfOperationRECEIVE(state, block, operation) {
-    if (operation.amount < 0n) {
-        throw (new Error('Internal error: RECEIVE operation with negative amount'));
-    }
     // Increment recipient balance
     const recipientChange = {
         state,
@@ -67454,9 +67471,6 @@ function computeEffectOfOperationRECEIVE(state, block, operation) {
     }
 }
 function computeEffectOfOperationTOKEN_ADMIN_MODIFY_BALANCE(state, block, operation) {
-    if (operation.amount < 0n) {
-        throw (new Error('Internal error: TOKEN_ADMIN_MODIFY_BALANCE operation with negative amount'));
-    }
     if (operation.method === block_1.Block.AdjustMethod.SET) {
         const setChange = {
             state,
@@ -67570,9 +67584,6 @@ function computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operation) {
     });
 }
 function computeEffectOfOperationTOKEN_ADMIN_SUPPLY(state, block, operation) {
-    if (operation.amount < 0n) {
-        throw (new Error('Internal error: TOKEN_ADMIN_SUPPLY operation with negative amount'));
-    }
     const tokenPubKey = block.account.publicKeyString.get();
     let value = 0n;
     switch (operation.method) {
@@ -68970,6 +68981,13 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
     for (const block of blocks) {
         for (const operation of block.operations) {
             switch (operation.type) {
+                case block_1.Block.OperationType.RECEIVE:
+                case block_1.Block.OperationType.SEND:
+                case block_1.Block.OperationType.TOKEN_ADMIN_SUPPLY:
+                    if (operation.amount < 0n) {
+                        throw (new Error(`Operation amount cannot be negative: ${operation.amount}`));
+                    }
+                    break;
                 case block_1.Block.OperationType.SET_REP:
                     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").setRep !== undefined) {
                         const validRep = await __classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").setRep(block.account, operation.to);
@@ -68981,6 +68999,9 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
                 case block_1.Block.OperationType.TOKEN_ADMIN_MODIFY_BALANCE:
                     if (!__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f").enableTokenAdminModifyBalance) {
                         throw (new ledger_1.KeetaNetLedgerError('LEDGER_OPERATION_NOT_SUPPORTED', 'TOKEN_ADMIN_MODIFY_BALANCE operation not supported'));
+                    }
+                    if (operation.amount < 0n) {
+                        throw (new Error(`Operation amount cannot be negative: ${operation.amount}`));
                     }
                     break;
                 default:
@@ -69821,6 +69842,10 @@ class Log {
          * The maximum number of log entries to send to each target at a time
          */
         this.batchSize = 10;
+        /**
+         * Parent logger, if any -- used for creating hierarchical loggers
+         */
+        this.parent = null;
         if (options?.logDebugTracing !== undefined) {
             __classPrivateFieldSet(this, _Log_logDebugTracing, options.logDebugTracing, "f");
         }
@@ -69853,9 +69878,15 @@ class Log {
         if (__classPrivateFieldGet(this, _Log_destroyed, "f")) {
             throw (new Error('Cannot register target on destroyed Log instance'));
         }
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        const id = Symbol('LogTargetID');
-        __classPrivateFieldGet(this, _Log_targets, "f").set(id, target);
+        let id;
+        if (this.parent) {
+            id = this.parent.registerTarget(target);
+        }
+        else {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            id = Symbol('LogTargetID');
+            __classPrivateFieldGet(this, _Log_targets, "f").set(id, target);
+        }
         return (id);
     }
     /**
@@ -69875,7 +69906,46 @@ class Log {
         if (__classPrivateFieldGet(this, _Log_destroyed, "f")) {
             return;
         }
-        __classPrivateFieldGet(this, _Log_targets, "f").delete(id);
+        if (this.parent) {
+            this.parent.unregisterTarget(id);
+        }
+        else {
+            __classPrivateFieldGet(this, _Log_targets, "f").delete(id);
+        }
+    }
+    /**
+     * Get the currently registered log targets.
+     *
+     * If this is a child logger, this will return the parent's targets
+     * because child loggers share the same targets as their parent.
+     */
+    get targets() {
+        if (__classPrivateFieldGet(this, _Log_destroyed, "f")) {
+            return ([]);
+        }
+        if (this.parent) {
+            return (this.parent.targets);
+        }
+        return (Array.from(__classPrivateFieldGet(this, _Log_targets, "f").values()));
+    }
+    /**
+     * Create a child logger instance that shares the same targets as this instance
+     * but has its own log queue, this is useful for creating hierarchical loggers
+     * which can call sync independently.
+     *
+     * Since the child shares the same targets, registering or unregistering targets
+     * from either the parent or child will affect both.
+     */
+    createChild() {
+        const child = new Log({
+            logDebugTracing: __classPrivateFieldGet(this, _Log_logDebugTracing, "f")
+        });
+        /**
+         * Attach child nodes to our own parent to collapse
+         * chains of loggers
+         */
+        child.parent = this.parent ?? this;
+        return (child);
     }
     /**
      * Emit a set of logs to all registered targets
@@ -69921,7 +69991,7 @@ class Log {
          * in case a target is added later;  However, if there are
          * too many logs, drop the oldest ones
          */
-        if (__classPrivateFieldGet(this, _Log_targets, "f").size === 0) {
+        if (this.targets.length === 0) {
             if (__classPrivateFieldGet(this, _Log_logs, "f").length > MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS) {
                 __classPrivateFieldGet(this, _Log_logs, "f").splice(0, __classPrivateFieldGet(this, _Log_logs, "f").length - MAX_LOGS_TO_ENQUEUE_WITH_NO_TARGETS);
             }
@@ -69944,7 +70014,7 @@ class Log {
          * while a sync is in progress -- they will continue to be sent
          * to the registered targets at the time of the sync
          */
-        const targets = Array.from(__classPrivateFieldGet(this, _Log_targets, "f").values());
+        const targets = [...this.targets];
         do {
             try {
                 __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
@@ -73372,6 +73442,7 @@ const util_2 = __importDefault(__webpack_require__(9023));
  * native bindings.
  */
 const ASN1_ENCODE_DECODE_PARANOID = process.env['KEETANET_NODE_ASN1_ENCODE_DECODE_PARANOID'] === '1';
+const MAXIMUM_BIGINT_BYTE_LENGTH = 1024;
 function jsBigIntToBuffer(value) {
     /**
      * Convert value to Hex
@@ -73391,21 +73462,39 @@ function jsBigIntToBuffer(value) {
     if (valueStr.length % 2 !== 0) {
         valueStr = '0' + valueStr;
     }
-    /*
-     * Pad with a leading 0 byte if the MSB is 1 to avoid writing a
-     * negative number
-     */
-    const leader = valueStr.slice(0, 2);
-    const leaderValue = Number(`0x${leader}`);
-    if (!isNegative) {
+    if (isNegative) {
+        // Convert to minimal two's complement
+        let n = BigInt('0x' + valueStr);
+        n = -n;
+        // Find minimal byte length
+        const leader = Number('0x' + valueStr.slice(0, 2));
+        let extraByteLength = 0;
+        if (leader > 0x80) {
+            extraByteLength = 1;
+        }
+        const byteLength = valueStr.length / 2 + extraByteLength;
+        // Compute two's complement
+        const mod = 1n << (BigInt(8 * byteLength));
+        const twos = mod + n;
+        let hex = twos.toString(16);
+        if (hex.length % 2 !== 0) {
+            hex = '0' + hex;
+        }
+        // Remove redundant leading ff bytes
+        while (hex.length > 2 && hex.startsWith('ff') && Number.parseInt(hex.slice(2, 4), 16) >= 0x80) {
+            hex = hex.slice(2);
+        }
+        valueStr = hex;
+    }
+    else {
+        const leader = valueStr.slice(0, 2);
+        const leaderValue = Number(`0x${leader}`);
         if (leaderValue > 127) {
             valueStr = '00' + valueStr;
         }
     }
-    else {
-        if (leaderValue <= 127) {
-            valueStr = 'FF' + valueStr;
-        }
+    if (valueStr.length / 2 >= MAXIMUM_BIGINT_BYTE_LENGTH) {
+        throw (new Error(`jsBigIntToBuffer: Unable to encode bigint, too large, goes over maximum byte length of ${MAXIMUM_BIGINT_BYTE_LENGTH}`));
     }
     /*
      * Convert to a buffer
@@ -73413,16 +73502,40 @@ function jsBigIntToBuffer(value) {
     const valueBuffer = Buffer.from(valueStr, 'hex');
     return (valueBuffer);
 }
-/* XXX:TODO: This does not correctly deal with negative values */
+function assertDERInteger(data) {
+    const buf = Buffer.from(data.valueBlock.valueHex);
+    // Check for zero-length integer
+    if (buf.length === 0) {
+        throw (new Error('Invalid DER: Integer has zero length'));
+    }
+    // Check for unnecessary leading zeros (positive numbers)
+    // Only check multi-byte integers
+    if (buf.length > 1 && buf[0] === 0x00 && (buf[1] & 0x80) === 0) {
+        throw (new Error('Invalid DER: Integer has unnecessary leading zero byte'));
+    }
+    // Check for unnecessary leading 0xFF (negative numbers)
+    // Only check multi-byte integers
+    if (buf.length > 1 && buf[0] === 0xFF && (buf[1] & 0x80) !== 0) {
+        throw (new Error('Invalid DER: Integer has unnecessary leading 0xFF byte'));
+    }
+}
 function jsIntegerToBigInt(value) {
-    let valueStr;
-    if (value instanceof asn1js.Integer) {
-        valueStr = value.toString().split(':')[1].trim();
+    if (typeof value === 'number') {
+        return (BigInt(value));
+    }
+    assertDERInteger(value);
+    const buf = Buffer.from(value.valueBlock.valueHex);
+    const isNegative = (buf[0] & 0x80) !== 0;
+    if (!isNegative) {
+        return (BigInt('0x' + buf.toString('hex')));
     }
     else {
-        valueStr = value;
+        // Two's complement: value = unsigned - 2^(8*len)
+        const unsigned = BigInt('0x' + buf.toString('hex'));
+        const bits = BigInt(buf.length * 8);
+        const twosComp = unsigned - (1n << bits);
+        return (twosComp);
     }
-    return (BigInt(valueStr));
 }
 function isASN1Object(input) {
     if (input === null || input === undefined || typeof input !== 'object') {
@@ -75529,6 +75642,9 @@ class BufferStorage {
             default:
                 throw (new Error(`Unsupported conversion: ${encoding}`));
         }
+    }
+    toJSON() {
+        return (this.toString('hex'));
     }
     toBigInt() {
         const hex_value = `0x${this.toString('hex')}`;
@@ -79766,7 +79882,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.13+g566b8de2c01660608e6eb5257113db271d7fc075';
+exports.version = '0.14.14+gdd8e58acb0e1edfb9050da584aaa65b7e5f722a2';
 exports["default"] = exports.version;
 
 

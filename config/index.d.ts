@@ -72,6 +72,9 @@ export interface ValidationConfig {
     };
     blockOperations: {
         external: TextValidationRule;
+        validateNumericValues: {
+            cutoffEpoch: bigint;
+        };
     };
     idempotentKey: {
         maxByteLength: number;

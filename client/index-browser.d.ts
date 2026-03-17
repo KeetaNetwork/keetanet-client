@@ -10,19 +10,19 @@
  */
 import KeetaNet from '../lib';
 import type { GenericAccount, IdentifierKeyAlgorithm, NetworkAddress, TokenAddress } from '../lib/account';
-import Account, { AccountKeyAlgorithm } from '../lib/account';
+import Account from '../lib/account';
 import type { AdjustMethod } from '../lib/block';
 import Block, { BlockHash } from '../lib/block';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import * as Config from '../config';
 import type { BaseNetworkInfo, BaseTokenInfo } from '../lib/utils/initial';
-import type { BuilderOptions, ManageCertificateMethod } from './builder';
+import type { BuilderOptions, ManageCertificateMethod, PendingAccount } from './builder';
 import { UserClientBuilder } from './builder';
 import { KeetaNetError } from '../lib/error';
 import type { AccountInfo, GetAllBalancesResponse, ACLRow, LedgerStatistics } from '../lib/ledger/types';
 import type { LedgerSelector, LedgerStorage } from '../lib/ledger';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
-import { type BlockOperations } from '../lib/block/operations';
+import type { IdentifierCreateArguments, BlockOperations } from '../lib/block/operations';
 import { Certificate } from '../lib/utils/certificate';
 import { CertificateBundle, type CertificateHash } from '../lib/utils/certificate';
 import { VoteStaple, type VoteQuote } from '../lib/vote';
@@ -242,7 +242,7 @@ export declare class Client {
      * is defined by the `Client.DefaultLogger` property, but can be overridden
      * by the application.
      */
-    logger: Pick<Console, "log" | "warn" | "error">;
+    logger: Pick<Console, "warn" | "error" | "log">;
     /**
      * Indication of whether or not this client has been destroyed.
      */
@@ -1171,11 +1171,27 @@ export declare class UserClient {
     /**
      * Generate a new identifier for the given type and publish the blocks
      *
+     * @param toCreate The arguments used to create the identifier (ex: multisig configuration)
+     * @param options The options to use for the request
+     * @return The identifier that was generated
+     */
+    generateIdentifier<CreateArguments extends IdentifierCreateArguments>(toCreate: CreateArguments, options?: UserClientOptions): Promise<PendingAccount<CreateArguments['type']>>;
+    /**
+     * Generate a new identifier for the given type and publish the blocks
+     *
      * @param type The type of identifier to generate
      * @param options The options to use for the request
      * @return The identifier that was generated
      */
-    generateIdentifier(type: IdentifierKeyAlgorithm, options?: UserClientOptions): Promise<import("./builder").PendingAccount<AccountKeyAlgorithm.NETWORK | AccountKeyAlgorithm.TOKEN | AccountKeyAlgorithm.STORAGE | AccountKeyAlgorithm.MULTISIG>>;
+    generateIdentifier<CreateKeyType extends Exclude<IdentifierKeyAlgorithm, IdentifierCreateArguments['type']>>(type: CreateKeyType, options?: UserClientOptions): Promise<PendingAccount<CreateKeyType>>;
+    /**
+     * Generate a new identifier and publish the blocks
+     *
+     * @param toCreate The type of identifier or the arguments to create an identifier
+     * @param options The options to use for the request
+     * @return The identifier that was generated
+     */
+    generateIdentifier(toCreate: Exclude<IdentifierKeyAlgorithm, IdentifierCreateArguments['type']> | IdentifierCreateArguments, options?: UserClientOptions): Promise<PendingAccount<IdentifierKeyAlgorithm>>;
     /**
      * Update the permissions for a given account.  This will publish the
      * changes to the network.

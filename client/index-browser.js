@@ -101256,8 +101256,10 @@ __webpack_require__.d(client_utils_buffer_namespaceObject, {
   BufferStorage: () => (src_client_BufferStorage),
   DecodeBase32: () => (client_DecodeBase32),
   DecodeBase64: () => (client_DecodeBase64),
+  DecodeBase64URL: () => (client_DecodeBase64URL),
   EncodeBase32: () => (client_EncodeBase32),
   EncodeBase64: () => (client_EncodeBase64),
+  EncodeBase64URL: () => (client_EncodeBase64URL),
   ZlibDeflate: () => (client_ZlibDeflate),
   ZlibDeflateAsync: () => (client_ZlibDeflateAsync),
   ZlibInflate: () => (client_ZlibInflate),
@@ -101330,6 +101332,15 @@ __webpack_require__.d(client_utils_asn1_namespaceObject, {
   isValidSequenceSchema: () => (client_isValidSequenceSchema)
 });
 
+// NAMESPACE OBJECT: ./src/lib/utils/conversion.ts
+var client_conversion_namespaceObject = {};
+__webpack_require__.r(client_conversion_namespaceObject);
+__webpack_require__.d(client_conversion_namespaceObject, {
+  objectToBuffer: () => (client_conversion_objectToBuffer),
+  parseHexBigIntString: () => (client_parseHexBigIntString),
+  toJSONSerializable: () => (client_toJSONSerializable)
+});
+
 // NAMESPACE OBJECT: ./src/config/index.ts
 var client_config_namespaceObject = {};
 __webpack_require__.r(client_config_namespaceObject);
@@ -101341,15 +101352,6 @@ __webpack_require__.d(client_config_namespaceObject, {
   getValidation: () => (client_getValidation),
   isNetwork: () => (client_isNetwork),
   networksArray: () => (client_networksArray)
-});
-
-// NAMESPACE OBJECT: ./src/lib/utils/conversion.ts
-var client_conversion_namespaceObject = {};
-__webpack_require__.r(client_conversion_namespaceObject);
-__webpack_require__.d(client_conversion_namespaceObject, {
-  objectToBuffer: () => (client_conversion_objectToBuffer),
-  parseHexBigIntString: () => (client_parseHexBigIntString),
-  toJSONSerializable: () => (client_toJSONSerializable)
 });
 
 // NAMESPACE OBJECT: ./src/lib/utils/certificate.ts
@@ -106163,8 +106165,10 @@ function client_DecodeBase32(data, length) {
   const retval = client_base32.parse(data, {
     loose: true
   });
-  if (retval.length !== length) {
-    throw new Error(`Expected ${length} bytes, got ${retval.length}`);
+  if (length !== undefined) {
+    if (retval.length !== length) {
+      throw new Error(`Expected ${length} bytes, got ${retval.length}`);
+    }
   }
   return retval;
 }
@@ -106181,8 +106185,25 @@ function client_EncodeBase32(data) {
 function client_DecodeBase64(data) {
   return client_bufferToArrayBuffer(client_node_modules_buffer.Buffer.from(data, 'base64'));
 }
+function client_DecodeBase64URL(data) {
+  switch (data.length % 4) {
+    case 2:
+      data += '==';
+      break;
+    case 3:
+      data += '=';
+      break;
+  }
+  data = data.replace(/-/g, '+').replace(/_/g, '/');
+  return client_DecodeBase64(data);
+}
 function client_EncodeBase64(data) {
   return client_node_modules_buffer.Buffer.from(data).toString('base64');
+}
+function client_EncodeBase64URL(data) {
+  let output = client_EncodeBase64(data);
+  output = output.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return output;
 }
 function client_ZlibInflate(data, options) {
   return client_bufferToArrayBuffer(client_lib_default().inflateSync(client_node_modules_buffer.Buffer.from(data), options));
@@ -106202,32 +106223,64 @@ async function client_ZlibDeflateAsync(data) {
 }
 var client_key = /*#__PURE__*/new WeakMap();
 class src_client_BufferStorage {
-  constructor(key, length) {
-    client_buffer_classPrivateFieldInitSpec(this, client_key, void 0);
-    client_buffer_defineProperty(this, "storageKind", 'GenericBuffer');
+  static decodeKey(key, length) {
+    if (key instanceof Uint8Array) {
+      key = client_node_modules_buffer.Buffer.from(key);
+    }
+    if (client_node_modules_buffer.Buffer.isBuffer(key)) {
+      if (length !== undefined && key.length !== length) {
+        throw new Error(`When decoding Buffer we got different number of bytes than expected (${key.length} expected ${length})`);
+      }
+      return client_bufferToArrayBuffer(key);
+    }
+    if (key instanceof ArrayBuffer) {
+      if (length !== undefined && key.byteLength !== length) {
+        throw new Error(`When decoding ArrayBuffer we got different number of bytes than expected (${key.byteLength} expected ${length})`);
+      }
+      return key;
+    }
     if (typeof key === 'string') {
       /*
        * Convert from a hex-encoded string into a buffer
        */
-      const buffer_key = client_node_modules_buffer.Buffer.from(key, 'hex');
-      if (buffer_key.length !== length) {
-        throw new Error(`When decoding buffer we got different number of bytes than expected (${buffer_key.length} expected ${length})`);
+      const keyBuffer = client_node_modules_buffer.Buffer.from(key, 'hex');
+      const keyUint8 = new Uint8Array(keyBuffer);
+      const keyArrayBuffer = keyUint8.buffer;
+      if (length !== undefined && keyBuffer.length !== length) {
+        throw new Error(`When decoding hex string we got different number of bytes than expected (${keyBuffer.length} expected ${length})`);
       }
-      client_buffer_classPrivateFieldSet(client_key, this, buffer_key);
+      return keyArrayBuffer;
     } else if (typeof key === 'bigint') {
+      if (length === undefined) {
+        throw new Error('When decoding BigInt we need to know the expected length of the buffer');
+      }
       let value = key.toString(16);
+      if (value.length % 2 !== 0) {
+        value = '0' + value;
+      }
+
+      // Pad with zeros to length specified
       if (value.length > length * 2) {
-        throw new Error(`When decoding BigInt we got different number of bytes than expected (${value.length} expected ${length * 2})`);
+        throw new Error(`When decoding BigInt we got different number of bytes than expected (${value.length / 2} expected ${length})`);
       }
       value = '0'.repeat(length * 2) + value;
       value = value.slice(length * 2 * -1);
-      client_buffer_classPrivateFieldSet(client_key, this, client_node_modules_buffer.Buffer.from(value, 'hex'));
+      const keyBuffer = client_node_modules_buffer.Buffer.from(value, 'hex');
+      const keyUint8 = new Uint8Array(keyBuffer);
+      const keyArrayBuffer = keyUint8.buffer;
+      return keyArrayBuffer;
     } else {
-      if (client_node_modules_buffer.Buffer.from(key).length !== length) {
-        throw new Error(`When storing buffer we got different number of bytes than expected (${client_node_modules_buffer.Buffer.from(key).length} expected ${length})`);
-      }
-      client_buffer_classPrivateFieldSet(client_key, this, key);
+      return key;
     }
+  }
+  constructor(key, length) {
+    client_buffer_classPrivateFieldInitSpec(this, client_key, void 0);
+    client_buffer_defineProperty(this, "storageKind", 'GenericBuffer');
+    const keyDecoded = src_client_BufferStorage.decodeKey(key, length);
+    if (client_node_modules_buffer.Buffer.from(keyDecoded).length !== length) {
+      throw new Error(`When storing buffer we got different number of bytes than expected (${client_node_modules_buffer.Buffer.from(keyDecoded).length} expected ${length})`);
+    }
+    client_buffer_classPrivateFieldSet(client_key, this, keyDecoded);
   }
   get() {
     return client_buffer_classPrivateFieldGet(client_key, this);
@@ -115147,6 +115200,90 @@ const client_Testing = {
     ASN1IntegerToBigInt: client_jsIntegerToBigInt
   }
 };
+;// ./src/lib/utils/conversion.ts
+/* provided dependency */ var client_conversion_Buffer = __webpack_require__(8287)["Buffer"];
+
+;
+
+// Depth of 10
+
+/* eslint-disable @stylistic/indent */
+
+function client_convertSingleValue(value) {
+  let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  const checkPrefix = function (out, prefix, parseOpts) {
+    if (parseOpts.debugUnsafe && prefix) {
+      out = `[${prefix} ${out}]`;
+    }
+    return out;
+  };
+  let out = value;
+  let prefix;
+  if (typeof value === 'bigint') {
+    if (opts.debugUnsafe) {
+      out = String(value);
+    } else {
+      let positiveValue = value;
+      let sign = '';
+      if (value < 0n) {
+        positiveValue = value * -1n;
+        sign = '-';
+      }
+      const numberAsString = positiveValue.toString(16).toUpperCase();
+      out = `${sign}0x${numberAsString}`;
+    }
+  } else if (client_util.types.isDate(value)) {
+    prefix = 'DATE';
+    out = value.toISOString();
+  } else if (client_util.types.isArrayBuffer(value)) {
+    out = client_conversion_Buffer.from(value).toString('hex').toUpperCase();
+  } else if (value instanceof client_conversion_Buffer) {
+    out = value.toString('hex').toUpperCase();
+  } else if (Array.isArray(value)) {
+    out = value.map(val => client_convertSingleValue(val, opts));
+  } else if (value instanceof Object) {
+    let hasValue = false;
+    if (value.toJSON !== undefined && typeof value.toJSON === 'function') {
+      hasValue = true;
+      out = client_convertSingleValue(value.toJSON(opts), opts);
+    } else if (opts.debugUnsafe && value.toString !== undefined && typeof value.toString === 'function') {
+      const toStringResult = value.toString();
+      if (toStringResult !== '[object Object]') {
+        out = client_convertSingleValue(value.toJSON(), opts);
+        prefix = 'OBJECT';
+        if (typeof value.constructor && value.constructor.name) {
+          prefix = value.constructor.name;
+        }
+        hasValue = true;
+        out = value.toString();
+      }
+    }
+    if (hasValue === false) {
+      const retval = {
+        ...value
+      };
+      for (const key in retval) {
+        retval[key] = client_convertSingleValue(retval[key], opts);
+      }
+      out = retval;
+    }
+  }
+  return checkPrefix(out, prefix, opts);
+}
+function client_toJSONSerializable(data, opts) {
+  return JSON.parse(JSON.stringify(client_convertSingleValue(data, opts)));
+}
+function client_conversion_objectToBuffer(data) {
+  let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  return client_conversion_Buffer.from(JSON.stringify(client_convertSingleValue(data, opts)));
+}
+function client_parseHexBigIntString(input) {
+  if (input.startsWith('-')) {
+    return BigInt(input.substring(1)) * -1n;
+  } else {
+    return BigInt(input);
+  }
+}
 ;// ./src/config/index.ts
 
 
@@ -115217,7 +115354,7 @@ const client_baseValidationConfig = {
     }
   },
   idempotentKey: {
-    maxByteLength: 32
+    maxByteLength: 36
   }
 };
 function client_getNetworkAlias(networkOrID) {
@@ -116064,7 +116201,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS'];
+const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS', 'SIGNATURE_REQUIRED', 'SIGNATURE_PARAMETER_DIFFERS'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -116076,88 +116213,6 @@ class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
 }
 client_KeetaNetBlockError = src_client_KeetaNetBlockError;
 client_block_defineProperty(src_client_KeetaNetBlockError, "isInstance", client_checkableGenerator(client_KeetaNetBlockError));
-;// ./src/lib/utils/conversion.ts
-/* provided dependency */ var client_conversion_Buffer = __webpack_require__(8287)["Buffer"];
-
-;
-
-/* eslint-disable @stylistic/indent */
-
-function client_convertSingleValue(value) {
-  let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-  const checkPrefix = function (out, prefix, parseOpts) {
-    if (parseOpts.debugUnsafe && prefix) {
-      out = `[${prefix} ${out}]`;
-    }
-    return out;
-  };
-  let out = value;
-  let prefix;
-  if (typeof value === 'bigint') {
-    if (opts.debugUnsafe) {
-      out = String(value);
-    } else {
-      let positiveValue = value;
-      let sign = '';
-      if (value < 0n) {
-        positiveValue = value * -1n;
-        sign = '-';
-      }
-      const numberAsString = positiveValue.toString(16).toUpperCase();
-      out = `${sign}0x${numberAsString}`;
-    }
-  } else if (client_util.types.isDate(value)) {
-    prefix = 'DATE';
-    out = value.toISOString();
-  } else if (client_util.types.isArrayBuffer(value)) {
-    out = client_conversion_Buffer.from(value).toString('hex').toUpperCase();
-  } else if (value instanceof client_conversion_Buffer) {
-    out = value.toString('hex').toUpperCase();
-  } else if (Array.isArray(value)) {
-    out = value.map(val => client_convertSingleValue(val, opts));
-  } else if (value instanceof Object) {
-    let hasValue = false;
-    if (value.toJSON !== undefined && typeof value.toJSON === 'function') {
-      hasValue = true;
-      out = client_convertSingleValue(value.toJSON(opts), opts);
-    } else if (opts.debugUnsafe && value.toString !== undefined && typeof value.toString === 'function') {
-      const toStringResult = value.toString();
-      if (toStringResult !== '[object Object]') {
-        out = client_convertSingleValue(value.toJSON(), opts);
-        prefix = 'OBJECT';
-        if (typeof value.constructor && value.constructor.name) {
-          prefix = value.constructor.name;
-        }
-        hasValue = true;
-        out = value.toString();
-      }
-    }
-    if (hasValue === false) {
-      const retval = {
-        ...value
-      };
-      for (const key in retval) {
-        retval[key] = client_convertSingleValue(retval[key], opts);
-      }
-      out = retval;
-    }
-  }
-  return checkPrefix(out, prefix, opts);
-}
-function client_toJSONSerializable(data, opts) {
-  return JSON.parse(JSON.stringify(client_convertSingleValue(data, opts)));
-}
-function client_conversion_objectToBuffer(data) {
-  let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-  return client_conversion_Buffer.from(JSON.stringify(client_convertSingleValue(data, opts)));
-}
-function client_parseHexBigIntString(input) {
-  if (input.startsWith('-')) {
-    return BigInt(input.substring(1)) * -1n;
-  } else {
-    return BigInt(input);
-  }
-}
 ;// ./src/lib/error/certificate.ts
 var client_KeetaNetCertificateError;
 function client_certificate_defineProperty(e, r, t) { return (r = client_certificate_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -116190,6 +116245,8 @@ function client_certificate_checkPrivateRedeclaration(e, t) { if (t.has(e)) thro
 function client_certificate_classPrivateFieldGet(s, a) { return s.get(client_certificate_assertClassBrand(s, a)); }
 function client_certificate_classPrivateFieldSet(s, a, r) { return s.set(client_certificate_assertClassBrand(s, a), r), r; }
 function client_certificate_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+
 
 
 
@@ -116324,9 +116381,11 @@ function client_fromDNSequenceToString(dn) {
 }
 const client_defaultHashName = client_HashFunctionName;
 var client_params = /*#__PURE__*/new WeakMap();
+var client_caPathLen = /*#__PURE__*/new WeakMap();
 class client_CertificateBuilder {
   constructor(params) {
     client_certificate_classPrivateFieldInitSpec(this, client_params, void 0);
+    client_certificate_classPrivateFieldInitSpec(this, client_caPathLen, void 0);
     client_certificate_classPrivateFieldSet(client_params, this, {
       ...params
     });
@@ -116391,6 +116450,13 @@ class client_CertificateBuilder {
   }
 
   /**
+   * Set the CA path length
+   */
+  setCAPathLen(pathLen) {
+    client_certificate_classPrivateFieldSet(client_caPathLen, this, pathLen);
+  }
+
+  /**
    * Produce the extensions to include in this certificate
    */
   async addExtensions(params) {
@@ -116412,17 +116478,21 @@ class client_CertificateBuilder {
       isCertificateAuthority = params.isCA;
     }
     if (isCertificateAuthority) {
+      const basicConstraints = [true];
+      if (client_certificate_classPrivateFieldGet(client_caPathLen, this) !== undefined) {
+        basicConstraints.push(client_certificate_classPrivateFieldGet(client_caPathLen, this));
+      }
       extensions.push(/** Extension: Basic Constraints (CA) */
-      client_CertificateBuilder.extension('2.5.29.19', [true], true), /** Extension: Key Usage */
+      client_CertificateBuilder.extension('2.5.29.19', basicConstraints, true), /** Extension: Key Usage */
       client_CertificateBuilder.extension('2.5.29.15', {
         type: 'bitstring',
-        value: client_certificate_Buffer.from([0 | 1 << 1 /* CRL Sign */ | 1 << 2 /* Cert Sign */ | 0 << 3 /* Key Agreement */ | 0 << 4 /* Data Encipherment */ | 0 << 5 /* Key Encipherment */ | 1 << 6 /* Non Repudiation */ | 1 << 7 /* Digital Signature */])
+        value: client_certificate_Buffer.from([0 /* encipherOnly and decipherOnly */ | 1 << 1 /* CRL Sign */ | 1 << 2 /* Cert Sign */ | 0 << 3 /* Key Agreement */ | 0 << 4 /* Data Encipherment */ | 0 << 5 /* Key Encipherment */ | 1 << 6 /* Non Repudiation */ | 1 << 7 /* Digital Signature */])
       }, true));
     } else {
       extensions.push(/** Extension: Key Usage */
       client_CertificateBuilder.extension('2.5.29.15', {
         type: 'bitstring',
-        value: client_certificate_Buffer.from([0 | 0 << 1 /* CRL Sign */ | 0 << 2 /* Cert Sign */ | 0 << 3 /* Key Agreement */ | 0 << 4 /* Data Encipherment */ | 0 << 5 /* Key Encipherment */ | 1 << 6 /* Non Repudiation */ | 1 << 7 /* Digital Signature */])
+        value: client_certificate_Buffer.from([0 /* encipherOnly and decipherOnly */ | 0 << 1 /* CRL Sign */ | 0 << 2 /* Cert Sign */ | 0 << 3 /* Key Agreement */ | 0 << 4 /* Data Encipherment */ | 0 << 5 /* Key Encipherment */ | 1 << 6 /* Non Repudiation */ | 1 << 7 /* Digital Signature */])
       }, true));
     }
 
@@ -116673,6 +116743,10 @@ class src_client_CertificateBundle {
   constructor(input) {
     client_certificate_classPrivateFieldInitSpec(this, client_raw, void 0);
     client_certificate_classPrivateFieldInitSpec(this, client_contents, void 0);
+    // If input is toJSON output
+    if (typeof input === 'object' && 'certificates' in input) {
+      input = input.certificates;
+    }
     if (src_client_CertificateBundle.isInstance(input)) {
       client_certificate_classPrivateFieldSet(client_raw, this, input.getDER());
     } else if (Array.isArray(input) || input instanceof Set) {
@@ -116742,11 +116816,13 @@ class src_client_CertificateBundle {
 }
 client_CertificateBundle = src_client_CertificateBundle;
 client_utils_certificate_defineProperty(src_client_CertificateBundle, "isInstance", client_checkableGenerator(client_CertificateBundle));
+const client_keyUsageBits = ['digitalSignature', 'nonRepudiation', 'keyEncipherment', 'dataEncipherment', 'keyAgreement', 'keyCertSign', 'cRLSign', 'encipherOnly', 'decipherOnly'];
 var client_raw2 = /*#__PURE__*/new WeakMap();
 var client_hash = /*#__PURE__*/new WeakMap();
 var client_extensionsRaw = /*#__PURE__*/new WeakMap();
 var client_extensionsProcessed = /*#__PURE__*/new WeakMap();
 var client_finalizeConstructionCalled = /*#__PURE__*/new WeakMap();
+var client_isSelfSigned = /*#__PURE__*/new WeakMap();
 var client_Certificate_brand = /*#__PURE__*/new WeakSet();
 class src_client_Certificate {
   /**
@@ -116789,6 +116865,10 @@ class src_client_Certificate {
      * Has finalizeConstruction been called?
      */
     client_certificate_classPrivateFieldInitSpec(this, client_finalizeConstructionCalled, false);
+    /**
+     * Cached value for isSelfSigned
+     */
+    client_certificate_classPrivateFieldInitSpec(this, client_isSelfSigned, void 0);
     /*
      * If a certificate is provided, then extract the raw
      * certificate and process it -- do not merge any of
@@ -116797,6 +116877,16 @@ class src_client_Certificate {
     if (src_client_Certificate.isCertificate(input)) {
       // For use in browser, have to use toDER instead of accessing #raw directly
       input = input.toDER();
+    } else if (!client_util.types.isArrayBuffer(input) && !client_certificate_Buffer.isBuffer(input) && typeof input === 'object') {
+      /**
+       * If certificate input is output from toJSON then reconstruct from $binary
+       * $binary is PEM format which will get parsed later
+       */
+      if ('$binary' in input && input.$binary !== undefined) {
+        input = input.$binary;
+      } else {
+        throw new Error('Certificate from JSON should include $binary');
+      }
     }
 
     /*
@@ -116973,7 +117063,11 @@ class src_client_Certificate {
    * Verifies that a certificate is self-signed
    */
   isSelfSigned() {
-    return this.checkIssued(this);
+    if (client_certificate_classPrivateFieldGet(client_isSelfSigned, this) !== undefined) {
+      return client_certificate_classPrivateFieldGet(client_isSelfSigned, this);
+    }
+    client_certificate_classPrivateFieldSet(client_isSelfSigned, this, this.checkIssued(this));
+    return client_certificate_classPrivateFieldGet(client_isSelfSigned, this);
   }
 
   /**
@@ -117040,6 +117134,77 @@ class src_client_Certificate {
   }
 
   /**
+   * Verify that a given chain meets the depth requirements
+   */
+  static verifyChainDepth(chain) {
+    if (chain.length === 0) {
+      return {
+        valid: false,
+        reason: 'Empty chain'
+      };
+    }
+    const depthByIssuer = new Map();
+
+    // Traverse from root to leaf
+    for (let i = 0; i < chain.length; i++) {
+      var _certificate$baseExte, _certificate$baseExte2;
+      const certificate = chain[i];
+
+      // Leaf certificates are still validated for total depth but excluded from other checks
+      const isLeaf = i === chain.length - 1;
+      const basicConstraints = (_certificate$baseExte = certificate.baseExtensions) === null || _certificate$baseExte === void 0 ? void 0 : _certificate$baseExte.basicConstraints;
+
+      // basicConstraints are required for CA if it's not a leaf
+      if (!isLeaf && !basicConstraints) {
+        return {
+          valid: false,
+          reason: `Missing basicConstraints in certificate: ${certificate.subject}`
+        };
+      }
+      const [isCA, pathLenConstraint] = basicConstraints !== null && basicConstraints !== void 0 ? basicConstraints : [false, undefined];
+
+      // Root and intermediates should be a CA
+      if (!isLeaf && !isCA) {
+        return {
+          valid: false,
+          reason: `Non-CA certificate in chain: ${certificate.subject}`
+        };
+      }
+
+      // CA should have usage set to be able to sign
+      const keyUsage = (_certificate$baseExte2 = certificate.baseExtensions) === null || _certificate$baseExte2 === void 0 ? void 0 : _certificate$baseExte2.keyUsage;
+      if (!isLeaf && keyUsage && !keyUsage.keyCertSign) {
+        return {
+          valid: false,
+          reason: `CA certificate missing keyCertSign in keyUsage: ${certificate.subject}`
+        };
+      }
+
+      // Skip constraint checks if self-signed
+      if (!certificate.isSelfSigned()) {
+        // Validate against all existing constraints
+        for (const [issuer, remainingDepth] of depthByIssuer.entries()) {
+          if (remainingDepth < 0n) {
+            return {
+              valid: false,
+              reason: `Path length constraint exceeded for CA: ${issuer.subject} on Certificate: ${certificate.subject}`
+            };
+          }
+          depthByIssuer.set(issuer, remainingDepth - 1n);
+        }
+      }
+
+      // If this cert is a CA and has a pathLenConstraint, track it
+      if (pathLenConstraint !== undefined) {
+        depthByIssuer.set(certificate, pathLenConstraint);
+      }
+    }
+    return {
+      valid: true
+    };
+  }
+
+  /**
    * Asserts provided certificates can construct a valid graph with no loops or orphans, and that all provided certificates can reach the root, or current certificate
    * @param certificates Additional intermediate certificates to verify
    */
@@ -117103,6 +117268,7 @@ class src_client_Certificate {
   /**
    * Verify against a given certificate store
    */
+
   verifyChain(store, _ignore_seenCerts) {
     /*
      * Check to see if the certificate is signed by any of the Root CAs
@@ -117115,10 +117281,15 @@ class src_client_Certificate {
       if (retval !== null) {
         return;
       }
-      const checkIssued = this.checkIssued(rootCertificate, true);
+      const checkIssued = client_certificate_assertClassBrand(client_Certificate_brand, this, client_checkIssued).call(this, rootCertificate);
       if (checkIssued.issued) {
         if (rootCertificate.checkValid(this.moment)) {
-          retval = [rootCertificate];
+          const checkRetval = [rootCertificate];
+          const validChain = src_client_Certificate.verifyChainDepth([...checkRetval, this]);
+          if (validChain.valid) {
+            retval = checkRetval;
+            return;
+          }
         }
       }
     });
@@ -117134,12 +117305,17 @@ class src_client_Certificate {
         if (retval !== null) {
           return;
         }
-        if (this.checkIssued(intermediateCertificate)) {
+        const checkIssued = client_certificate_assertClassBrand(client_Certificate_brand, this, client_checkIssued).call(this, intermediateCertificate);
+        if (checkIssued.issued) {
           if (intermediateCertificate.checkValid(this.moment)) {
-            const moreChain = intermediateCertificate.verifyChain(store /* , seenCerts XXX:TODO */);
+            const moreChain = intermediateCertificate.verifyChain(store, undefined /* seenCerts XXX:TODO */);
             if (moreChain !== null) {
-              retval = [...moreChain, intermediateCertificate];
-              return;
+              const checkRetval = [...moreChain, intermediateCertificate];
+              const validChain = src_client_Certificate.verifyChainDepth([...checkRetval, this]);
+              if (validChain.valid) {
+                retval = checkRetval;
+                return;
+              }
             }
           }
         }
@@ -117172,6 +117348,10 @@ class src_client_Certificate {
       throw new src_client_KeetaNetCertificateError('CERTIFICATE_MOMENT_INVALID', `Certificate is not valid: ${valid.reason}`);
     }
   }
+
+  /**
+   * Check if the certificate is issued by a given issuer
+   */
 
   /**
    * Check if the certificate is issued by a given issuer
@@ -117320,7 +117500,8 @@ class src_client_Certificate {
 
     // XXX:TODO Fix this type
     const additionalFields = {};
-    if (options !== null && options !== void 0 && options.addBinary) {
+    // Default to including $binary so we can reconstruct this cert from PEM
+    if (options === undefined || options.addBinary !== false) {
       additionalFields['$binary'] = this.toPEM();
     }
     if (includeChain && this.chain !== undefined) {
@@ -117331,7 +117512,7 @@ class src_client_Certificate {
         }, false);
       });
     }
-    return {
+    return client_toJSONSerializable({
       serial: this.serial,
       notBefore: this.notBefore,
       notAfter: this.notAfter,
@@ -117343,7 +117524,7 @@ class src_client_Certificate {
       issuerDN: client_fromDNSequence(this.issuerDNSet),
       $hash: this.hash(),
       ...additionalFields
-    };
+    });
   }
 }
 client_Certificate = src_client_Certificate;
@@ -117392,6 +117573,36 @@ function client_processBaseExtensions(extensionsObject) {
   }
   client_certificate_assertClassBrand(client_Certificate_brand, this, client_processExtensionsInternal).call(this, extensions, client_certificate_classPrivateFieldGet(client_extensionsProcessed, this), client_certificate_assertClassBrand(client_Certificate_brand, this, client_processBaseExtension).bind(this));
 }
+function client_parseKeyUsage(buffer) {
+  let unusedBits = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+  const result = {};
+  let bitIndex = 0;
+  for (let byteIndex = 0; byteIndex < buffer.length; byteIndex++) {
+    const byte = buffer[byteIndex];
+    let bitsToRead = 8;
+
+    // If it's the last byte, subtract unused bits
+    if (byteIndex === buffer.length - 1 && unusedBits > 0) {
+      bitsToRead -= unusedBits;
+    }
+    for (let bit = 7; bit >= 8 - bitsToRead; bit--) {
+      if (bitIndex >= client_keyUsageBits.length) {
+        break;
+      }
+      const usageName = client_keyUsageBits[bitIndex];
+      const isSet = (byte & 1 << bit) !== 0;
+      result[usageName] = isSet;
+      bitIndex++;
+    }
+  }
+
+  // Fill in remaining with false
+  while (bitIndex < client_keyUsageBits.length) {
+    result[client_keyUsageBits[bitIndex]] = false;
+    bitIndex++;
+  }
+  return result;
+}
 /**
  * Process an extension -- returns true if the extension was processed
  * false otherwise
@@ -117417,8 +117628,12 @@ function client_processBaseExtension(id, value) {
       }
     /** Extension: Key Usage */
     case '2.5.29.15':
-      /* XXX:TODO */
-      return true;
+      {
+        /* XXX:TODO */
+        const bits = new client_BufferStorageASN1(value, client_ValidateASN1.IsBitString).getASN1();
+        this.baseExtensions.keyUsage = client_certificate_assertClassBrand(client_Certificate_brand, this, client_parseKeyUsage).call(this, bits.value, bits.unusedBits);
+        return true;
+      }
     /** Extension: Authority Key Identifier */
     case '2.5.29.35':
       this.baseExtensions.authorityKeyIdentifier = new client_BufferStorageASN1(value, [{
@@ -117489,7 +117704,7 @@ function client_checkValid(moment) {
   }
 }
 function client_checkIssued(issuer) {
-  var _this$baseExtensions;
+  var _this$baseExtensions, _issuer$baseExtension2, _issuer$baseExtension3;
   /**
    * Compare the issuerDN and the subjectDN byte-for-byte
    */
@@ -117539,7 +117754,18 @@ function client_checkIssued(issuer) {
    * Verify that the issuer has the authority to issue the
    * certificate (basic constraints)
    */
-  /* XXX:TODO */
+  if (((_issuer$baseExtension2 = issuer.baseExtensions) === null || _issuer$baseExtension2 === void 0 ? void 0 : _issuer$baseExtension2.basicConstraints) === undefined) {
+    return {
+      issued: false,
+      reason: 'Issuer certificate lacks the ability to sign certificates (missing basicConstraints)'
+    };
+  }
+  if (!issuer.baseExtensions.basicConstraints[0]) {
+    return {
+      issued: false,
+      reason: 'Issuer certificate lacks the ability to sign certificates (basicConstraints is false)'
+    };
+  }
 
   /**
    * If the key usage extension is present, then check that the
@@ -117547,6 +117773,13 @@ function client_checkIssued(issuer) {
    * a CA
    */
   /* XXX:TODO */
+  const keyUsage = (_issuer$baseExtension3 = issuer.baseExtensions) === null || _issuer$baseExtension3 === void 0 ? void 0 : _issuer$baseExtension3.keyUsage;
+  if (keyUsage && !keyUsage.keyCertSign) {
+    return {
+      issued: false,
+      reason: `CA certificate missing keyCertSign in keyUsage`
+    };
+  }
 
   /**
    * Verify the signature
@@ -118459,6 +118692,7 @@ function client_operations_toPrimitive(t, r) { if ("object" != typeof t || !t) r
 
 
 
+
 /**
  * All supported operations
  */
@@ -118684,7 +118918,10 @@ class src_client_BlockOperation {
     if (amount === undefined || amount === null) {
       throw new Error('internal error: "amount" is invalid');
     }
-    return BigInt(amount);
+    if (typeof amount === 'bigint') {
+      return amount;
+    }
+    return client_parseHexBigIntString(amount);
   }
 }
 client_BlockOperation = src_client_BlockOperation;
@@ -118762,13 +118999,13 @@ class src_client_BlockOperationSEND extends src_client_BlockOperation {
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       to: this.to,
       amount: this.amount,
       external: this.external,
       token: this.token
-    };
+    });
   }
 }
 client_BlockOperationSEND = src_client_BlockOperationSEND;
@@ -118857,14 +119094,14 @@ class src_client_BlockOperationRECEIVE extends src_client_BlockOperation {
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       amount: this.amount,
       token: this.token,
       from: this.from,
       exact: this.exact,
       forward: this.forward
-    };
+    });
   }
 }
 client_BlockOperationRECEIVE = src_client_BlockOperationRECEIVE;
@@ -118935,12 +119172,12 @@ class src_client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends src_client_Blo
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       token: this.token,
       amount: this.amount,
       method: this.method
-    };
+    });
   }
 }
 
@@ -118991,10 +119228,10 @@ class src_client_BlockOperationSET_REP extends src_client_BlockOperation {
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       to: this.to
-    };
+    });
   }
 }
 
@@ -119075,11 +119312,11 @@ class src_client_BlockOperationCREATE_IDENTIFIER extends src_client_BlockOperati
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       identifier: this.identifier,
       createArguments: client_operations_classPrivateFieldGet(client_createArguments, this)
-    };
+    });
   }
 }
 
@@ -119209,7 +119446,7 @@ class src_client_BlockOperationSET_INFO extends src_client_BlockOperation {
     if (this.defaultPermission !== undefined) {
       val.defaultPermission = this.defaultPermission;
     }
-    return val;
+    return client_toJSONSerializable(val);
   }
 }
 
@@ -119344,13 +119581,13 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
     }
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       principal: this.principal,
       method: this.method,
       permissions: this.permissions,
       target: this.target
-    };
+    });
   }
 }
 
@@ -119404,11 +119641,11 @@ class src_client_BlockOperationTOKEN_ADMIN_SUPPLY extends src_client_BlockOperat
     client_validateSupply(client_operations_classPrivateFieldGet(client_amount4, this), block.network);
   }
   toJSON() {
-    return {
+    return client_toJSONSerializable({
       type: this.type,
       amount: this.amount,
       method: this.method
-    };
+    });
   }
 }
 
@@ -119516,33 +119753,12 @@ class client_BlockOperationMANAGE_CERTIFICATE extends src_client_BlockOperation 
     }
   }
   toJSON() {
-    let intermediateCertificates;
-    if (client_operations_classPrivateFieldGet(client_method4, this) === client_lib_block.AdjustMethod.SUBTRACT) {
-      intermediateCertificates = undefined;
-    } else {
-      intermediateCertificates = null;
-      if (client_operations_classPrivateFieldGet(client_intermediateCertificates, this) && client_operations_classPrivateFieldGet(client_intermediateCertificates, this).bundleSize > 0) {
-        intermediateCertificates = client_operations_classPrivateFieldGet(client_intermediateCertificates, this).getDERBuffer().toString('base64');
-      }
-    }
-    let serializedCertificate;
-    if (client_operations_classPrivateFieldGet(client_method4, this) === client_lib_block.AdjustMethod.SUBTRACT) {
-      if (!src_client_CertificateHash.isInstance(this.certificateOrHash)) {
-        throw new Error('Invalid response from get certificate, expected a CertificateHash');
-      }
-      serializedCertificate = this.certificateOrHash.toString();
-    } else {
-      if (!src_client_Certificate.isCertificate(this.certificateOrHash)) {
-        throw new Error('Invalid response from get certificate, expected a Certificate');
-      }
-      serializedCertificate = this.certificateOrHash.toPEM();
-    }
-    return {
+    return client_toJSONSerializable({
       type: this.type,
-      certificateOrHash: serializedCertificate,
+      certificateOrHash: this.certificateOrHash,
       method: this.method,
-      intermediateCertificates: intermediateCertificates
-    };
+      intermediateCertificates: this.intermediateCertificates
+    });
   }
 }
 
@@ -119560,6 +119776,10 @@ function client_asCertificate(certificate) {
     return new src_client_Certificate(certificate);
   } catch {
     /* Ignore Errors */
+  }
+  if (!client_util.types.isArrayBuffer(certificate) && !client_operations_Buffer.isBuffer(certificate) && typeof certificate === 'object') {
+    // We still have an object that should have created a certificate but it failed
+    throw new Error('Could not reconstruct Certificate from JSON');
   }
   try {
     return new src_client_CertificateHash(certificate);
@@ -119606,14 +119826,15 @@ function client_createBlockOperation(input) {
 function client_isBlockOperation(input) {
   return src_client_BlockOperation.isInstance(input, false);
 }
+
 /**
  * Export the "operations" mapping as something compatible with being
  * serialized to JSON
  */
 function client_ExportOperationsJSON(operations) {
-  return client_toJSONSerializable(operations.map(function (operation) {
+  return operations.map(function (operation) {
     return operation.toJSON();
-  }));
+  });
 }
 function client_ImportOperationsJSON(operations) {
   const newOperations = [];
@@ -119799,10 +120020,11 @@ function client_ImportOperationsASN1(input, network) {
 }
 ;// ./src/lib/block/index.ts
 /* provided dependency */ var client_block_Buffer = __webpack_require__(8287)["Buffer"];
-var client_BlockHash, client_Block, client_BlockBuilder;
+var client_BlockHash, client_PossiblyUnsignedBlock, client_UnsignedBlock, client_Block, client_BlockBuilder;
 function client_block_classPrivateMethodInitSpec(e, a) { client_block_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_block_classPrivateFieldInitSpec(e, t, a) { client_block_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_block_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function src_client_classPrivateGetter(s, r, a) { return a(client_block_assertClassBrand(s, r)); }
 function client_block_classPrivateFieldGet(s, a) { return s.get(client_block_assertClassBrand(s, a)); }
 function client_block_classPrivateFieldSet(s, a, r) { return s.set(client_block_assertClassBrand(s, a), r), r; }
 function client_block_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
@@ -119823,6 +120045,7 @@ function client_lib_block_toPrimitive(t, r) { if ("object" != typeof t || !t) re
  *
  * But for now we handle them one-by-one.
  */
+
 
 
 
@@ -120099,6 +120322,12 @@ function client_ignore_static_checks() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _ignore_check_blockasn1v2_reverse_2 = _ignore_check_blockasn1v2_reverse_1;
 }
+function client_validateIdempotentKeyLength(idempotent, network) {
+  const idempotentValidationConfig = client_getValidation(network).idempotentKey;
+  if (idempotent.length > idempotentValidationConfig.maxByteLength) {
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${idempotent.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`);
+  }
+}
 function client_parseBlockIdempotent(input, network) {
   let output;
   if (client_block_Buffer.isBuffer(input)) {
@@ -120114,10 +120343,7 @@ function client_parseBlockIdempotent(input, network) {
     throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent');
   }
   if (network !== undefined) {
-    const idempotentValidationConfig = client_getValidation(network).idempotentKey;
-    if (output.length > idempotentValidationConfig.maxByteLength) {
-      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${output.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`);
-    }
+    client_validateIdempotentKeyLength(output, network);
   }
   return output;
 }
@@ -120279,6 +120505,15 @@ function client_assertBlockSignatureField(input) {
     throw new Error('Input must include 1+ signatures');
   }
 }
+function client_getBlockSignatureFieldFromVersion(version) {
+  if (version === 1) {
+    return 'signature';
+  } else if (version === 2) {
+    return 'signatures';
+  } else {
+    throw new Error(`Unsupported block version for signature field: ${version}`);
+  }
+}
 
 /**
  * Block:  An item which contains a number of operations (transactions) which
@@ -120286,10 +120521,9 @@ function client_assertBlockSignatureField(input) {
  */
 var client_valueBytes = /*#__PURE__*/new WeakMap();
 var client_valueHash = /*#__PURE__*/new WeakMap();
-var client_Block_brand = /*#__PURE__*/new WeakSet();
-class src_client_Block {
-  // Canonical Fields
-
+var client_hasSignature = /*#__PURE__*/new WeakMap();
+var client_PossiblyUnsignedBlock_brand = /*#__PURE__*/new WeakSet();
+class src_client_PossiblyUnsignedBlock {
   get principal() {
     if (Array.isArray(this.signer)) {
       return this.signer[0];
@@ -120297,55 +120531,45 @@ class src_client_Block {
       return this.signer;
     }
   }
-  static async fromUnsignedJSON(input) {
-    const inputCheck = input;
-    if (typeof inputCheck === 'object' && inputCheck !== null) {
-      if ('signature' in inputCheck || 'signatures' in inputCheck) {
-        throw new Error('fromUnsignedJSON() was called when a signature(s) already exists');
+  static getSortedRequiredSigners(input) {
+    const queue = [input];
+    const visited = new client_lib_account.Set();
+    const out = [];
+    while (queue.length > 0) {
+      // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const cur = queue.shift();
+      if (client_lib_account.isInstance(cur)) {
+        if (visited.has(cur)) {
+          continue;
+        }
+        visited.add(cur);
+        out.push(cur);
+      } else {
+        queue.unshift(...cur[1]);
       }
     }
-    const container = this.getASN1ContainerWithoutSignature(input);
-    // We have to ignore the type here because the ASN1.JStoASN1 function does not handle recursive types well
-    // @ts-ignore
-    const bytes = client_JStoASN1(container).toBER(false);
-    const hash = new client_block_BlockHash(client_hash_Hash(client_block_Buffer.from(bytes)));
-    const signers = client_block_assertClassBrand(src_client_Block, this, client_getSortedRequiredSigners).call(this, input.signer);
-    const signatures = await Promise.all(signers.map(async function (signer) {
-      const signature = await signer.sign(hash.getBuffer());
-      return signature.getBuffer();
-    }));
-    let blockInput;
-    if (input.version === 1) {
-      blockInput = {
-        ...input,
-        signature: signatures[0]
-      };
-    } else {
-      blockInput = {
-        ...input,
-        signatures
-      };
-    }
-    return new src_client_Block(blockInput);
+    return out;
   }
-  static isValidJSON(block, version) {
+
+  // Extra attributes
+
+  static isValidJSONSignedOrUnsigned(assertSignatureIncluded, block, version) {
     if (!block || typeof block !== 'object' || Array.isArray(block)) {
       return false;
     }
-    if (!('version' in block)) {
+    if (!('version' in block) || typeof block.version !== 'number') {
       return false;
     }
     if (version !== undefined && block.version !== version) {
       return false;
     }
     const checkFields = ['date', 'previous', 'network', 'network', 'account', 'signer', 'operations'];
-    if (block.version === 1) {
-      checkFields.push('signature');
-    } else if (block.version === 2) {
-      checkFields.push('signatures');
+    if (assertSignatureIncluded) {
+      checkFields.push(client_getBlockSignatureFieldFromVersion(block.version));
+    }
+    if (block.version === 2) {
       checkFields.push('purpose');
-    } else {
-      return false;
     }
     for (const checkField of checkFields) {
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -120355,11 +120579,11 @@ class src_client_Block {
     }
     return true;
   }
-  constructor(input) {
-    client_block_classPrivateMethodInitSpec(this, client_Block_brand);
+  constructor(input, hasSignature) {
+    client_block_classPrivateMethodInitSpec(this, client_PossiblyUnsignedBlock_brand);
     client_block_classPrivateFieldInitSpec(this, client_valueBytes, void 0);
     client_block_classPrivateFieldInitSpec(this, client_valueHash, void 0);
-    // Extra attributes
+    client_block_classPrivateFieldInitSpec(this, client_hasSignature, void 0);
     client_lib_block_defineProperty(this, "$opening", false);
     if (typeof input === 'string') {
       input = client_block_Buffer.from(input, 'base64');
@@ -120367,7 +120591,10 @@ class src_client_Block {
     if (client_isBuffer(input)) {
       input = client_bufferToArrayBuffer(input);
     }
+    let foundSignatureField;
     if (client_util.types.isArrayBuffer(input)) {
+      // For some reason, typescript says this is excessively deep
+      // @ts-ignore
       const data = new client_BufferStorageASN1(input, client_BlockASN1Schema).getASN1();
       if (Array.isArray(data)) {
         var _data$, _data$2;
@@ -120394,7 +120621,12 @@ class src_client_Block {
         const prevHashBuf = data[7];
         this.previous = new client_block_BlockHash(prevHashBuf);
         this.operations = client_ImportOperationsASN1(data[8], this.network);
-        this.signatures = [data[9]];
+        if (data[9]) {
+          // @ts-ignore
+          foundSignatureField = [data[9]];
+        } else {
+          foundSignatureField = null;
+        }
       } else if (data.value === 1) {
         var _container$, _container$2;
         this.version = 2;
@@ -120419,21 +120651,27 @@ class src_client_Block {
         this.previous = new client_block_BlockHash(container[7]);
         this.operations = client_ImportOperationsASN1(container[8], this.network);
         const signatureContainer = container[9];
-        if (client_block_Buffer.isBuffer(signatureContainer)) {
-          this.signatures = [signatureContainer];
-        } else {
-          if (signatureContainer.length <= 1) {
-            throw new Error('Signature field invalid, must be greater than one when using sequence of');
+        if (signatureContainer) {
+          if (client_block_Buffer.isBuffer(signatureContainer)) {
+            foundSignatureField = [signatureContainer];
+          } else {
+            if (signatureContainer.length <= 1) {
+              throw new Error('Signature field invalid, must be greater than one when using sequence of');
+            }
+            client_assertBlockSignatureField(signatureContainer);
+            foundSignatureField = signatureContainer;
           }
-          client_assertBlockSignatureField(signatureContainer);
-          this.signatures = signatureContainer;
+        } else {
+          foundSignatureField = null;
         }
       } else {
         throw new Error('Unknown block version');
       }
       client_block_classPrivateFieldSet(client_valueBytes, this, input);
     } else {
-      if (src_client_Block.isInstance(input)) {
+      // These will be loaded even though they are defined later in the file because the constructor does not get automatically called before their definitions
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      if (src_client_Block.isInstance(input) || src_client_UnsignedBlock.isInstance(input)) {
         this.version = input.version;
         this.purpose = input.purpose;
         this.idempotent = input.idempotent;
@@ -120444,8 +120682,8 @@ class src_client_Block {
         this.account = input.account;
         this.operations = input.operations;
         this.signer = input.signer;
-        this.signatures = input.signatures;
-      } else if (src_client_Block.isValidJSON(input, 1)) {
+        foundSignatureField = input.signatures;
+      } else if (src_client_PossiblyUnsignedBlock.isValidJSONSignedOrUnsigned(hasSignature, input, 1)) {
         /*
         * Map input to our values
         */
@@ -120476,17 +120714,20 @@ class src_client_Block {
         * sign the hash of the block based on what has been
         * processed
         */
-        if (input.signature === undefined) {
-          throw new Error('Cannot construct block without a signature and explicit direction to sign');
-        }
-        let signature;
-        if (typeof input.signature === 'string') {
-          signature = client_block_Buffer.from(input.signature, 'hex');
+        if ('signature' in input && input.signature) {
+          let signature;
+          if (typeof input.signature === 'string') {
+            signature = client_block_Buffer.from(input.signature, 'hex');
+          } else if (client_block_Buffer.isBuffer(input.signature)) {
+            signature = client_block_Buffer.from(input.signature);
+          } else {
+            throw new Error('Invalid signature format in input');
+          }
+          foundSignatureField = [signature];
         } else {
-          signature = client_block_Buffer.from(input.signature);
+          foundSignatureField = null;
         }
-        this.signatures = [signature];
-      } else if (src_client_Block.isValidJSON(input, 2)) {
+      } else if (src_client_PossiblyUnsignedBlock.isValidJSONSignedOrUnsigned(hasSignature, input, 2)) {
         /*
         * Map input to our values
         */
@@ -120518,28 +120759,37 @@ class src_client_Block {
         * sign the hash of the block based on what has been
         * processed
         */
-        if (input.signatures === undefined) {
-          throw new Error('Cannot construct block without a signature and explicit direction to sign');
+        if ('signatures' in input && input.signatures) {
+          const signatures = input.signatures.map(function (signature) {
+            if (typeof signature === 'string') {
+              return client_block_Buffer.from(signature, 'hex');
+            } else {
+              return client_block_Buffer.from(signature);
+            }
+          });
+          client_assertBlockSignatureField(signatures);
+          foundSignatureField = signatures;
+        } else {
+          foundSignatureField = null;
         }
-        const signatures = input.signatures.map(function (signature) {
-          if (typeof signature === 'string') {
-            return client_block_Buffer.from(signature, 'hex');
-          } else {
-            return client_block_Buffer.from(signature);
-          }
-        });
-        client_assertBlockSignatureField(signatures);
-        this.signatures = signatures;
       } else {
         throw new Error('Cannot construct block, it is not a valid Block JSON object');
       }
 
       /* XXX:TODO: Verify that no extra keys were passed in */
     }
+    if (foundSignatureField === null === hasSignature) {
+      throw new Error('Block signature presence does not match expected hasSignature value');
+    }
+
+    // We can assume that the foundSignatureField is of the correct type here since we have verified the hasSignature condition
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    this.signatures = foundSignatureField;
+    client_block_classPrivateFieldSet(client_hasSignature, this, hasSignature);
     if (this.previous.compareHexString(this.hash)) {
       throw new src_client_KeetaNetBlockError('BLOCK_PREVIOUS_SELF', 'internal error: Block references itself');
     }
-    const checkAccountOpening = src_client_Block.getAccountOpeningHash(this.account);
+    const checkAccountOpening = src_client_PossiblyUnsignedBlock.getAccountOpeningHash(this.account);
     this.$opening = this.previous.compareHexString(checkAccountOpening);
     if (this.network < 0n) {
       throw new Error('Network ID must be a positive number');
@@ -120558,89 +120808,24 @@ class src_client_Block {
     if (this.account.isMultisig()) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account');
     }
-    client_block_assertClassBrand(client_Block_brand, this, client_validateBytes).call(this);
-    client_block_assertClassBrand(client_Block_brand, this, client_validateSignerField).call(this);
-    client_block_assertClassBrand(client_Block_brand, this, client_validateOperationsPurpose).call(this);
-    client_block_assertClassBrand(client_Block_brand, this, client_validateSignatures).call(this);
+    client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_validateSignerField).call(this);
+    client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_validateOperationsPurpose).call(this);
+    client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_validateIdempotent).call(this);
+    client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_validateRecalculatedBytes).call(this);
+    if (hasSignature) {
+      client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_validateSignatures).call(this);
+    }
   }
   static getAccountOpeningHash(account) {
     return client_block_BlockHash.getAccountOpeningHash(account);
   }
-  toBytes() {
-    let includeSignatures = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
-    let useCached = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-    if (useCached) {
-      if (client_block_classPrivateFieldGet(client_valueBytes, this) !== undefined && includeSignatures) {
-        return client_block_classPrivateFieldGet(client_valueBytes, this);
-      }
+  toBytes(includeSignatures) {
+    if (includeSignatures === undefined) {
+      includeSignatures = client_block_classPrivateFieldGet(client_hasSignature, this);
+    } else if (includeSignatures !== client_block_classPrivateFieldGet(client_hasSignature, this)) {
+      throw new src_client_KeetaNetBlockError('BLOCK_SIGNATURE_PARAMETER_DIFFERS', 'Can only include signatures in toBytes if block has signatures, and vice versa');
     }
-    const sharedBlockValues = {
-      previous: this.previous,
-      operations: this.operations,
-      account: this.account,
-      network: this.network,
-      subnet: this.subnet,
-      date: this.date,
-      idempotent: this.idempotent
-    };
-    let container;
-    if (this.version === 1) {
-      if (Array.isArray(this.signer) || this.signatures.length !== 1) {
-        throw new Error('Block v1 only supports single signer');
-      }
-      container = src_client_Block.getV1ASN1ContainerWithoutSignature({
-        ...sharedBlockValues,
-        version: 1,
-        signer: this.signer
-      });
-      if (includeSignatures) {
-        container.push(this.signatures[0]);
-      }
-    } else {
-      const versionTag = this.version - 1;
-      if (versionTag !== 1) {
-        // We only support version 2
-        throw new src_client_KeetaNetBlockError('BLOCK_INVALID_VERSION', 'We only support version 1/2 blocks');
-      }
-      const v2Container = src_client_Block.getV2ASN1ContainerWithoutSignature({
-        ...sharedBlockValues,
-        purpose: this.purpose,
-        version: this.version,
-        signer: this.signer
-      });
-      const baseContextTag = {
-        type: 'context',
-        kind: 'explicit',
-        value: versionTag
-      };
-      if (includeSignatures) {
-        let signatureContainer;
-        if (this.signatures.length > 1) {
-          signatureContainer = this.signatures;
-        } else if (this.signatures.length === 1) {
-          signatureContainer = this.signatures[0];
-        } else {
-          throw new Error('Block has not been signed');
-        }
-        container = {
-          ...baseContextTag,
-          contains: [...v2Container, signatureContainer]
-        };
-      } else {
-        container = {
-          ...baseContextTag,
-          contains: v2Container
-        };
-      }
-    }
-
-    // We know the container is valid because of the container type, but the ASN1.JStoASN1 function does not handle recursive types well
-    // @ts-ignore
-    const retval = client_JStoASN1(container).toBER(false);
-    if (includeSignatures) {
-      client_block_classPrivateFieldSet(client_valueBytes, this, retval);
-    }
-    return retval;
+    return client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_toBytesInternal).call(this, includeSignatures);
   }
   static getV1ASN1ContainerWithoutSignature(input) {
     var _input$subnet;
@@ -120697,31 +120882,31 @@ class src_client_Block {
     if (options !== null && options !== void 0 && options.addBinary) {
       additionalFields['$binary'] = client_block_Buffer.from(this.toBytes()).toString('base64');
     }
-    const signatures = this.signatures.map(function (signature) {
-      return signature.toString('hex').toUpperCase();
-    });
-    if (this.version === 1) {
-      additionalFields.signature = signatures[0];
-    } else {
-      additionalFields.signatures = signatures;
+    if (client_block_classPrivateFieldGet(client_hasSignature, this)) {
+      const signatures = src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures).map(function (signature) {
+        return signature.toString('hex').toUpperCase();
+      });
+      if (this.version === 1) {
+        additionalFields.signature = signatures[0];
+      } else {
+        additionalFields.signatures = signatures;
+      }
     }
-    return {
+    return client_toJSONSerializable({
       version: this.version,
       idempotent: (_this$idempotent = this.idempotent) === null || _this$idempotent === void 0 ? void 0 : _this$idempotent.toString('base64'),
       date: this.date,
       previous: this.previous,
       account: this.account,
       purpose: this.purpose,
-      // XXX:TODO We need to use a type assertion here because toJSONSerializable does not support recursive types
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       signer: this.signer,
       network: this.network,
       subnet: this.subnet,
-      operations: client_ExportOperationsJSON(this.operations),
+      operations: this.operations,
       $hash: this.hash,
       $opening: this.$opening,
       ...additionalFields
-    };
+    });
   }
 
   /**
@@ -120736,38 +120921,24 @@ class src_client_Block {
     if (client_block_classPrivateFieldGet(client_valueHash, this) !== undefined) {
       return client_block_classPrivateFieldGet(client_valueHash, this);
     }
-    const retval = new client_block_BlockHash(client_hash_Hash(client_block_Buffer.from(this.toBytes(false))));
+    const retval = new client_block_BlockHash(client_hash_Hash(client_block_Buffer.from(client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_toBytesInternal).call(this, false))));
     client_block_classPrivateFieldSet(client_valueHash, this, retval);
     return retval;
   }
 }
-client_Block = src_client_Block;
-function client_getSortedRequiredSigners(input) {
-  const queue = [input];
-  const visited = new client_lib_account.Set();
-  const out = [];
-  while (queue.length > 0) {
-    // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const cur = queue.shift();
-    if (client_lib_account.isInstance(cur)) {
-      if (visited.has(cur)) {
-        continue;
-      }
-      visited.add(cur);
-      out.push(cur);
-    } else {
-      queue.unshift(...cur[1]);
-    }
+client_PossiblyUnsignedBlock = src_client_PossiblyUnsignedBlock;
+function client_get_nonNullableSignatures(_this) {
+  if (!_this.signatures) {
+    throw new Error('No signature field input found on block');
   }
-  return out;
+  return _this.signatures;
 }
-function client_validateBytes() {
+function client_validateRecalculatedBytes() {
   const existingBytes = client_block_classPrivateFieldGet(client_valueBytes, this);
   if (existingBytes === undefined) {
     return;
   }
-  const recalculatedBytesBuffer = client_block_Buffer.from(this.toBytes(true, false));
+  const recalculatedBytesBuffer = client_block_Buffer.from(client_block_assertClassBrand(client_PossiblyUnsignedBlock_brand, this, client_toBytesInternal).call(this, client_block_classPrivateFieldGet(client_hasSignature, this), false));
   const existingBytesBuffer = client_block_Buffer.from(existingBytes);
   if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
     const existingBytesHash = client_block_Buffer.from(client_hash_Hash(existingBytesBuffer)).toString('hex').toUpperCase();
@@ -120824,25 +120995,188 @@ function client_validateSignerField() {
   }
 }
 function client_validateSignatures() {
-  const signers = client_getSortedRequiredSigners.call(client_Block, this.signer);
-  if (this.signatures.length !== signers.length) {
+  if (!client_block_classPrivateFieldGet(client_hasSignature, this)) {
+    throw new src_client_KeetaNetBlockError('BLOCK_SIGNATURE_REQUIRED', 'Block has not been signed');
+  }
+  const signers = client_PossiblyUnsignedBlock.getSortedRequiredSigners(this.signer);
+  const signatureArray = src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures);
+  if (signatureArray.length !== signers.length) {
     throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNER', 'Signer count does not match signature count');
   }
   for (let i = 0; i < signers.length; i++) {
-    const signature = new src_client_BufferStorage(this.signatures[i], 64);
+    const signature = new src_client_BufferStorage(signatureArray[i], 64);
     const valid = signers[i].verify(this.hash.get(), signature.get());
     if (valid !== true) {
-      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`);
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures)[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`);
     }
   }
 }
+function client_validateIdempotent() {
+  if (this.idempotent === undefined) {
+    return;
+  }
+  client_validateIdempotentKeyLength(this.idempotent, this.network);
+}
+function client_toBytesInternal(includeSignatures) {
+  let useCached = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+  const isCacheable = includeSignatures || !client_block_classPrivateFieldGet(client_hasSignature, this);
+  if (useCached && client_block_classPrivateFieldGet(client_valueBytes, this) !== undefined && isCacheable) {
+    return client_block_classPrivateFieldGet(client_valueBytes, this);
+  }
+  const sharedBlockValues = {
+    previous: this.previous,
+    operations: this.operations,
+    account: this.account,
+    network: this.network,
+    subnet: this.subnet,
+    date: this.date,
+    idempotent: this.idempotent
+  };
+  let container;
+  if (this.version === 1) {
+    if (Array.isArray(this.signer)) {
+      throw new Error('Block v1 only supports single signer');
+    }
+    container = client_PossiblyUnsignedBlock.getV1ASN1ContainerWithoutSignature({
+      ...sharedBlockValues,
+      version: 1,
+      signer: this.signer
+    });
+    if (includeSignatures) {
+      if (src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures).length !== 1) {
+        throw new Error('Block v1 only supports single signature');
+      }
+      container.push(src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures)[0]);
+    }
+  } else {
+    const versionTag = this.version - 1;
+    if (versionTag !== 1) {
+      // We only support version 2
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_VERSION', 'We only support version 1/2 blocks');
+    }
+    const v2Container = client_PossiblyUnsignedBlock.getV2ASN1ContainerWithoutSignature({
+      ...sharedBlockValues,
+      purpose: this.purpose,
+      version: this.version,
+      signer: this.signer
+    });
+    const baseContextTag = {
+      type: 'context',
+      kind: 'explicit',
+      value: versionTag
+    };
+    if (includeSignatures) {
+      let signatureContainer;
+      if (src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures).length > 1) {
+        signatureContainer = src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures);
+      } else if (src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures).length === 1) {
+        signatureContainer = src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures)[0];
+      } else {
+        throw new Error('Block has not been signed');
+      }
+      container = {
+        ...baseContextTag,
+        contains: [...v2Container, signatureContainer]
+      };
+    } else {
+      container = {
+        ...baseContextTag,
+        contains: v2Container
+      };
+    }
+  }
+
+  // We know the container is valid because of the container type, but the ASN1.JStoASN1 function does not handle recursive types well
+  // @ts-ignore
+  const retval = client_JStoASN1(container).toBER(false);
+  if (isCacheable) {
+    client_block_classPrivateFieldSet(client_valueBytes, this, retval);
+  }
+  return retval;
+}
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "Hash", client_block_BlockHash);
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "OperationType", client_OperationType);
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "Operation", client_Operation);
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "NO_PREVIOUS", client_NO_PREVIOUS);
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "AdjustMethod", client_AdjustMethod);
+client_lib_block_defineProperty(src_client_PossiblyUnsignedBlock, "Purpose", client_BlockPurpose);
+class src_client_UnsignedBlock extends src_client_PossiblyUnsignedBlock {
+  constructor(input) {
+    super(input, false);
+  }
+  static isValidJSON(block, version) {
+    return super.isValidJSONSignedOrUnsigned(false, block, version);
+  }
+  static async fromUnsignedJSON(input) {
+    return new this(input);
+  }
+  async seal() {
+    const signers = src_client_UnsignedBlock.getSortedRequiredSigners(this.signer);
+    const hash = this.hash;
+    const signatures = await Promise.all(signers.map(async function (signer) {
+      const signature = await signer.sign(hash.getBuffer());
+      return signature.getBuffer();
+    }));
+    const shared = {
+      idempotent: this.idempotent,
+      date: this.date,
+      previous: this.previous,
+      account: this.account,
+      network: this.network,
+      subnet: this.subnet,
+      signer: this.signer,
+      operations: this.operations
+    };
+    let blockInput;
+    if (this.version === 1) {
+      if (Array.isArray(this.signer)) {
+        throw new Error('Block v1 only supports single signer');
+      }
+      blockInput = {
+        ...shared,
+        version: this.version,
+        signer: this.signer,
+        signature: signatures[0]
+      };
+    } else if (this.version === 2) {
+      blockInput = {
+        ...shared,
+        version: this.version,
+        purpose: this.purpose,
+        signatures
+      };
+    } else {
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_VERSION', 'Invalid Version');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    return new src_client_Block(blockInput);
+  }
+}
+client_UnsignedBlock = src_client_UnsignedBlock;
+client_lib_block_defineProperty(src_client_UnsignedBlock, "isInstance", client_checkableGenerator(client_UnsignedBlock));
+class src_client_Block extends src_client_PossiblyUnsignedBlock {
+  constructor(input) {
+    super(input, true);
+  }
+  static isValidJSON(block, version) {
+    return super.isValidJSONSignedOrUnsigned(true, block, version);
+  }
+  static async fromUnsignedJSON(input) {
+    const unsigned = new src_client_UnsignedBlock(input);
+    return await unsigned.seal();
+  }
+  getUnsignedBlock() {
+    return new src_client_UnsignedBlock({
+      ...this.toJSON({
+        addBinary: false
+      }),
+      signatures: undefined
+    });
+  }
+}
+client_Block = src_client_Block;
 client_lib_block_defineProperty(src_client_Block, "isInstance", client_checkableGenerator(client_Block));
-client_lib_block_defineProperty(src_client_Block, "Hash", client_block_BlockHash);
-client_lib_block_defineProperty(src_client_Block, "OperationType", client_OperationType);
-client_lib_block_defineProperty(src_client_Block, "Operation", client_Operation);
-client_lib_block_defineProperty(src_client_Block, "NO_PREVIOUS", client_NO_PREVIOUS);
-client_lib_block_defineProperty(src_client_Block, "AdjustMethod", client_AdjustMethod);
-client_lib_block_defineProperty(src_client_Block, "Purpose", client_BlockPurpose);
 var client_block = /*#__PURE__*/new WeakMap();
 class src_client_BlockBuilder {
   constructor(block) {
@@ -120862,38 +121196,15 @@ class src_client_BlockBuilder {
       if (block !== undefined && src_client_Block.isValidJSON(block, 2)) {
         client_block_classPrivateFieldSet(client_block, this, new src_client_Block(block));
       } else {
-        const incompleteBlockJSON = {
-          version: 1,
-          ...block
-        };
-        if (incompleteBlockJSON.date === undefined) {
-          incompleteBlockJSON.date = new Date().toISOString();
+        if (block === undefined) {
+          client_block_classPrivateFieldSet(client_block, this, {});
+          return;
         }
-
         /*
-         * Map input to our values
+         * Validate input values
          */
-        let setPreviousNoBlock = false;
-        if (incompleteBlockJSON.previous === src_client_BlockBuilder.NO_PREVIOUS) {
-          setPreviousNoBlock = true;
-        }
-        let newBlockJSON;
-        if (incompleteBlockJSON.version === 1) {
-          // We have to use a type assertion here because the MapV1InputValues function does not support recursive types
-          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-          newBlockJSON = client_MapV1InputValues({
-            ...incompleteBlockJSON,
-            version: 1
-          });
-        } else if (incompleteBlockJSON.version === 2) {
-          newBlockJSON = client_MapV2InputValues({
-            ...incompleteBlockJSON,
-            version: 2
-          });
-        } else {
-          throw new Error('Cannot construct block, it is not a valid Block JSON object');
-        }
-        if (setPreviousNoBlock) {
+        const newBlockJSON = client_ValidateInputs.call(src_client_BlockBuilder, block);
+        if (block.previous === src_client_BlockBuilder.NO_PREVIOUS) {
           newBlockJSON.previous = src_client_BlockBuilder.NO_PREVIOUS;
         }
         client_block_classPrivateFieldSet(client_block, this, newBlockJSON);
@@ -120923,7 +121234,7 @@ class src_client_BlockBuilder {
     if (opts !== null && opts !== void 0 && opts.addBinary) {
       throw new Error('Cannot add binary within blockBuilder.toJSON');
     }
-    return {
+    return client_toJSONSerializable({
       version: this.version,
       idempotent: this.idempotent,
       date: this.date,
@@ -120935,22 +121246,23 @@ class src_client_BlockBuilder {
       operations: this.operations,
       purpose: this.purpose,
       ['$opening']: this.$opening
-    };
+    });
   }
-  async seal() {
-    if (this.version === undefined) {
+  async getUnsignedBlock() {
+    const input = client_ValidateInputs.call(src_client_BlockBuilder, this);
+    if (input.version === undefined) {
       throw new Error('Cannot seal block without version');
     }
-    let input;
-    // There is no clean way to tell the compiler which version `this` is, so we have to use a type assertion
-    if (this.version === 1) {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      input = client_MapV1InputValues(this);
-    } else {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      input = client_MapV2InputValues(this);
+
+    // Date is required for a sealed block, so added it if it wasn't provided
+    if (input.date === undefined) {
+      input.date = new Date();
     }
-    const block = await src_client_Block.fromUnsignedJSON(input);
+    return new src_client_UnsignedBlock(input);
+  }
+  async seal() {
+    const unsigned = await this.getUnsignedBlock();
+    const block = await unsigned.seal();
     client_block_classPrivateFieldSet(client_block, this, block);
     return block;
   }
@@ -121184,6 +121496,41 @@ class src_client_BlockBuilder {
   }
 }
 client_BlockBuilder = src_client_BlockBuilder;
+function client_ValidateInputs(blockInput) {
+  let block = blockInput;
+  // Keep the signer as the original object so we can seal the block
+  if (client_BlockBuilder.isInstance(blockInput)) {
+    block = {
+      ...blockInput.toJSON(),
+      signer: blockInput.signer
+    };
+  }
+  let validatedBlockJSON;
+  if (block.version === undefined || block.version === 1) {
+    if (block.signer && typeof block.signer !== 'string' && !client_lib_account.isInstance(block.signer)) {
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNER', 'V1 Blocks Cannot use MultiSig Signers');
+    }
+    if (block.purpose !== undefined && block.purpose !== client_BlockPurpose.GENERIC) {
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_PURPOSE_VALIDATION', 'V1 Block Purpose should be undefined');
+    }
+    // Create narrowed block input
+    const blockV1 = {
+      ...block,
+      version: 1,
+      signer: block.signer,
+      purpose: block.purpose
+    };
+    validatedBlockJSON = client_MapV1InputValues(blockV1);
+  } else if (block.version === 2) {
+    validatedBlockJSON = client_MapV2InputValues({
+      ...block,
+      version: 2
+    });
+  } else {
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_VERSION', `Cannot construct block, expected version: 1 | 2, received: ${block.version}`);
+  }
+  return validatedBlockJSON;
+}
 client_lib_block_defineProperty(src_client_BlockBuilder, "isInstance", client_checkableGenerator(client_BlockBuilder));
 client_lib_block_defineProperty(src_client_BlockBuilder, "OperationType", src_client_Block.OperationType);
 client_lib_block_defineProperty(src_client_BlockBuilder, "AdjustMethod", src_client_Block.AdjustMethod);
@@ -123343,1702 +123690,6 @@ class src_client_KeetaNetVoteError extends src_client_KeetaNetErrorBase {
 }
 client_KeetaNetVoteError = src_client_KeetaNetVoteError;
 client_vote_defineProperty(src_client_KeetaNetVoteError, "isInstance", client_checkableGenerator(client_KeetaNetVoteError));
-;// ./src/lib/vote.ts
-/* provided dependency */ var client_vote_Buffer = __webpack_require__(8287)["Buffer"];
-var client_VoteHash, client_VoteBlockHash, client_VoteLikeBase, client_PossiblyExpiredVote, client_Vote, client_VoteQuote, client_VoteStapleHash, client_VoteBlockBundle, client_VoteStaple, client_BaseVoteBuilder, client_VoteBuilder, client_VoteQuoteBuilder;
-function client_vote_classPrivateMethodInitSpec(e, a) { client_vote_checkPrivateRedeclaration(e, a), a.add(e); }
-function client_vote_classPrivateFieldInitSpec(e, t, a) { client_vote_checkPrivateRedeclaration(e, t), t.set(e, a); }
-function client_vote_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
-function client_vote_classPrivateFieldGet(s, a) { return s.get(client_vote_assertClassBrand(s, a)); }
-function client_vote_classPrivateFieldSet(s, a, r) { return s.set(client_vote_assertClassBrand(s, a), r), r; }
-function client_vote_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
-function client_lib_vote_defineProperty(e, r, t) { return (r = client_lib_vote_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_lib_vote_toPropertyKey(t) { var i = client_lib_vote_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_lib_vote_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-/*
- * KeetaNet Voting System
- *
- * Votes are indications that an operator will insert a group of blocks into
- * their ledger if enough cooperating operators agree.
- */
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Representation of the expected fee for this vote
- */
-
-/**
- * Representation of the vote
- */
-
-class src_client_VoteHash extends src_client_BufferStorage {
-  constructor(blockhash) {
-    super(blockhash, 32);
-    client_lib_vote_defineProperty(this, "storageKind", 'VoteHash');
-  }
-}
-client_VoteHash = src_client_VoteHash;
-client_lib_vote_defineProperty(src_client_VoteHash, "isInstance", client_checkableGenerator(client_VoteHash));
-const client_feeExtensionSchema = {
-  type: 'context',
-  value: 0,
-  kind: 'explicit',
-  contains: [client_ValidateASN1.IsBoolean, client_ValidateASN1.IsInteger, {
-    optional: {
-      type: 'context',
-      value: 0,
-      kind: 'implicit',
-      contains: client_ValidateASN1.IsOctetString
-    }
-  }, {
-    optional: {
-      type: 'context',
-      value: 1,
-      kind: 'implicit',
-      contains: client_ValidateASN1.IsOctetString
-    }
-  }]
-};
-/**
- * Parse a set of distinguished names
- */
-function client_findRDN(input, findOID) {
-  if (!Array.isArray(input)) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_INVALID_TYPE', 'internal error: DN must be a Sequence');
-  }
-  if (input.length === 0) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_MUST_HAVE_ONE', 'internal error: DN must contain at least 1 entry');
-  }
-  for (const part of input) {
-    if (part === undefined || part === null) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Each part of the RDN must be well-formed and not undefined');
-    }
-    if (part.type !== 'set') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_MUST_BE_SET', 'internal error: Each part of the RDN must be a Set');
-    }
-    const name = part.name;
-    if (name === undefined || name === null) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Each part of the RDN must be well-formed');
-    }
-    if (name.type !== 'oid') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_TYPE_MUST_BE_OID', 'internal error: Name of the RDN must be an OID');
-    }
-    if (name.oid !== findOID) {
-      continue;
-    }
-    if (typeof part.value === 'string') {
-      return part.value;
-    }
-    if (typeof part.value === 'object' && part.value !== null) {
-      if (part.value.type === 'string' && part.value.kind === 'utf8') {
-        return part.value.value;
-      }
-    }
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Value of the RDN must be a string');
-  }
-}
-function client_blockHashesFromVote(input) {
-  const blockHashInformation = client_ASN1toJS(input.buffer);
-  if (!client_isASN1Object(blockHashInformation)) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extensions is not valid asn1 object');
-  }
-  if (blockHashInformation.type !== 'context') {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_TYPE', 'internal error: hashData extension does not contain a context-specific tag');
-  }
-  if (blockHashInformation.value !== 0) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_CONTEXT_SPECIFIC', 'internal error: hashData must begin with a context-specific tag 0');
-  }
-  const hashInformation = blockHashInformation.contains;
-  if (!Array.isArray(hashInformation)) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_HASH_DATA_MUST_BE_SEQUENCE', 'internal error: hashData tag 0 must contain a Sequence');
-  }
-  if (hashInformation.length !== 2) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NOT_TWO_ITEMS', 'internal error: hashInformation must contain exactly 2 items');
-  }
-  const hashAlgoOID = hashInformation[0];
-  if (typeof hashAlgoOID !== 'object' || hashAlgoOID === null || !('type' in hashAlgoOID) || !('oid' in hashAlgoOID)) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NEEDS_OID', 'internal error: hashInformation must begin with an OID describing the hash used');
-  }
-  if (hashAlgoOID.type !== 'oid') {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NEEDS_OID', 'internal error: hashInformation must begin with an OID describing the hash used');
-  }
-  if (hashAlgoOID.oid !== client_hash_Hash.functionName) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_FUNC', `Unsupported hash function: ${hashAlgoOID.oid}`);
-  }
-  const blocksSequence = hashInformation[1];
-  if (!Array.isArray(blocksSequence)) {
-    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_SECOND_MUST_BE_SEQUENCE', 'internal error: hashInformation must contain a Sequence of blocks as the second item');
-  }
-  const output = [];
-  for (const block of blocksSequence) {
-    if (!client_vote_Buffer.isBuffer(block)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_TYPE', 'internal error: Each block hash must be an Octet String');
-    }
-    output.push(new client_block_BlockHash(block));
-  }
-  return output;
-}
-function client_feeFromVote(input) {
-  const feeInformationAnyJS = client_ASN1toJS(input.buffer);
-  const feeSchemaChecker = new client_ValidateASN1(client_feeExtensionSchema);
-  const feeInformation = function () {
-    try {
-      return feeSchemaChecker.validate(feeInformationAnyJS);
-    } catch (asn1ValidateError) {
-      let message = 'internal error: fee asn1 schema is not the right format';
-      if (asn1ValidateError instanceof Error) {
-        message = `${message}: ${asn1ValidateError.message}`;
-      }
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', message);
-    }
-  }();
-  const feeData = feeInformation.contains;
-  const quote = feeData[0];
-  const retval = {
-    quote: quote,
-    fee: {
-      amount: feeData[1]
-    }
-  };
-  const payToAsn1 = feeData[2];
-  if (payToAsn1 !== undefined) {
-    const payTo = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(payToAsn1.contains));
-    if (payTo.isStorage()) {
-      retval.fee.payTo = payTo;
-    } else {
-      try {
-        retval.fee.payTo = payTo.assertAccount();
-      } catch {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address');
-      }
-    }
-  }
-  const tokenAsn1 = feeData[3];
-  if (tokenAsn1 !== undefined) {
-    const token = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(tokenAsn1.contains));
-    if (!token.isToken()) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token');
-    }
-    retval.fee.token = token;
-  }
-  return retval;
-}
-
-/**
- * Convert an ASN1Date to a Date
- */
-function client_convertDate(input) {
-  if (client_util.types.isDate(input)) {
-    return input;
-  }
-  if (typeof input === 'object' && input !== null) {
-    if ('type' in input && 'date' in input) {
-      if (input.type === 'date' && client_util.types.isDate(input.date)) {
-        return input.date;
-      }
-    }
-  }
-  throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: validFrom and validTo must be a Timestamp');
-}
-
-/**
- * A map for VoteBlockHashes
- */
-var client_valueMap = /*#__PURE__*/new WeakMap();
-var client_keyMap = /*#__PURE__*/new WeakMap();
-var client_VoteBlockHashMap_brand = /*#__PURE__*/new WeakSet();
-class client_VoteBlockHashMap {
-  constructor() {
-    client_vote_classPrivateMethodInitSpec(this, client_VoteBlockHashMap_brand);
-    client_vote_classPrivateFieldInitSpec(this, client_valueMap, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_keyMap, void 0);
-    client_lib_vote_defineProperty(this, Symbol.toStringTag, 'VoteBlockHashMap');
-    client_vote_classPrivateFieldSet(client_valueMap, this, new Map());
-    client_vote_classPrivateFieldSet(client_keyMap, this, new Map());
-  }
-  [Symbol.iterator]() {
-    return this.entries();
-  }
-  [Symbol.dispose]() {
-    this.clear();
-  }
-  add(key, value) {
-    const lookupKey = client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key);
-    client_vote_classPrivateFieldGet(client_valueMap, this).set(lookupKey, value);
-    client_vote_classPrivateFieldGet(client_keyMap, this).set(lookupKey, key);
-    return this;
-  }
-  delete(key) {
-    const lookupKey = client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key);
-    client_vote_classPrivateFieldGet(client_keyMap, this).delete(lookupKey);
-    return client_vote_classPrivateFieldGet(client_valueMap, this).delete(lookupKey);
-  }
-  get(key) {
-    return client_vote_classPrivateFieldGet(client_valueMap, this).get(client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key));
-  }
-  forEach(callbackfn, thisArg) {
-    client_vote_classPrivateFieldGet(client_valueMap, this).forEach((value, lookupKey) => {
-      /* We know this value exists in the key map */
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const key = client_vote_classPrivateFieldGet(client_keyMap, this).get(lookupKey);
-      callbackfn.call(thisArg, value, key, this);
-    });
-  }
-  has(key) {
-    return client_vote_classPrivateFieldGet(client_valueMap, this).has(client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key));
-  }
-  set(key, value) {
-    return this.add(key, value);
-  }
-  get size() {
-    return client_vote_classPrivateFieldGet(client_valueMap, this).size;
-  }
-  entries() {
-    const keyMap = client_vote_classPrivateFieldGet(client_keyMap, this);
-    const valueMap = client_vote_classPrivateFieldGet(client_valueMap, this);
-    return function* () {
-      for (const [lookupKey, value] of valueMap.entries()) {
-        const key = keyMap.get(lookupKey);
-        if (key === undefined) {
-          throw new Error('Map changed while iterating !');
-        }
-        yield [key, value];
-      }
-      return undefined;
-    }();
-  }
-  keys() {
-    return client_vote_classPrivateFieldGet(client_keyMap, this).values();
-  }
-  values() {
-    return client_vote_classPrivateFieldGet(client_valueMap, this).values();
-  }
-  clear() {
-    client_vote_classPrivateFieldGet(client_valueMap, this).clear();
-    client_vote_classPrivateFieldGet(client_keyMap, this).clear();
-  }
-}
-
-/**
- * A VoteBlockHash is a hash of the blocks in a vote staple or vote staple
- * it is a unique ID for the vote or vote staples contents regardless of which
- * votes are included in the staple -- every vote in a vote staple has the same
- * VoteBlockHash.
- */
-function client_getLookupKey(key) {
-  return key.toString('hex');
-}
-class src_client_VoteBlockHash extends src_client_BufferStorage {
-  get hashFunctionName() {
-    return client_hash_Hash.functionName;
-  }
-  static fromBlockHashes(blockHashes) {
-    if (blockHashes.length < 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION', 'Cannot construct vote block hash, no block hashes provided');
-    }
-    const blockHashesBuffers = blockHashes.map(function (blockHash) {
-      return blockHash.getBuffer();
-    });
-    const blockHashesCombined = client_vote_Buffer.concat(blockHashesBuffers);
-    const voteHash = client_hash_Hash(blockHashesCombined);
-    return new src_client_VoteBlockHash(voteHash);
-  }
-  static fromVote(vote) {
-    return this.fromBlockHashes(vote.blocks);
-  }
-  static fromVoteStaple(voteStaple) {
-    const representativeVote = voteStaple.votes[0];
-    return this.fromVote(representativeVote);
-  }
-  constructor(stapleHash) {
-    super(stapleHash, 32);
-    client_lib_vote_defineProperty(this, "storageKind", 'VoteBlockHash');
-  }
-}
-
-/**
- * Options for Votes
- */
-client_VoteBlockHash = src_client_VoteBlockHash;
-client_lib_vote_defineProperty(src_client_VoteBlockHash, "isInstance", client_checkableGenerator(client_VoteBlockHash));
-client_lib_vote_defineProperty(src_client_VoteBlockHash, "Map", client_VoteBlockHashMap);
-/**
- * Options for Vote Builder
- */
-var client_vote = /*#__PURE__*/new WeakMap();
-var client_options = /*#__PURE__*/new WeakMap();
-var client_vote_hash = /*#__PURE__*/new WeakMap();
-var client_blocksHash = /*#__PURE__*/new WeakMap();
-class src_client_VoteLikeBase {
-  getClass() {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return this.constructor;
-  }
-  static isValidJSON(voteJSON) {
-    for (const checkField of ['issuer', 'serial', 'blocks', 'validityFrom', 'validityTo', 'signature']) {
-      if (voteJSON[checkField] === undefined) {
-        return false;
-      }
-    }
-    if ('fee' in voteJSON) {
-      const fee = voteJSON['fee'];
-      if (fee === undefined) {
-        return false;
-      }
-      if (fee['amount'] === undefined) {
-        return false;
-      }
-      if ('payTo' in fee && fee['payTo'] === undefined) {
-        return false;
-      }
-      if ('token' in fee && fee['token'] === undefined) {
-        return false;
-      }
-    }
-    if ('quote' in voteJSON) {
-      if (voteJSON['quote'] === undefined) {
-        return false;
-      }
-    }
-    return true;
-  }
-  static fromJSON(voteJSON) {
-    var _voteJSON$quote;
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    if (!src_client_VoteLikeBase.isValidJSON(voteJSON)) {
-      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION_JSON', 'Cannot construct vote, it is not a valid vote JSON object');
-    }
-    const issuer = client_lib_account.toAccount(voteJSON.issuer);
-    if (!issuer) {
-      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION_JSON', 'Issuer is Missing, cannot reconstruct vote');
-    }
-    const voteBuilder = new this.Builder(issuer);
-    voteBuilder.addBlocks(voteJSON.blocks);
-    let signature;
-    if (!client_util.types.isArrayBuffer(voteJSON.signature)) {
-      signature = client_bufferToArrayBuffer(client_vote_Buffer.from(voteJSON.signature, 'hex'));
-    } else {
-      signature = voteJSON.signature;
-    }
-    const validTo = new Date(voteJSON.validityTo);
-    const validFrom = new Date(voteJSON.validityFrom);
-    const signatureStorage = new src_client_BufferStorage(signature, signature.byteLength);
-    if (this.expectedQuoteValue !== ((_voteJSON$quote = voteJSON.quote) !== null && _voteJSON$quote !== void 0 ? _voteJSON$quote : false)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${voteJSON.quote} - expected ${this.expectedQuoteValue}`);
-    }
-    if (voteJSON.quote === true && voteJSON.fee === undefined) {
-      throw new src_client_KeetaNetVoteError('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided');
-    }
-    if (voteJSON.fee !== undefined) {
-      voteBuilder.addFee(voteJSON.fee);
-    }
-    const {
-      voteData,
-      tbsCertificate,
-      signatureInfo
-    } = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom);
-    const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage);
-
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return new this(vote, options);
-  }
-  constructor(vote) {
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    client_lib_vote_defineProperty(this, "$trusted", false);
-    client_lib_vote_defineProperty(this, "$permanent", false);
-    client_vote_classPrivateFieldInitSpec(this, client_vote, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_options, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_vote_hash, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_blocksHash, void 0);
-    client_vote_classPrivateFieldSet(client_options, this, {
-      ...options
-    });
-    if (src_client_VoteLikeBase.isInstance(vote, false)) {
-      this.issuer = vote.issuer;
-      this.serial = vote.serial;
-      this.blocks = vote.blocks;
-      this.validityFrom = vote.validityFrom;
-      this.validityTo = vote.validityTo;
-      this.signature = vote.signature;
-      this.fee = vote.fee;
-      this.quote = vote.quote;
-      this.$trusted = vote.$trusted;
-      this.$permanent = vote.$permanent;
-      this.$uid = vote.$uid;
-      this.$id = vote.$id;
-      client_vote_classPrivateFieldSet(client_vote, this, client_vote_classPrivateFieldGet(client_vote, vote));
-      client_vote_classPrivateFieldSet(client_options, this, client_vote_classPrivateFieldGet(client_options, vote));
-      return;
-    }
-    if (typeof vote === 'string') {
-      vote = client_vote_Buffer.from(vote, 'base64');
-    }
-    if (client_util.types.isUint8Array(vote)) {
-      vote = client_vote_Buffer.from(vote);
-    }
-    if (client_vote_Buffer.isBuffer(vote)) {
-      vote = client_bufferToArrayBuffer(vote);
-    }
-    if (!client_util.types.isArrayBuffer(vote)) {
-      if (src_client_VoteLikeBase.isValidJSON(vote)) {
-        vote = src_client_VoteLikeBase.fromJSON(vote).toBytes();
-      } else {
-        throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in VoteLikeBase');
-      }
-    }
-    client_vote_classPrivateFieldSet(client_vote, this, vote);
-
-    /**
-     * Vote Wrapper contains the vote, signature info, and signature
-     */
-    const voteWrapper = client_ASN1toJS(client_vote_classPrivateFieldGet(client_vote, this));
-    if (!Array.isArray(voteWrapper)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_WRAPPER', 'internal error: Malformed vote wrapper (must be a sequence)');
-    }
-    if (voteWrapper.length !== 3) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_WRAPPER', 'internal error: Malformed vote wrapper (must contain 3 parts: vote, signature info, signature)');
-    }
-
-    /**
-     * The contents of the X.509 certificate signed area
-     */
-    const voteContents = voteWrapper.shift();
-    if (!Array.isArray(voteContents)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_WRAPPER', 'internal error: Malformed vote (must be sequence)');
-    }
-    const tbsCertificate = client_JStoASN1([...voteContents]).toBER();
-
-    /**
-     * Vote version information, recorded as a context-specific
-     * tag 0 containing an Integer
-     */
-    const voteVersionWrapper = voteContents.shift();
-    if (typeof voteVersionWrapper !== 'object' || voteVersionWrapper === null || !('type' in voteVersionWrapper) || !('value' in voteVersionWrapper)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag)');
-    }
-    if (voteVersionWrapper.type !== 'context') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag)');
-    }
-    if (voteVersionWrapper.value !== 0) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag with a value of 0)');
-    }
-    const voteVersionMultiValue = voteVersionWrapper.contains;
-    if (typeof voteVersionMultiValue !== 'bigint') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VERSION', 'internal error: Vote version must be an Integer');
-    }
-    const voteVersion = voteVersionMultiValue;
-    if (voteVersion + 1n !== 3n) {
-      throw new src_client_KeetaNetVoteError('VOTE_INVALID_VERSION', 'internal error: Vote version must be 3');
-    }
-
-    /**
-     * Serial number
-     */
-    const serialMultiValue = voteContents.shift();
-    if (typeof serialMultiValue !== 'bigint') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SERIAL', 'internal error: Vote serial number must be an Integer');
-    }
-    this.serial = serialMultiValue;
-
-    /**
-     * Signature information
-     */
-    const signatureInfo = voteContents.shift();
-    if (!Array.isArray(signatureInfo)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must be a Sequence');
-    }
-    if (signatureInfo.length !== 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must contain only 1 entry');
-    }
-    const signatureOIDObject = signatureInfo[0];
-    if (typeof signatureOIDObject !== 'object' || signatureOIDObject === null || !('type' in signatureOIDObject) || signatureOIDObject.type !== 'oid') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must contain an OID');
-    }
-    const signatureInfoOID = signatureOIDObject.oid;
-
-    /**
-     * Issuer information
-     */
-    const issuerWrapper = voteContents.shift();
-    if (!Array.isArray(issuerWrapper)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_ISSUER_INFORMATION', 'internal error: Vote issuer must be a Sequence');
-    }
-    const issuerCN = client_findRDN(issuerWrapper, 'commonName');
-    if (issuerCN === undefined || issuerCN === null || typeof issuerCN !== 'string') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_ISSUER_INFORMATION', 'internal error: Vote issuer must contain the common name (as a string)');
-    }
-    this.issuer = client_lib_account.fromPublicKeyString(issuerCN).assertAccount();
-
-    /**
-     * Validity period
-     */
-    const validityInfo = voteContents.shift();
-    if (!Array.isArray(validityInfo)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: Validity information must be a sequence');
-    }
-    if (validityInfo.length !== 2) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: Validity information must contain exactly 2 elements');
-    }
-    const validFrom = client_convertDate(validityInfo[0]);
-    const validTo = client_convertDate(validityInfo[1]);
-    this.validityFrom = validFrom;
-    this.validityTo = validTo;
-
-    /**
-     * Votes must not have invalid validity periods
-     */
-    if (this.validityFrom.valueOf() > this.validityTo.valueOf()) {
-      throw new src_client_KeetaNetVoteError('VOTE_INVALID_VALIDITY', `Invalid validity period;  Expires on ${this.validityTo.toISOString()} but issued on ${this.validityFrom.toISOString()}`);
-    }
-
-    /**
-     * The current instant
-     */
-    const expirationCheckMoment = this.expirationCheckMoment();
-
-    /**
-     * Votes must not be expired
-     */
-    const expirationCheckMomentISO = new Date(expirationCheckMoment).toISOString();
-    if (expirationCheckMoment < this.validityFrom.valueOf() - src_client_VoteLikeBase.allowedSlop) {
-      throw new src_client_KeetaNetVoteError('VOTE_MOMENT_BEFORE_VALIDITY_FROM', `Vote was issued in the future (issued on ${validFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
-    }
-
-    /**
-     * If the vote is forever viable, it is a permanent vote
-     */
-    if (this.validityTo.valueOf() > expirationCheckMoment + src_client_VoteLikeBase.permanentVoteThreshold) {
-      this.$permanent = true;
-    }
-
-    /**
-     * Subject
-     */
-    const subjectWrapper = voteContents.shift();
-    if (!Array.isArray(subjectWrapper)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_INFORMATION', 'internal error: Vote subject must be a Sequence');
-    }
-    const subjectSerial = client_findRDN(subjectWrapper, 'serialNumber');
-    if (typeof subjectSerial !== 'string') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SERIAL', 'internal error: Expected subject DN to contain serial number as a string');
-    }
-    if (BigInt(`0x${subjectSerial}`) !== this.serial) {
-      throw new src_client_KeetaNetVoteError('VOTE_SERIAL_MISMATCH', 'internal error: Expected subject DN to contain serial number matching certificate serial number');
-    }
-
-    /**
-     * Subject Public Key, verified to be the same as the issuer
-     */
-    const subjectPubKeyInfo = voteContents.shift();
-    if (!Array.isArray(subjectPubKeyInfo) || subjectPubKeyInfo.length !== 2) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information to be a sequence of length 2');
-    }
-    const subjectPubKeyAlgoInfo = subjectPubKeyInfo[0];
-    let subjectPublicKey = '';
-    if (Array.isArray(subjectPubKeyAlgoInfo) && subjectPubKeyAlgoInfo.length === 2) {
-      const algoRaw = subjectPubKeyAlgoInfo[1];
-      if (typeof algoRaw !== 'object' || algoRaw === null || !('type' in algoRaw) || algoRaw.type !== 'oid') {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information curve to be an OID');
-      }
-      const subjectPubKeyAlgo = algoRaw.oid;
-      const subjectPubKey = subjectPubKeyInfo[1];
-      if (typeof subjectPubKey !== 'object' || subjectPubKey === null || !('type' in subjectPubKey) || subjectPubKey.type !== 'bitstring') {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information to be a BitString');
-      }
-      switch (subjectPubKeyAlgo) {
-        case 'secp256k1':
-          subjectPublicKey = client_lib_account.fromECDSASECP256K1PublicKey(subjectPubKey.value).publicKeyString.get();
-          break;
-        case 'secp256r1':
-          subjectPublicKey = client_lib_account.fromECDSASECP256R1PublicKey(subjectPubKey.value).publicKeyString.get();
-          break;
-        case 'ed25519':
-          subjectPublicKey = client_lib_account.fromED25519PublicKey(subjectPubKey.value).publicKeyString.get();
-          break;
-        default:
-          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', `internal error: Expected subject public key information algorithm to be EcDSA secp256k1, EcDSA secp256r1, or Ed25519, but got ${subjectPubKeyAlgo}`);
-      }
-    }
-
-    /**
-     * Extensions
-     */
-    const extensionsArea = voteContents.shift();
-    if (typeof extensionsArea !== 'object' || extensionsArea === null || !('type' in extensionsArea) || extensionsArea.type !== 'context') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to follow subject public key information');
-    }
-    if (extensionsArea.value !== 3) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', `internal error: Got wrong kind of context-specific tag, expected 3 got ${extensionsArea.value}`);
-    }
-    const extensions = extensionsArea.contains;
-    if (!Array.isArray(extensions)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to be a Sequence');
-    }
-    let blocks;
-    let feeAndKind;
-    for (const extensionInfo of extensions) {
-      if (!Array.isArray(extensionInfo)) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Expected each extension to be a Sequence');
-      }
-      if (extensionInfo.length !== 2 && extensionInfo.length !== 3) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Extension information must contain 2 or 3 elements');
-      }
-      const extensionOID = extensionInfo.shift();
-      if (typeof extensionOID !== 'object' || extensionOID === null || !('type' in extensionOID) || extensionOID.type !== 'oid') {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_OID', 'internal error: Expected extension ID to be present and an OID');
-      }
-      if (extensionOID.type !== 'oid') {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_OID', 'internal error: Expected extension ID to be an OID');
-      }
-      let critical = true;
-      if (extensionInfo.length === 2) {
-        const criticalCheck = extensionInfo.shift();
-        if (typeof criticalCheck !== 'boolean') {
-          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL', 'internal error: Expected critical flag to be a boolean');
-        }
-        critical = criticalCheck;
-      }
-      const extensionData = extensionInfo.shift();
-      if (!client_vote_Buffer.isBuffer(extensionData)) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_DATA', `internal error: ${extensionOID.oid} extensions are always Octet String`);
-      }
-      switch (extensionOID.oid) {
-        case 'hashData':
-          blocks = client_blockHashesFromVote(extensionData);
-          break;
-        case '1.3.6.1.4.1.62675.0.1.0':
-        case 'fees':
-          // replace with fees 1.3.6.1.4.1.62675.0.1.0
-          feeAndKind = client_feeFromVote(extensionData);
-          break;
-        default:
-          if (critical) {
-            throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL_TYPE', `internal error: Unknown critical extension ${extensionOID.oid}`);
-          }
-      }
-    }
-    if (voteContents.length !== 0) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT_EXTRA_DATA', 'internal error: Extra data in vote certificate');
-    }
-    if (!blocks || !Array.isArray(blocks)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_NO_BLOCKS_FOUND', 'No block hashes found within vote');
-    }
-    this.blocks = blocks;
-    if (feeAndKind !== undefined) {
-      if (this.$permanent) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'Permanent Vote cannot have fees');
-      }
-      // Get the expected quote value from any child instances and compare
-      if (feeAndKind.quote !== this.getClass().expectedQuoteValue) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${feeAndKind.quote} - expected ${this.getClass().expectedQuoteValue}`);
-      }
-      this.fee = feeAndKind.fee;
-      this.quote = feeAndKind.quote;
-    }
-
-    /**
-     * Get the signature data
-     */
-    const voteSignatureInfoWrapper = voteWrapper.shift();
-    if (!Array.isArray(voteSignatureInfoWrapper)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must be a sequence');
-    }
-    if (voteSignatureInfoWrapper.length !== 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information should contain exactly 1 item');
-    }
-    const voteSignatureInfo = voteSignatureInfoWrapper[0];
-    if (voteSignatureInfo === undefined || voteSignatureInfo === null) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature should contain an OID');
-    }
-    if (typeof voteSignatureInfo !== 'object' || voteSignatureInfo === null || !('type' in voteSignatureInfo) || voteSignatureInfo.type !== 'oid') {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature should contain an OID');
-    }
-    let toVerify;
-    const voteSignatureInfoOID = voteSignatureInfo.oid;
-
-    /**
-     * Ensure the certificate and the wrapper agree on the signature method being used
-     */
-    if (voteSignatureInfoOID !== signatureInfoOID) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_WRAPPER', 'Signed signature information differs from wrapper');
-    }
-    switch (voteSignatureInfoOID) {
-      case `${client_hash_Hash.functionName}WithEcDSA`:
-        if (this.issuer.keyType !== client_AccountKeyAlgorithm.ECDSA_SECP256K1 && this.issuer.keyType !== client_AccountKeyAlgorithm.ECDSA_SECP256R1) {
-          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer ECDSA curve (EcDSA)');
-        }
-
-        // For now we just verify that the vote was self signed
-        if (this.issuer.publicKeyString.get() !== subjectPublicKey) {
-          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer ECDSA curve (EcDSA)');
-        }
-        toVerify = client_hash_Hash(client_vote_Buffer.from(tbsCertificate));
-        break;
-      case 'ed25519':
-        if (this.issuer.keyType !== client_AccountKeyAlgorithm.ED25519) {
-          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer (Ed25519)');
-        }
-        toVerify = tbsCertificate;
-        break;
-      default:
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_UNSUPPORTED_SCHEME', `Unsupported signature scheme ${voteSignatureInfoOID}`);
-    }
-
-    /**
-     * Get the signature
-     */
-    const voteSignature = voteWrapper.shift();
-    if (typeof voteSignature !== 'object' || voteSignature === null || !('type' in voteSignature) || !('value' in voteSignature)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_VALUE', 'internal error: Vote signature must be provided');
-    }
-    if (voteSignature.type !== 'bitstring' || !client_vote_Buffer.isBuffer(voteSignature.value)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_VALUE', 'internal error: Vote signature must be a BitString with a buffer value');
-    }
-    const isValid = this.issuer.verify(toVerify, voteSignature.value, {
-      raw: true,
-      forCert: true
-    });
-    if (isValid !== true) {
-      throw new src_client_KeetaNetVoteError('VOTE_SIGNATURE_INVALID', 'Vote signature could not be verified');
-    }
-    this.signature = client_bufferToArrayBuffer(voteSignature.value);
-
-    /*
-     * Set UID and its hash
-     */
-    this.$uid = `ID=${this.issuer.publicKeyString.get()}/Serial=${this.serial}`;
-    this.$id = new src_client_BufferStorage(client_hash_Hash(client_vote_Buffer.from(this.$uid)), 32).toString('hex').toUpperCase();
-
-    /**
-    	* The current instant
-    	*/
-    let now;
-    if (options.now) {
-      now = options.now.valueOf();
-    } else {
-      now = Date.now();
-    }
-
-    /**
-     * If the vote is forever viable, it is a permanent vote
-     */
-    if (this.validityTo.valueOf() > now + 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */) {
-      this.$permanent = true;
-    }
-  }
-  toBytes() {
-    return client_vote_classPrivateFieldGet(client_vote, this);
-  }
-  get hash() {
-    if (!client_vote_classPrivateFieldGet(client_vote_hash, this)) {
-      client_vote_classPrivateFieldSet(client_vote_hash, this, new src_client_VoteHash(client_hash_Hash(client_vote_Buffer.from(this.toBytes()))));
-    }
-    return client_vote_classPrivateFieldGet(client_vote_hash, this);
-  }
-  get blocksHash() {
-    if (!client_vote_classPrivateFieldGet(client_blocksHash, this)) {
-      client_vote_classPrivateFieldSet(client_blocksHash, this, src_client_VoteBlockHash.fromVote(this));
-    }
-    return client_vote_classPrivateFieldGet(client_blocksHash, this);
-  }
-  toString() {
-    return client_vote_Buffer.from(this.toBytes()).toString('base64');
-  }
-  toJSON(options) {
-    const additionalFields = {};
-    if (options !== null && options !== void 0 && options.addBinary) {
-      additionalFields['$binary'] = client_vote_Buffer.from(this.toBytes()).toString('base64');
-    }
-    if (this.fee !== undefined) {
-      additionalFields['fee'] = this.fee;
-    }
-    if (this.quote !== undefined) {
-      additionalFields['quote'] = this.quote;
-    }
-    return {
-      issuer: this.issuer,
-      serial: this.serial,
-      blocks: this.blocks,
-      validityFrom: this.validityFrom,
-      validityTo: this.validityTo,
-      signature: this.signature,
-      $trusted: this.$trusted,
-      $permanent: this.$permanent,
-      $uid: this.$uid,
-      $id: this.$id,
-      ...additionalFields
-    };
-  }
-  expirationCheckMoment() {
-    let now;
-    if (client_vote_classPrivateFieldGet(client_options, this).now) {
-      now = client_vote_classPrivateFieldGet(client_options, this).now.valueOf();
-    } else {
-      now = Date.now();
-    }
-    return now;
-  }
-  get expired() {
-    const now = this.expirationCheckMoment();
-    const from = this.validityFrom.valueOf();
-    const to = this.validityTo.valueOf();
-    if (now + src_client_VoteLikeBase.allowedSlop < from || now - src_client_VoteLikeBase.allowedSlop > to) {
-      return true;
-    }
-    return false;
-  }
-}
-client_VoteLikeBase = src_client_VoteLikeBase;
-client_lib_vote_defineProperty(src_client_VoteLikeBase, "expectedQuoteValue", false);
-client_lib_vote_defineProperty(src_client_VoteLikeBase, "allowedSlop", 60 /* s */ * 1000 /* ms */);
-client_lib_vote_defineProperty(src_client_VoteLikeBase, "permanentVoteThreshold", 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */);
-client_lib_vote_defineProperty(src_client_VoteLikeBase, "VoteBlocksHash", src_client_VoteBlockHash);
-client_lib_vote_defineProperty(src_client_VoteLikeBase, "isInstance", client_checkableGenerator(client_VoteLikeBase));
-class src_client_PossiblyExpiredVote extends src_client_VoteLikeBase {
-  constructor(vote) {
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    super(vote, options);
-    if (this.quote === true) {
-      throw new src_client_KeetaNetVoteError('VOTE_FEE_IS_QUOTE', `Tried to construct a vote but fee kind is QUOTE`);
-    }
-  }
-}
-
-/**
- * A vote is a certificate issued indicating that the issuer "vouches" for the
- * blocks specified will fit into the ledger of the operator/issuer.
- */
-client_PossiblyExpiredVote = src_client_PossiblyExpiredVote;
-client_lib_vote_defineProperty(src_client_PossiblyExpiredVote, "isInstance", client_checkableGenerator(client_PossiblyExpiredVote));
-class src_client_Vote extends src_client_PossiblyExpiredVote {
-  constructor(vote) {
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    super(vote, options);
-    // We add this so both classes have different signatures
-    client_lib_vote_defineProperty(this, "possiblyExpired", false);
-    if (this.expired) {
-      const expirationCheckMomentISO = new Date(this.expirationCheckMoment()).toISOString();
-      throw new src_client_KeetaNetVoteError('VOTE_EXPIRED', `Vote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
-    }
-  }
-}
-
-/**
- * A VoteQuote is a certificate issued indicating what the issuer will charge for fees
- */
-client_Vote = src_client_Vote;
-client_lib_vote_defineProperty(src_client_Vote, "isInstance", client_checkableGenerator(client_Vote));
-class src_client_VoteQuote extends src_client_VoteLikeBase {
-  constructor(vote) {
-    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    super(vote, options);
-    // We add this so both classes have different signatures
-    client_lib_vote_defineProperty(this, "isVoteQuote", true);
-    if (this.expired) {
-      const expirationCheckMomentISO = new Date(this.expirationCheckMoment()).toISOString();
-      throw new src_client_KeetaNetVoteError('VOTE_EXPIRED', `VoteQuote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
-    }
-    if (!this.quote) {
-      throw new src_client_KeetaNetVoteError('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but kind is not QUOTE`);
-    }
-  }
-}
-
-/**
- * A vote staple is a distributable block consisting of one or more blocks
- * and one or more votes.
- */
-client_VoteQuote = src_client_VoteQuote;
-client_lib_vote_defineProperty(src_client_VoteQuote, "expectedQuoteValue", true);
-client_lib_vote_defineProperty(src_client_VoteQuote, "isInstance", client_checkableGenerator(client_VoteQuote));
-class src_client_VoteStapleHash extends src_client_BufferStorage {
-  get hashFunctionName() {
-    return client_hash_Hash.functionName;
-  }
-  constructor(stapleHash) {
-    super(stapleHash, 32);
-    client_lib_vote_defineProperty(this, "storageKind", 'VoteStapleHash');
-  }
-}
-client_VoteStapleHash = src_client_VoteStapleHash;
-client_lib_vote_defineProperty(src_client_VoteStapleHash, "isInstance", client_checkableGenerator(client_VoteStapleHash));
-var client_value = /*#__PURE__*/new WeakMap();
-var client_valueCompressed = /*#__PURE__*/new WeakMap();
-var client_hash2 = /*#__PURE__*/new WeakMap();
-var client_blocksHash2 = /*#__PURE__*/new WeakMap();
-class src_client_VoteBlockBundle {
-  /** @internal */
-  static _Testing() {
-    var _this = this;
-    return {
-      fromVotesAndBlocksRaw: function (votes, blocks) {
-        let voteOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-        const encoded = client_JStoASN1([blocks.map(function (item) {
-          return client_vote_Buffer.from(item.toBytes());
-        }), votes.map(function (item) {
-          return client_vote_Buffer.from(item.toBytes());
-        })]);
-        const buffer = client_vote_Buffer.from(encoded.toBER(false));
-        const compressedBuffer = client_lib_default().deflateSync(buffer);
-        return new _this(compressedBuffer, voteOptions);
-      },
-      voteBlockHash: src_client_VoteBlockHash
-    };
-  }
-
-  /**
-   * Construct a new vote bundle from votes and blocks
-   */
-  static fromVotesAndBlocks(votes, blocks) {
-    let voteOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-    if (votes.length < 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one vote');
-    }
-    const representativeVote = votes[0];
-    const blockHashOrdering = Object.fromEntries(representativeVote.blocks.map(function (blockHash, index) {
-      return [blockHash.toString(), index];
-    }));
-    const blocksOrdered = [...blocks].sort(function (a, b) {
-      return blockHashOrdering[a.hash.toString()] - blockHashOrdering[b.hash.toString()];
-    });
-    const votesOrdered = [...votes].sort(function (a, b) {
-      const aHash = BigInt(`0x${a.hash.toString('hex')}`);
-      const bHash = BigInt(`0x${b.hash.toString('hex')}`);
-      if (aHash < bHash) {
-        return -1;
-      } else if (aHash > bHash) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
-    const encoded = client_JStoASN1([blocksOrdered.map(function (item) {
-      return client_vote_Buffer.from(item.toBytes());
-    }), votesOrdered.map(function (item) {
-      return client_vote_Buffer.from(item.toBytes());
-    })]);
-    const buffer = client_vote_Buffer.from(encoded.toBER(false));
-    const compressedBuffer = client_lib_default().deflateSync(buffer);
-    return new this(compressedBuffer, voteOptions);
-  }
-
-  /**
-   * Convert a list of Votes and Blocks into a VoteStaple
-   * This is slightly different from VoteStaple.fromVotesAndBlocks in
-   * that it will filter the supplied votes to only include those that
-   * are permanent if any permanent votes are present, otherwise only
-   * temporary votes will be included
-   *
-   * Additionally, it will filter out any votes that are expired
-   */
-  static fromVotesAndBlocksWithFiltering(votes, blocks, opts) {
-    const permVotes = [];
-    const tempVotes = [];
-    for (const vote of votes) {
-      if (vote.expired) {
-        continue;
-      }
-      let validatedVote;
-      if (src_client_Vote.isInstance(vote)) {
-        validatedVote = vote;
-      } else {
-        validatedVote = new src_client_Vote(vote);
-      }
-      if (vote.$permanent) {
-        permVotes.push(validatedVote);
-      } else {
-        tempVotes.push(validatedVote);
-      }
-    }
-    let sameKindVotes = permVotes;
-    if (permVotes.length === 0) {
-      sameKindVotes = tempVotes;
-    }
-    if (sameKindVotes.length === 0) {
-      return null;
-    }
-    if (blocks.length === 0) {
-      return null;
-    }
-    const retval = this.fromVotesAndBlocks(sameKindVotes, blocks, opts);
-    return retval;
-  }
-  static fromVotesAndBlocksToHashMap(votes, blocks, opts) {
-    const voteObjects = {};
-    const blockObjects = {};
-    const blockHashToVoteStapleID = new Map();
-    /**
-     * Process each vote and group them by Vote Staple
-     */
-    for (const vote of votes) {
-      const voteStapleID = vote.blocksHash.toString();
-
-      /* Keep track of which blocks we need to process and to which group they belong */
-      for (const blockHash of vote.blocks) {
-        const blockHashStr = blockHash.toString();
-        blockHashToVoteStapleID.set(blockHashStr, voteStapleID);
-      }
-
-      /* Group votes by Vote Staple */
-      if (voteObjects[voteStapleID] === undefined) {
-        voteObjects[voteStapleID] = [];
-        blockObjects[voteStapleID] = [];
-      }
-      voteObjects[voteStapleID].push(vote);
-    }
-
-    /* Group blocks by Vote Staple */
-    for (const block of blocks) {
-      const blocksHash = blockHashToVoteStapleID.get(block.hash.toString());
-      if (blocksHash === undefined) {
-        /* Ignore blocks for which no possible votes exist */
-        continue;
-      }
-      blockObjects[blocksHash].push(block);
-    }
-
-    /**
-     * Get list of VoteBlockHashes to return
-     */
-    let voteStapleIDsToReturn = [];
-    if (opts.voteBlockHashes !== undefined) {
-      voteStapleIDsToReturn = opts.voteBlockHashes;
-    } else {
-      voteStapleIDsToReturn = Object.keys(voteObjects).map(function (blockHash) {
-        return new src_client_VoteBlockHash(blockHash);
-      });
-    }
-
-    /* Construct the final VoteStaples */
-    const retval = new src_client_Vote.VoteBlocksHash.Map();
-    for (const voteStapleID of voteStapleIDsToReturn) {
-      const voteStapleIDStr = voteStapleID.toString();
-      const votes = voteObjects[voteStapleIDStr];
-      const blocks = blockObjects[voteStapleIDStr];
-      if (votes === undefined || blocks === undefined) {
-        retval.set(voteStapleID, null);
-        continue;
-      }
-      const voteStaple = this.fromVotesAndBlocksWithFiltering(votes, blocks, opts);
-      retval.set(voteStapleID, voteStaple);
-    }
-    return retval;
-  }
-  static isValidJSON(staple) {
-    if (!staple.votes || !staple.blocks) {
-      return false;
-    }
-    const {
-      votes,
-      blocks
-    } = staple;
-    if (!Array.isArray(votes) || !Array.isArray(blocks)) {
-      return false;
-    }
-    for (const vote of votes) {
-      if (!src_client_Vote.isValidJSON(vote)) {
-        return false;
-      }
-    }
-    for (const block of blocks) {
-      if (!src_client_Block.isValidJSON(block)) {
-        return false;
-      }
-    }
-    return true;
-  }
-  static fromJSON(staple) {
-    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const votes = staple.votes.map(vote => new src_client_Vote(vote));
-    const blocks = staple.blocks.map(block => new src_client_Block(block));
-    const voteStaple = this.fromVotesAndBlocks(votes, blocks, voteOptions);
-    return voteStaple;
-  }
-
-  /**
-   * Construct a new staple from a message buffer
-   */
-  constructor(votesStapled) {
-    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    client_vote_classPrivateFieldInitSpec(this, client_value, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_valueCompressed, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_hash2, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_blocksHash2, void 0);
-    if (typeof votesStapled === 'string') {
-      votesStapled = client_vote_Buffer.from(votesStapled, 'base64');
-    }
-    if (src_client_VoteBlockBundle.isInstance(votesStapled)) {
-      votesStapled = votesStapled.toBytes(true);
-    }
-    if (client_vote_Buffer.isBuffer(votesStapled)) {
-      votesStapled = client_bufferToArrayBuffer(votesStapled);
-    }
-    if (!client_util.types.isArrayBuffer(votesStapled)) {
-      if (votesStapled instanceof src_client_VoteBlockBundle) {
-        votesStapled = votesStapled.toBytes(true);
-      } else if (src_client_VoteBlockBundle.isValidJSON(votesStapled)) {
-        votesStapled = src_client_VoteBlockBundle.fromJSON(votesStapled, voteOptions).toBytes(true);
-      } else {
-        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'internal error: votesStapled must be an ArrayBuffer');
-      }
-    }
-
-    /**
-     * Decompress the buffer
-     */
-    try {
-      client_vote_classPrivateFieldSet(client_value, this, client_bufferToArrayBuffer(client_lib_default().inflateSync(client_vote_Buffer.from(votesStapled))));
-      client_vote_classPrivateFieldSet(client_valueCompressed, this, votesStapled);
-    } catch {
-      client_vote_classPrivateFieldSet(client_value, this, votesStapled);
-    }
-
-    /**
-     * Parse BER encoded data into objects
-     */
-    const data = client_ASN1toJS(client_vote_classPrivateFieldGet(client_value, this));
-    if (!Array.isArray(data)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must be a Sequence');
-    }
-    if (data.length !== 2) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
-    }
-    const [blocksRaw, votesRaw] = data;
-    if (!Array.isArray(blocksRaw) || !Array.isArray(votesRaw)) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
-    }
-    if (blocksRaw.length < 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_BLOCKS_AT_LEAST_ONE', 'There must be at least 1 block');
-    }
-
-    /**
-     * List of blocks
-     */
-    const blocksUnsorted = blocksRaw.map(function (blockData) {
-      if (!client_vote_Buffer.isBuffer(blockData)) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_BLOCKS', 'Each block must be an Octet String');
-      }
-      return new src_client_Block(blockData);
-    });
-    if (votesRaw.length < 1) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_VOTES_AT_LEAST_ONE', 'There must be at least one vote');
-    }
-
-    /**
-     * Get a list of every block hash
-     */
-    const blockHashes = {};
-    for (const block of blocksUnsorted) {
-      blockHashes[block.hash.toString()] = block;
-    }
-
-    /*
-     * Ensure blocks are sorted the same way as the vote
-     */
-    this.votes = votesRaw.map(function (voteData) {
-      if (!client_vote_Buffer.isBuffer(voteData)) {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_VOTES', 'Each vote must be an Octet String');
-      }
-      const vote = new src_client_Vote(voteData, voteOptions);
-      if (vote.blocks.length !== blocksUnsorted.length) {
-        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_COUNT', `Each vote must vote on the exact set of blocks being stapled (same number) (vote: ${vote.blocks.length}; blocks: ${blocksUnsorted.length})`);
-      }
-      for (const voteBlockHash of vote.blocks) {
-        const voteBlockHashCheck = blockHashes[voteBlockHash.toString()];
-        if (voteBlockHashCheck === undefined) {
-          throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_MISSING', `Each vote must be on the exact set of blocks being stapled (missing ${voteBlockHash.toString()})`);
-        }
-      }
-      return vote;
-    });
-
-    /**
-     * Order blocks by the vote ordering
-     */
-    this.blocks = this.votes[0].blocks.map(function (blockHash) {
-      return blockHashes[blockHash.toString()];
-    });
-
-    /**
-     * Ensure every vote has the block hashes in the same order
-     */
-    for (const vote of this.votes) {
-      for (let blockHashIndex = 0; blockHashIndex < vote.blocks.length; blockHashIndex++) {
-        const voteBlockHash = vote.blocks[blockHashIndex];
-        const stapleBlockHash = this.blocks[blockHashIndex];
-        if (voteBlockHash.toString() !== stapleBlockHash.hash.toString()) {
-          throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_ORDER', 'All votes must list blocks in the same order');
-        }
-      }
-    }
-  }
-
-  /**
-   * Get the serialized version
-   */
-  toBytes(uncompressed) {
-    if (uncompressed) {
-      return client_vote_classPrivateFieldGet(client_value, this);
-    }
-    if (!client_vote_classPrivateFieldGet(client_valueCompressed, this)) {
-      client_vote_classPrivateFieldSet(client_valueCompressed, this, client_bufferToArrayBuffer(client_lib_default().deflateSync(client_vote_Buffer.from(client_vote_classPrivateFieldGet(client_value, this)))));
-    }
-    return client_vote_classPrivateFieldGet(client_valueCompressed, this);
-  }
-  toString() {
-    return client_vote_Buffer.from(this.toBytes()).toString('base64');
-  }
-
-  /**
-   * Hash of the Vote Staple -- this is the hash of the data in the
-   * canonical form of the staple, which may be different from
-   * the hash of the data passed into the this object.
-   */
-  get hash() {
-    if (!client_vote_classPrivateFieldGet(client_hash2, this)) {
-      const canonicalVoteStaple = src_client_VoteBlockBundle.fromVotesAndBlocks(this.votes, this.blocks);
-      const hash = client_hash_Hash(client_vote_Buffer.from(canonicalVoteStaple.toBytes(true)));
-      client_vote_classPrivateFieldSet(client_hash2, this, new src_client_VoteStapleHash(hash));
-    }
-    return client_vote_classPrivateFieldGet(client_hash2, this);
-  }
-
-  /**
-   * Get the hash of the blockhashes in the staple -- this is a stable ID
-   * for the staple regardless of which votes are included in the staple.
-   */
-  get blocksHash() {
-    if (!client_vote_classPrivateFieldGet(client_blocksHash2, this)) {
-      client_vote_classPrivateFieldSet(client_blocksHash2, this, src_client_VoteBlockHash.fromVoteStaple(this));
-    }
-    return client_vote_classPrivateFieldGet(client_blocksHash2, this);
-  }
-
-  /**
-   * Get the timestamp of the staple
-   *
-   * This is the average of the timestamps of the votes, unless a
-   * particular account is specified then that timestamp is used
-   * if it issued a vote in the staple.
-   */
-  timestamp(preferRep) {
-    /*
-     * Compute the nominal timestamp of the vote staple by
-     * averaging the timestamps of the votes.
-     */
-    let voteTimestampsMin = Number.MAX_SAFE_INTEGER;
-    for (const vote of this.votes) {
-      const voteTime = vote.validityFrom;
-      if (preferRep !== null && preferRep !== void 0 && preferRep.comparePublicKey(vote.issuer)) {
-        return voteTime;
-      }
-      const voteTimestamp = voteTime.valueOf();
-      if (voteTimestamp < voteTimestampsMin) {
-        voteTimestampsMin = voteTimestamp;
-      }
-    }
-    let voteTimestampsAccumulator = 0;
-    let voteTimestampsCount = 0;
-    for (const vote of this.votes) {
-      const voteTimestamp = vote.validityFrom.valueOf();
-      voteTimestampsAccumulator += voteTimestamp - voteTimestampsMin;
-      voteTimestampsCount++;
-    }
-    const timestampValue = voteTimestampsMin + Math.floor(voteTimestampsAccumulator / voteTimestampsCount);
-    const timestamp = new Date(timestampValue);
-    return timestamp;
-  }
-  toJSON(options) {
-    const additionalFields = {};
-    if (options !== null && options !== void 0 && options.addBinary) {
-      additionalFields['$binary'] = client_vote_Buffer.from(this.toBytes()).toString('base64');
-    }
-    return {
-      votes: this.votes.map(function (vote) {
-        return vote.toJSON();
-      }),
-      blocks: this.blocks.map(function (block) {
-        return block.toJSON();
-      }),
-      ...additionalFields
-    };
-  }
-}
-client_VoteBlockBundle = src_client_VoteBlockBundle;
-client_lib_vote_defineProperty(src_client_VoteBlockBundle, "VoteBlockHash", src_client_VoteBlockHash);
-client_lib_vote_defineProperty(src_client_VoteBlockBundle, "isInstance", client_checkableGenerator(client_VoteBlockBundle));
-class src_client_VoteStaple extends src_client_VoteBlockBundle {
-  constructor(votesStapled) {
-    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    super(votesStapled, voteOptions);
-    /**
-     * Ensure no representative has more than 1 vote in the bundle
-     * and that every vote has the same level of permanence
-     */
-    const seenReps = new client_lib_account.Set();
-    let votesPermanence = undefined;
-    for (const vote of this.votes) {
-      if (seenReps.has(vote.issuer)) {
-        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_DUPLICATE_VOTE_ISSUER', `Unable to parse vote information since account ${vote.issuer.publicKeyString.get()} has voted more than once`);
-      }
-      seenReps.add(vote.issuer);
-      if (votesPermanence === undefined) {
-        votesPermanence = vote.$permanent;
-      }
-      if (vote.$permanent !== votesPermanence) {
-        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_PERMANENCE_MISMATCH', `Only votes with permanent set to ${votesPermanence} are permissible in a bundle, however we found a vote that expires on ${vote.validityTo.toISOString()}`);
-      }
-    }
-  }
-}
-client_VoteStaple = src_client_VoteStaple;
-client_lib_vote_defineProperty(src_client_VoteStaple, "isInstance", client_checkableGenerator(client_VoteStaple));
-var client_account = /*#__PURE__*/new WeakMap();
-var client_blocks = /*#__PURE__*/new WeakMap();
-var client_fee = /*#__PURE__*/new WeakMap();
-class src_client_BaseVoteBuilder {
-  constructor(account) {
-    let blocks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-    let options = arguments.length > 2 ? arguments[2] : undefined;
-    client_vote_classPrivateFieldInitSpec(this, client_account, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_blocks, void 0);
-    client_vote_classPrivateFieldInitSpec(this, client_fee, undefined);
-    client_lib_vote_defineProperty(this, "quote", false);
-    if (!client_lib_account.isInstance(account)) {
-      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_CONSTRUCTION', 'internal error: account must be an Account');
-    }
-    client_vote_classPrivateFieldSet(client_account, this, account);
-    client_vote_classPrivateFieldSet(client_blocks, this, []);
-    client_vote_classPrivateFieldSet(client_fee, this, options === null || options === void 0 ? void 0 : options.fee);
-    this.addBlocks(blocks);
-  }
-  addBlocks(blocks) {
-    for (const block of blocks) {
-      if (src_client_Block.isInstance(block)) {
-        client_vote_classPrivateFieldGet(client_blocks, this).push(block.hash);
-        continue;
-      }
-      if (typeof block === 'string') {
-        client_vote_classPrivateFieldGet(client_blocks, this).push(new client_block_BlockHash(block));
-        continue;
-      }
-      if (!client_block_BlockHash.isInstance(block)) {
-        throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_BLOCK_TYPE', 'internal error: block must be Block, BlockHash, or string');
-      }
-      client_vote_classPrivateFieldGet(client_blocks, this).push(block);
-    }
-  }
-  addBlock(block) {
-    this.addBlocks([block]);
-  }
-  addFee(feeInput) {
-    const fee = {
-      amount: BigInt(feeInput.amount)
-    };
-    const payTo = client_lib_account.toAccount(feeInput.payTo);
-    if (payTo !== undefined) {
-      if (payTo.isStorage()) {
-        fee.payTo = payTo;
-      } else {
-        fee.payTo = payTo.assertAccount();
-      }
-    }
-    const token = client_lib_account.toAccount(feeInput.token);
-    if (token !== undefined) {
-      if (token.isToken()) {
-        fee.token = token;
-      } else {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN');
-      }
-    }
-    client_vote_classPrivateFieldSet(client_fee, this, fee);
-  }
-  generateVoteData(serial, validTo, validFrom) {
-    /**
-     * Signature algorithm identifier
-     */
-    let signatureInfoOID;
-
-    /**
-     * Whether or not to hash the data we are signing
-     */
-    let hashData = false;
-    switch (client_vote_classPrivateFieldGet(client_account, this).keyType) {
-      case client_AccountKeyAlgorithm.ECDSA_SECP256K1:
-      case client_AccountKeyAlgorithm.ECDSA_SECP256R1:
-        {
-          /*
-           * Use the default hashing function
-           * throughout the application
-           */
-          const hashFunctionName = client_hash_Hash.functionName;
-          signatureInfoOID = `${hashFunctionName}WithEcDSA`;
-          hashData = true;
-        }
-        break;
-      case client_AccountKeyAlgorithm.ED25519:
-        /* Ed25519 data does not get hashed */
-        signatureInfoOID = 'ed25519';
-        hashData = false;
-        break;
-      default:
-        throw new Error('internal error: Unsupported key type');
-        /* We do not sign with identifier accounts */
-        break;
-    }
-
-    /** Public Key */
-    const publicKey = client_vote_classPrivateFieldGet(client_account, this).publicKey.ASN1.getASN1();
-
-    /** Signature Information */
-    const signatureInfo = [{
-      type: 'oid',
-      oid: signatureInfoOID
-    }];
-    let feeExtension = undefined;
-    if (client_vote_classPrivateFieldGet(client_fee, this) !== undefined) {
-      var _classPrivateFieldGet2, _classPrivateFieldGet3;
-      /** Amount for this vote */
-      const feeData = [this.quote, client_vote_classPrivateFieldGet(client_fee, this).amount];
-
-      /** Account to pay the fee too */
-      const payToPublicKey = (_classPrivateFieldGet2 = client_vote_classPrivateFieldGet(client_fee, this).payTo) === null || _classPrivateFieldGet2 === void 0 ? void 0 : _classPrivateFieldGet2.publicKeyAndType;
-      if (payToPublicKey !== undefined) {
-        feeData.push({
-          type: 'context',
-          value: 0,
-          kind: 'implicit',
-          contains: payToPublicKey
-        });
-      }
-
-      /** Token in which to pay the fee */
-      const tokenPublicKey = (_classPrivateFieldGet3 = client_vote_classPrivateFieldGet(client_fee, this).token) === null || _classPrivateFieldGet3 === void 0 ? void 0 : _classPrivateFieldGet3.publicKeyAndType;
-      if (tokenPublicKey !== undefined) {
-        feeData.push({
-          type: 'context',
-          value: 1,
-          kind: 'implicit',
-          contains: tokenPublicKey
-        });
-      }
-      feeExtension = [{
-        type: 'oid',
-        oid: '1.3.6.1.4.1.62675.0.1.0'
-      },
-      // replace with 'fees' - 1.3.6.1.4.1.62675.0.1.0
-      true, client_vote_Buffer.from(client_JStoASN1({
-        type: 'context',
-        value: 0,
-        kind: 'explicit',
-        contains: feeData
-      }).toBER(false))];
-    }
-
-    /*
-     * Certificate to be signed
-     */
-    const tbsCertificate = [/** Version */
-    {
-      type: 'context',
-      value: 0,
-      kind: 'explicit',
-      contains: 2n
-    }, /** Serial Number */
-    serial, signatureInfo, /** Issuer */
-    [{
-      type: 'set',
-      name: {
-        type: 'oid',
-        oid: 'commonName'
-      },
-      value: {
-        type: 'string',
-        kind: 'utf8',
-        value: client_vote_classPrivateFieldGet(client_account, this).publicKeyString.get()
-      }
-    }], /** Validity */
-    [{
-      type: 'date',
-      kind: 'general',
-      date: validFrom
-    }, {
-      type: 'date',
-      kind: 'general',
-      date: validTo
-    }], /** Subject */
-    [{
-      type: 'set',
-      name: {
-        type: 'oid',
-        oid: 'serialNumber'
-      },
-      value: {
-        type: 'string',
-        kind: 'utf8',
-        value: serial.toString(16)
-      }
-    }],
-    /**
-     * Subject Public Key and Key Description
-     *
-     * The subject of this certificate is really the data,
-     * so we can put something much smaller here to save
-     * space XXX:TODO
-     *
-     * For now we just put the issuer public key for
-     * testing, but the issuer public key is fully
-     * encoded in the commonName attribute of the
-     * issuer DN.
-     */
-    publicKey, /** Extensions */
-    {
-      type: 'context',
-      value: 3,
-      kind: 'explicit',
-      contains: [/** Extension: Hash data */
-      [{
-        type: 'oid',
-        oid: 'hashData' /* XXX:TODO: There may be a better extension to use here */
-      }, true, client_vote_Buffer.from(client_JStoASN1({
-        type: 'context',
-        value: 0,
-        kind: 'explicit',
-        contains: [/** Hash algorithm used to hash blocks */
-        {
-          type: 'oid',
-          oid: client_hash_Hash.functionName
-        }, /** List of block hashes */
-        client_vote_classPrivateFieldGet(client_blocks, this).map(function (blockhash) {
-          return blockhash.getBuffer();
-        })]
-      }).toBER(false))], ...(feeExtension ? [feeExtension] : [])]
-    }];
-    let toSign;
-    const tbsCertificateDER = client_vote_Buffer.from(client_JStoASN1(tbsCertificate).toBER(false));
-    if (hashData) {
-      toSign = client_hash_Hash(tbsCertificateDER);
-    } else {
-      toSign = tbsCertificateDER;
-    }
-    return {
-      voteData: toSign,
-      tbsCertificate: tbsCertificate,
-      signatureInfo: signatureInfo
-    };
-  }
-  createVote(voteData, tbsCertificate, signatureInfo, signature) {
-    /**
-     * Double-check that the signature we just created is valid for the data
-     */
-    const verification = client_vote_classPrivateFieldGet(client_account, this).verify(voteData, signature, {
-      raw: true,
-      forCert: true
-    });
-    if (!verification) {
-      throw new src_client_KeetaNetVoteError('VOTE_SIGNATURE_INVALID', 'internal error: Verification of signature failed');
-    }
-
-    /**
-     * Entire certificate structure
-     */
-    const certificate = client_JStoASN1([tbsCertificate, signatureInfo, {
-      'type': 'bitstring',
-      value: signature.getBuffer()
-    }]);
-
-    /**
-     * Vote: A DER-encoded certificate
-     */
-    const vote = certificate.toBER(false);
-    return vote;
-  }
-  async generate(serial, validTo, validFrom) {
-    if (validFrom === undefined) {
-      validFrom = new Date();
-    }
-    if (typeof serial !== 'bigint') {
-      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_SERIAL', `internal error: serial must be a bigint, instead got ${serial}`);
-    }
-    if (validTo === null && client_vote_classPrivateFieldGet(client_fee, this) !== undefined) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'internal error: permanent votes should not have fees');
-    }
-    if (validTo === null) {
-      /**
-       * Issue a permanent vote
-       */
-      validTo = new Date();
-      validTo.setUTCFullYear(validTo.getUTCFullYear() + 1000, 12, 31);
-      validTo.setUTCHours(0, 0, 0, 0);
-    }
-    if (!client_util.types.isDate(validFrom) || !client_util.types.isDate(validTo)) {
-      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_VALID_TO_FROM', 'internal error: validFrom must be Date');
-    }
-    if (this.quote && client_vote_classPrivateFieldGet(client_fee, this) === undefined) {
-      throw new src_client_KeetaNetVoteError('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided');
-    }
-    const {
-      voteData,
-      tbsCertificate,
-      signatureInfo
-    } = this.generateVoteData(serial, validTo, validFrom);
-    const signature = await client_vote_classPrivateFieldGet(client_account, this).sign(voteData, {
-      raw: true,
-      forCert: true
-    });
-    const voteLike = this.createVote(voteData, tbsCertificate, signatureInfo, signature);
-    return voteLike;
-  }
-}
-client_BaseVoteBuilder = src_client_BaseVoteBuilder;
-client_lib_vote_defineProperty(src_client_BaseVoteBuilder, "isInstance", client_checkableGenerator(client_BaseVoteBuilder));
-class src_client_VoteBuilder extends src_client_BaseVoteBuilder {
-  async seal(serial, validTo, validFrom) {
-    let voteOptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-    const vote = await super.generate(serial, validTo, validFrom);
-    return new src_client_Vote(vote, voteOptions);
-  }
-}
-client_VoteBuilder = src_client_VoteBuilder;
-client_lib_vote_defineProperty(src_client_VoteBuilder, "isInstance", client_checkableGenerator(client_VoteBuilder));
-class src_client_VoteQuoteBuilder extends src_client_BaseVoteBuilder {
-  constructor() {
-    super(...arguments);
-    client_lib_vote_defineProperty(this, "quote", true);
-  }
-  async seal(serial, validTo, validFrom) {
-    let voteOptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-    const voteQuote = await super.generate(serial, validTo, validFrom);
-    return new src_client_VoteQuote(voteQuote, voteOptions);
-  }
-}
-
-// Add respective builders to each
-client_VoteQuoteBuilder = src_client_VoteQuoteBuilder;
-client_lib_vote_defineProperty(src_client_VoteQuoteBuilder, "isInstance", client_checkableGenerator(client_VoteQuoteBuilder));
-src_client_VoteLikeBase.Builder = src_client_BaseVoteBuilder;
-src_client_VoteQuote.Builder = src_client_VoteQuoteBuilder;
-src_client_Vote.Builder = src_client_VoteBuilder;
-// Add to default export
-src_client_Vote.Staple = src_client_VoteStaple;
-src_client_Vote.Quote = src_client_VoteQuote;
-/* harmony default export */ const client_lib_vote = (src_client_Vote);
-
-/** @internal */
-const src_client_Testing = {
-  findRDN: client_findRDN,
-  blockHashesFromVote: client_blockHashesFromVote,
-  feeFromVote: client_feeFromVote
-};
 ;// ./src/lib/ledger/effects.ts
 
 
@@ -125895,6 +124546,1847 @@ function client_computeEffectOfBlocks(blocks, ledger) {
   }
   return accumulatedEffects;
 }
+;// ./src/lib/vote.ts
+/* provided dependency */ var client_vote_Buffer = __webpack_require__(8287)["Buffer"];
+var client_VoteHash, client_VoteBlockHash, client_VoteLikeBase, client_PossiblyExpiredVote, client_Vote, client_VoteQuote, client_VoteStapleHash, client_VoteBlockBundle, client_VoteStaple, client_BaseVoteBuilder, client_VoteBuilder, client_VoteQuoteBuilder;
+function client_vote_classPrivateGetter(s, r, a) { return a(client_vote_assertClassBrand(s, r)); }
+function client_vote_classPrivateMethodInitSpec(e, a) { client_vote_checkPrivateRedeclaration(e, a), a.add(e); }
+function client_vote_classPrivateFieldInitSpec(e, t, a) { client_vote_checkPrivateRedeclaration(e, t), t.set(e, a); }
+function client_vote_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+function client_vote_classPrivateFieldGet(s, a) { return s.get(client_vote_assertClassBrand(s, a)); }
+function client_vote_classPrivateFieldSet(s, a, r) { return s.set(client_vote_assertClassBrand(s, a), r), r; }
+function client_vote_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function client_lib_vote_defineProperty(e, r, t) { return (r = client_lib_vote_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_lib_vote_toPropertyKey(t) { var i = client_lib_vote_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_lib_vote_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+/*
+ * KeetaNet Voting System
+ *
+ * Votes are indications that an operator will insert a group of blocks into
+ * their ledger if enough cooperating operators agree.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Representation of the expected fee for this vote
+ */
+
+/**
+ * Representation of the vote
+ */
+
+class src_client_VoteHash extends src_client_BufferStorage {
+  constructor(blockhash) {
+    super(blockhash, 32);
+    client_lib_vote_defineProperty(this, "storageKind", 'VoteHash');
+  }
+}
+client_VoteHash = src_client_VoteHash;
+client_lib_vote_defineProperty(src_client_VoteHash, "isInstance", client_checkableGenerator(client_VoteHash));
+const client_feeExtensionSchema = {
+  type: 'context',
+  value: 0,
+  kind: 'explicit',
+  contains: [client_ValidateASN1.IsBoolean, client_ValidateASN1.IsInteger, {
+    optional: {
+      type: 'context',
+      value: 0,
+      kind: 'implicit',
+      contains: client_ValidateASN1.IsOctetString
+    }
+  }, {
+    optional: {
+      type: 'context',
+      value: 1,
+      kind: 'implicit',
+      contains: client_ValidateASN1.IsOctetString
+    }
+  }]
+};
+/**
+ * Parse a set of distinguished names
+ */
+function client_findRDN(input, findOID) {
+  if (!Array.isArray(input)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_INVALID_TYPE', 'internal error: DN must be a Sequence');
+  }
+  if (input.length === 0) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_MUST_HAVE_ONE', 'internal error: DN must contain at least 1 entry');
+  }
+  for (const part of input) {
+    if (part === undefined || part === null) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Each part of the RDN must be well-formed and not undefined');
+    }
+    if (part.type !== 'set') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_MUST_BE_SET', 'internal error: Each part of the RDN must be a Set');
+    }
+    const name = part.name;
+    if (name === undefined || name === null) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Each part of the RDN must be well-formed');
+    }
+    if (name.type !== 'oid') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_TYPE_MUST_BE_OID', 'internal error: Name of the RDN must be an OID');
+    }
+    if (name.oid !== findOID) {
+      continue;
+    }
+    if (typeof part.value === 'string') {
+      return part.value;
+    }
+    if (typeof part.value === 'object' && part.value !== null) {
+      if (part.value.type === 'string' && part.value.kind === 'utf8') {
+        return part.value.value;
+      }
+    }
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FIND_RDN_PART_WELL_FORMED', 'internal error: Value of the RDN must be a string');
+  }
+}
+function client_blockHashesFromVote(input) {
+  const blockHashInformation = client_ASN1toJS(input.buffer);
+  if (!client_isASN1Object(blockHashInformation)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'internal error: hashData extensions is not valid asn1 object');
+  }
+  if (blockHashInformation.type !== 'context') {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_TYPE', 'internal error: hashData extension does not contain a context-specific tag');
+  }
+  if (blockHashInformation.value !== 0) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_INVALID_CONTEXT_SPECIFIC', 'internal error: hashData must begin with a context-specific tag 0');
+  }
+  const hashInformation = blockHashInformation.contains;
+  if (!Array.isArray(hashInformation)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_HASH_DATA_MUST_BE_SEQUENCE', 'internal error: hashData tag 0 must contain a Sequence');
+  }
+  if (hashInformation.length !== 2) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NOT_TWO_ITEMS', 'internal error: hashInformation must contain exactly 2 items');
+  }
+  const hashAlgoOID = hashInformation[0];
+  if (typeof hashAlgoOID !== 'object' || hashAlgoOID === null || !('type' in hashAlgoOID) || !('oid' in hashAlgoOID)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NEEDS_OID', 'internal error: hashInformation must begin with an OID describing the hash used');
+  }
+  if (hashAlgoOID.type !== 'oid') {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_NEEDS_OID', 'internal error: hashInformation must begin with an OID describing the hash used');
+  }
+  if (hashAlgoOID.oid !== client_hash_Hash.functionName) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_FUNC', `Unsupported hash function: ${hashAlgoOID.oid}`);
+  }
+  const blocksSequence = hashInformation[1];
+  if (!Array.isArray(blocksSequence)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_SECOND_MUST_BE_SEQUENCE', 'internal error: hashInformation must contain a Sequence of blocks as the second item');
+  }
+  const output = [];
+  for (const block of blocksSequence) {
+    if (!client_vote_Buffer.isBuffer(block)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_TYPE', 'internal error: Each block hash must be an Octet String');
+    }
+    output.push(new client_block_BlockHash(block));
+  }
+  return output;
+}
+function client_feeFromVote(input) {
+  const feeInformationAnyJS = client_ASN1toJS(input.buffer);
+  const feeSchemaChecker = new client_ValidateASN1(client_feeExtensionSchema);
+  const feeInformation = function () {
+    try {
+      return feeSchemaChecker.validate(feeInformationAnyJS);
+    } catch (asn1ValidateError) {
+      let message = 'internal error: fee asn1 schema is not the right format';
+      if (asn1ValidateError instanceof Error) {
+        message = `${message}: ${asn1ValidateError.message}`;
+      }
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', message);
+    }
+  }();
+  const feeData = feeInformation.contains;
+  const quote = feeData[0];
+  const retval = {
+    quote: quote,
+    fee: {
+      amount: feeData[1]
+    }
+  };
+  const payToAsn1 = feeData[2];
+  if (payToAsn1 !== undefined) {
+    const payTo = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(payToAsn1.contains));
+    if (payTo.isStorage()) {
+      retval.fee.payTo = payTo;
+    } else {
+      try {
+        retval.fee.payTo = payTo.assertAccount();
+      } catch {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address');
+      }
+    }
+  }
+  const tokenAsn1 = feeData[3];
+  if (tokenAsn1 !== undefined) {
+    const token = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(tokenAsn1.contains));
+    if (!token.isToken()) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token');
+    }
+    retval.fee.token = token;
+  }
+  return retval;
+}
+
+/**
+ * Convert an ASN1Date to a Date
+ */
+function client_convertDate(input) {
+  if (client_util.types.isDate(input)) {
+    return input;
+  }
+  if (typeof input === 'object' && input !== null) {
+    if ('type' in input && 'date' in input) {
+      if (input.type === 'date' && client_util.types.isDate(input.date)) {
+        return input.date;
+      }
+    }
+  }
+  throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: validFrom and validTo must be a Timestamp');
+}
+
+/**
+ * A map for VoteBlockHashes
+ */
+var client_valueMap = /*#__PURE__*/new WeakMap();
+var client_keyMap = /*#__PURE__*/new WeakMap();
+var client_VoteBlockHashMap_brand = /*#__PURE__*/new WeakSet();
+class client_VoteBlockHashMap {
+  constructor() {
+    client_vote_classPrivateMethodInitSpec(this, client_VoteBlockHashMap_brand);
+    client_vote_classPrivateFieldInitSpec(this, client_valueMap, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_keyMap, void 0);
+    client_lib_vote_defineProperty(this, Symbol.toStringTag, 'VoteBlockHashMap');
+    client_vote_classPrivateFieldSet(client_valueMap, this, new Map());
+    client_vote_classPrivateFieldSet(client_keyMap, this, new Map());
+  }
+  [Symbol.iterator]() {
+    return this.entries();
+  }
+  [Symbol.dispose]() {
+    this.clear();
+  }
+  add(key, value) {
+    const lookupKey = client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key);
+    client_vote_classPrivateFieldGet(client_valueMap, this).set(lookupKey, value);
+    client_vote_classPrivateFieldGet(client_keyMap, this).set(lookupKey, key);
+    return this;
+  }
+  delete(key) {
+    const lookupKey = client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key);
+    client_vote_classPrivateFieldGet(client_keyMap, this).delete(lookupKey);
+    return client_vote_classPrivateFieldGet(client_valueMap, this).delete(lookupKey);
+  }
+  get(key) {
+    return client_vote_classPrivateFieldGet(client_valueMap, this).get(client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key));
+  }
+  forEach(callbackfn, thisArg) {
+    client_vote_classPrivateFieldGet(client_valueMap, this).forEach((value, lookupKey) => {
+      /* We know this value exists in the key map */
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const key = client_vote_classPrivateFieldGet(client_keyMap, this).get(lookupKey);
+      callbackfn.call(thisArg, value, key, this);
+    });
+  }
+  has(key) {
+    return client_vote_classPrivateFieldGet(client_valueMap, this).has(client_vote_assertClassBrand(client_VoteBlockHashMap_brand, this, client_getLookupKey).call(this, key));
+  }
+  set(key, value) {
+    return this.add(key, value);
+  }
+  get size() {
+    return client_vote_classPrivateFieldGet(client_valueMap, this).size;
+  }
+  entries() {
+    const keyMap = client_vote_classPrivateFieldGet(client_keyMap, this);
+    const valueMap = client_vote_classPrivateFieldGet(client_valueMap, this);
+    return function* () {
+      for (const [lookupKey, value] of valueMap.entries()) {
+        const key = keyMap.get(lookupKey);
+        if (key === undefined) {
+          throw new Error('Map changed while iterating !');
+        }
+        yield [key, value];
+      }
+      return undefined;
+    }();
+  }
+  keys() {
+    return client_vote_classPrivateFieldGet(client_keyMap, this).values();
+  }
+  values() {
+    return client_vote_classPrivateFieldGet(client_valueMap, this).values();
+  }
+  clear() {
+    client_vote_classPrivateFieldGet(client_valueMap, this).clear();
+    client_vote_classPrivateFieldGet(client_keyMap, this).clear();
+  }
+}
+
+/**
+ * A VoteBlockHash is a hash of the blocks in a vote staple or vote staple
+ * it is a unique ID for the vote or vote staples contents regardless of which
+ * votes are included in the staple -- every vote in a vote staple has the same
+ * VoteBlockHash.
+ */
+function client_getLookupKey(key) {
+  return key.toString('hex');
+}
+class src_client_VoteBlockHash extends src_client_BufferStorage {
+  get hashFunctionName() {
+    return client_hash_Hash.functionName;
+  }
+  static fromBlockHashes(blockHashes) {
+    if (blockHashes.length < 1) {
+      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION', 'Cannot construct vote block hash, no block hashes provided');
+    }
+    const blockHashesBuffers = blockHashes.map(function (blockHash) {
+      return blockHash.getBuffer();
+    });
+    const blockHashesCombined = client_vote_Buffer.concat(blockHashesBuffers);
+    const voteHash = client_hash_Hash(blockHashesCombined);
+    return new src_client_VoteBlockHash(voteHash);
+  }
+  static fromVote(vote) {
+    return this.fromBlockHashes(vote.blocks);
+  }
+  static fromVoteStaple(voteStaple) {
+    const representativeVote = voteStaple.votes[0];
+    return this.fromVote(representativeVote);
+  }
+  constructor(stapleHash) {
+    super(stapleHash, 32);
+    client_lib_vote_defineProperty(this, "storageKind", 'VoteBlockHash');
+  }
+}
+
+/**
+ * Options for Votes
+ */
+client_VoteBlockHash = src_client_VoteBlockHash;
+client_lib_vote_defineProperty(src_client_VoteBlockHash, "isInstance", client_checkableGenerator(client_VoteBlockHash));
+client_lib_vote_defineProperty(src_client_VoteBlockHash, "Map", client_VoteBlockHashMap);
+/**
+ * Options for Vote Builder
+ */
+var client_vote = /*#__PURE__*/new WeakMap();
+var client_options = /*#__PURE__*/new WeakMap();
+var client_vote_hash = /*#__PURE__*/new WeakMap();
+var client_blocksHash = /*#__PURE__*/new WeakMap();
+class src_client_VoteLikeBase {
+  getClass() {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return this.constructor;
+  }
+  static isValidJSON(voteJSON) {
+    for (const checkField of ['issuer', 'serial', 'blocks', 'validityFrom', 'validityTo', 'signature']) {
+      if (voteJSON[checkField] === undefined) {
+        return false;
+      }
+    }
+    if ('fee' in voteJSON) {
+      const fee = voteJSON['fee'];
+      if (fee === undefined) {
+        return false;
+      }
+      if (fee['amount'] === undefined) {
+        return false;
+      }
+      if ('payTo' in fee && fee['payTo'] === undefined) {
+        return false;
+      }
+      if ('token' in fee && fee['token'] === undefined) {
+        return false;
+      }
+    }
+    if ('quote' in voteJSON) {
+      if (voteJSON['quote'] === undefined) {
+        return false;
+      }
+    }
+    return true;
+  }
+  static fromJSON(voteJSON) {
+    var _voteJSON$quote;
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    if (!src_client_VoteLikeBase.isValidJSON(voteJSON)) {
+      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION_JSON', 'Cannot construct vote, it is not a valid vote JSON object');
+    }
+    const issuer = client_lib_account.toAccount(voteJSON.issuer);
+    if (!issuer) {
+      throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION_JSON', 'Issuer is Missing, cannot reconstruct vote');
+    }
+    const voteBuilder = new this.Builder(issuer);
+    voteBuilder.addBlocks(voteJSON.blocks);
+    let signature;
+    if (!client_util.types.isArrayBuffer(voteJSON.signature)) {
+      signature = client_bufferToArrayBuffer(client_vote_Buffer.from(voteJSON.signature, 'hex'));
+    } else {
+      signature = voteJSON.signature;
+    }
+    const validTo = new Date(voteJSON.validityTo);
+    const validFrom = new Date(voteJSON.validityFrom);
+    const signatureStorage = new src_client_BufferStorage(signature, signature.byteLength);
+    if (this.expectedQuoteValue !== ((_voteJSON$quote = voteJSON.quote) !== null && _voteJSON$quote !== void 0 ? _voteJSON$quote : false)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${voteJSON.quote} - expected ${this.expectedQuoteValue}`);
+    }
+    if (voteJSON.quote === true && voteJSON.fee === undefined) {
+      throw new src_client_KeetaNetVoteError('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided');
+    }
+    if (voteJSON.fee !== undefined) {
+      voteBuilder.addFee(voteJSON.fee);
+    }
+    const {
+      voteData,
+      tbsCertificate,
+      signatureInfo
+    } = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom);
+    const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage);
+
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return new this(vote, options);
+  }
+  constructor(vote) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    client_lib_vote_defineProperty(this, "$trusted", false);
+    client_lib_vote_defineProperty(this, "$permanent", false);
+    client_vote_classPrivateFieldInitSpec(this, client_vote, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_options, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_vote_hash, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blocksHash, void 0);
+    client_vote_classPrivateFieldSet(client_options, this, {
+      ...options
+    });
+    if (src_client_VoteLikeBase.isInstance(vote, false)) {
+      this.issuer = vote.issuer;
+      this.serial = vote.serial;
+      this.blocks = vote.blocks;
+      this.validityFrom = vote.validityFrom;
+      this.validityTo = vote.validityTo;
+      this.signature = vote.signature;
+      this.fee = vote.fee;
+      this.quote = vote.quote;
+      this.$trusted = vote.$trusted;
+      this.$permanent = vote.$permanent;
+      this.$uid = vote.$uid;
+      this.$id = vote.$id;
+      client_vote_classPrivateFieldSet(client_vote, this, client_vote_classPrivateFieldGet(client_vote, vote));
+      client_vote_classPrivateFieldSet(client_options, this, client_vote_classPrivateFieldGet(client_options, vote));
+      return;
+    }
+    if (typeof vote === 'string') {
+      vote = client_vote_Buffer.from(vote, 'base64');
+    }
+    if (client_util.types.isUint8Array(vote)) {
+      vote = client_vote_Buffer.from(vote);
+    }
+    if (client_vote_Buffer.isBuffer(vote)) {
+      vote = client_bufferToArrayBuffer(vote);
+    }
+    if (!client_util.types.isArrayBuffer(vote)) {
+      if (src_client_VoteLikeBase.isValidJSON(vote)) {
+        vote = src_client_VoteLikeBase.fromJSON(vote).toBytes();
+      } else {
+        throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in VoteLikeBase');
+      }
+    }
+    client_vote_classPrivateFieldSet(client_vote, this, vote);
+
+    /**
+     * Vote Wrapper contains the vote, signature info, and signature
+     */
+    const voteWrapper = client_ASN1toJS(client_vote_classPrivateFieldGet(client_vote, this));
+    if (!Array.isArray(voteWrapper)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_WRAPPER', 'internal error: Malformed vote wrapper (must be a sequence)');
+    }
+    if (voteWrapper.length !== 3) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_WRAPPER', 'internal error: Malformed vote wrapper (must contain 3 parts: vote, signature info, signature)');
+    }
+
+    /**
+     * The contents of the X.509 certificate signed area
+     */
+    const voteContents = voteWrapper.shift();
+    if (!Array.isArray(voteContents)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_WRAPPER', 'internal error: Malformed vote (must be sequence)');
+    }
+    const tbsCertificate = client_JStoASN1([...voteContents]).toBER();
+
+    /**
+     * Vote version information, recorded as a context-specific
+     * tag 0 containing an Integer
+     */
+    const voteVersionWrapper = voteContents.shift();
+    if (typeof voteVersionWrapper !== 'object' || voteVersionWrapper === null || !('type' in voteVersionWrapper) || !('value' in voteVersionWrapper)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag)');
+    }
+    if (voteVersionWrapper.type !== 'context') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag)');
+    }
+    if (voteVersionWrapper.value !== 0) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT', 'internal error: Malformed vote (must begin with a context-specific tag with a value of 0)');
+    }
+    const voteVersionMultiValue = voteVersionWrapper.contains;
+    if (typeof voteVersionMultiValue !== 'bigint') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VERSION', 'internal error: Vote version must be an Integer');
+    }
+    const voteVersion = voteVersionMultiValue;
+    if (voteVersion + 1n !== 3n) {
+      throw new src_client_KeetaNetVoteError('VOTE_INVALID_VERSION', 'internal error: Vote version must be 3');
+    }
+
+    /**
+     * Serial number
+     */
+    const serialMultiValue = voteContents.shift();
+    if (typeof serialMultiValue !== 'bigint') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SERIAL', 'internal error: Vote serial number must be an Integer');
+    }
+    this.serial = serialMultiValue;
+
+    /**
+     * Signature information
+     */
+    const signatureInfo = voteContents.shift();
+    if (!Array.isArray(signatureInfo)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must be a Sequence');
+    }
+    if (signatureInfo.length !== 1) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must contain only 1 entry');
+    }
+    const signatureOIDObject = signatureInfo[0];
+    if (typeof signatureOIDObject !== 'object' || signatureOIDObject === null || !('type' in signatureOIDObject) || signatureOIDObject.type !== 'oid') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must contain an OID');
+    }
+    const signatureInfoOID = signatureOIDObject.oid;
+
+    /**
+     * Issuer information
+     */
+    const issuerWrapper = voteContents.shift();
+    if (!Array.isArray(issuerWrapper)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_ISSUER_INFORMATION', 'internal error: Vote issuer must be a Sequence');
+    }
+    const issuerCN = client_findRDN(issuerWrapper, 'commonName');
+    if (issuerCN === undefined || issuerCN === null || typeof issuerCN !== 'string') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_ISSUER_INFORMATION', 'internal error: Vote issuer must contain the common name (as a string)');
+    }
+    this.issuer = client_lib_account.fromPublicKeyString(issuerCN).assertAccount();
+
+    /**
+     * Validity period
+     */
+    const validityInfo = voteContents.shift();
+    if (!Array.isArray(validityInfo)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: Validity information must be a sequence');
+    }
+    if (validityInfo.length !== 2) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_VALIDITY_INFORMATION', 'internal error: Validity information must contain exactly 2 elements');
+    }
+    const validFrom = client_convertDate(validityInfo[0]);
+    const validTo = client_convertDate(validityInfo[1]);
+    this.validityFrom = validFrom;
+    this.validityTo = validTo;
+
+    /**
+     * Votes must not have invalid validity periods
+     */
+    if (this.validityFrom.valueOf() > this.validityTo.valueOf()) {
+      throw new src_client_KeetaNetVoteError('VOTE_INVALID_VALIDITY', `Invalid validity period;  Expires on ${this.validityTo.toISOString()} but issued on ${this.validityFrom.toISOString()}`);
+    }
+
+    /**
+     * The current instant
+     */
+    const expirationCheckMoment = this.expirationCheckMoment();
+
+    /**
+     * Votes must not be expired
+     */
+    const expirationCheckMomentISO = new Date(expirationCheckMoment).toISOString();
+    if (expirationCheckMoment < this.validityFrom.valueOf() - src_client_VoteLikeBase.allowedSlop) {
+      throw new src_client_KeetaNetVoteError('VOTE_MOMENT_BEFORE_VALIDITY_FROM', `Vote was issued in the future (issued on ${validFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
+    }
+
+    /**
+     * If the vote is forever viable, it is a permanent vote
+     */
+    if (this.validityTo.valueOf() > expirationCheckMoment + src_client_VoteLikeBase.permanentVoteThreshold) {
+      this.$permanent = true;
+    }
+
+    /**
+     * Subject
+     */
+    const subjectWrapper = voteContents.shift();
+    if (!Array.isArray(subjectWrapper)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_INFORMATION', 'internal error: Vote subject must be a Sequence');
+    }
+    const subjectSerial = client_findRDN(subjectWrapper, 'serialNumber');
+    if (typeof subjectSerial !== 'string') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SERIAL', 'internal error: Expected subject DN to contain serial number as a string');
+    }
+    if (BigInt(`0x${subjectSerial}`) !== this.serial) {
+      throw new src_client_KeetaNetVoteError('VOTE_SERIAL_MISMATCH', 'internal error: Expected subject DN to contain serial number matching certificate serial number');
+    }
+
+    /**
+     * Subject Public Key, verified to be the same as the issuer
+     */
+    const subjectPubKeyInfo = voteContents.shift();
+    if (!Array.isArray(subjectPubKeyInfo) || subjectPubKeyInfo.length !== 2) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information to be a sequence of length 2');
+    }
+    const subjectPubKeyAlgoInfo = subjectPubKeyInfo[0];
+    let subjectPublicKey = '';
+    if (Array.isArray(subjectPubKeyAlgoInfo) && subjectPubKeyAlgoInfo.length === 2) {
+      const algoRaw = subjectPubKeyAlgoInfo[1];
+      if (typeof algoRaw !== 'object' || algoRaw === null || !('type' in algoRaw) || algoRaw.type !== 'oid') {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information curve to be an OID');
+      }
+      const subjectPubKeyAlgo = algoRaw.oid;
+      const subjectPubKey = subjectPubKeyInfo[1];
+      if (typeof subjectPubKey !== 'object' || subjectPubKey === null || !('type' in subjectPubKey) || subjectPubKey.type !== 'bitstring') {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', 'internal error: Expected subject public key information to be a BitString');
+      }
+      switch (subjectPubKeyAlgo) {
+        case 'secp256k1':
+          subjectPublicKey = client_lib_account.fromECDSASECP256K1PublicKey(subjectPubKey.value).publicKeyString.get();
+          break;
+        case 'secp256r1':
+          subjectPublicKey = client_lib_account.fromECDSASECP256R1PublicKey(subjectPubKey.value).publicKeyString.get();
+          break;
+        case 'ed25519':
+          subjectPublicKey = client_lib_account.fromED25519PublicKey(subjectPubKey.value).publicKeyString.get();
+          break;
+        default:
+          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SUBJECT_PUBLIC_KEY_INFORMATION', `internal error: Expected subject public key information algorithm to be EcDSA secp256k1, EcDSA secp256r1, or Ed25519, but got ${subjectPubKeyAlgo}`);
+      }
+    }
+
+    /**
+     * Extensions
+     */
+    const extensionsArea = voteContents.shift();
+    if (typeof extensionsArea !== 'object' || extensionsArea === null || !('type' in extensionsArea) || extensionsArea.type !== 'context') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to follow subject public key information');
+    }
+    if (extensionsArea.value !== 3) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', `internal error: Got wrong kind of context-specific tag, expected 3 got ${extensionsArea.value}`);
+    }
+    const extensions = extensionsArea.contains;
+    if (!Array.isArray(extensions)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS', 'internal error: Expected extensions to be a Sequence');
+    }
+    let blocks;
+    let feeAndKind;
+    for (const extensionInfo of extensions) {
+      if (!Array.isArray(extensionInfo)) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Expected each extension to be a Sequence');
+      }
+      if (extensionInfo.length !== 2 && extensionInfo.length !== 3) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE', 'internal error: Extension information must contain 2 or 3 elements');
+      }
+      const extensionOID = extensionInfo.shift();
+      if (typeof extensionOID !== 'object' || extensionOID === null || !('type' in extensionOID) || extensionOID.type !== 'oid') {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_OID', 'internal error: Expected extension ID to be present and an OID');
+      }
+      if (extensionOID.type !== 'oid') {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_OID', 'internal error: Expected extension ID to be an OID');
+      }
+      let critical = true;
+      if (extensionInfo.length === 2) {
+        const criticalCheck = extensionInfo.shift();
+        if (typeof criticalCheck !== 'boolean') {
+          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL', 'internal error: Expected critical flag to be a boolean');
+        }
+        critical = criticalCheck;
+      }
+      const extensionData = extensionInfo.shift();
+      if (!client_vote_Buffer.isBuffer(extensionData)) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_DATA', `internal error: ${extensionOID.oid} extensions are always Octet String`);
+      }
+      switch (extensionOID.oid) {
+        case 'hashData':
+          blocks = client_blockHashesFromVote(extensionData);
+          break;
+        case '1.3.6.1.4.1.62675.0.1.0':
+        case 'fees':
+          // replace with fees 1.3.6.1.4.1.62675.0.1.0
+          feeAndKind = client_feeFromVote(extensionData);
+          break;
+        default:
+          if (critical) {
+            throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_EXTENSIONS_VALUE_CRITICAL_TYPE', `internal error: Unknown critical extension ${extensionOID.oid}`);
+          }
+      }
+    }
+    if (voteContents.length !== 0) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_CONTENT_EXTRA_DATA', 'internal error: Extra data in vote certificate');
+    }
+    if (!blocks || !Array.isArray(blocks)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_NO_BLOCKS_FOUND', 'No block hashes found within vote');
+    }
+    this.blocks = blocks;
+    if (feeAndKind !== undefined) {
+      if (this.$permanent) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'Permanent Vote cannot have fees');
+      }
+      // Get the expected quote value from any child instances and compare
+      if (feeAndKind.quote !== this.getClass().expectedQuoteValue) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_QUOTE_INVALID', `internal error: fee quote mismatch found ${feeAndKind.quote} - expected ${this.getClass().expectedQuoteValue}`);
+      }
+      this.fee = feeAndKind.fee;
+      this.quote = feeAndKind.quote;
+    }
+
+    /**
+     * Get the signature data
+     */
+    const voteSignatureInfoWrapper = voteWrapper.shift();
+    if (!Array.isArray(voteSignatureInfoWrapper)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information must be a sequence');
+    }
+    if (voteSignatureInfoWrapper.length !== 1) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature information should contain exactly 1 item');
+    }
+    const voteSignatureInfo = voteSignatureInfoWrapper[0];
+    if (voteSignatureInfo === undefined || voteSignatureInfo === null) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature should contain an OID');
+    }
+    if (typeof voteSignatureInfo !== 'object' || voteSignatureInfo === null || !('type' in voteSignatureInfo) || voteSignatureInfo.type !== 'oid') {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_INFORMATION', 'internal error: Vote signature should contain an OID');
+    }
+    let toVerify;
+    const voteSignatureInfoOID = voteSignatureInfo.oid;
+
+    /**
+     * Ensure the certificate and the wrapper agree on the signature method being used
+     */
+    if (voteSignatureInfoOID !== signatureInfoOID) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_WRAPPER', 'Signed signature information differs from wrapper');
+    }
+    switch (voteSignatureInfoOID) {
+      case `${client_hash_Hash.functionName}WithEcDSA`:
+        if (this.issuer.keyType !== client_AccountKeyAlgorithm.ECDSA_SECP256K1 && this.issuer.keyType !== client_AccountKeyAlgorithm.ECDSA_SECP256R1) {
+          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer ECDSA curve (EcDSA)');
+        }
+
+        // For now we just verify that the vote was self signed
+        if (this.issuer.publicKeyString.get() !== subjectPublicKey) {
+          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer ECDSA curve (EcDSA)');
+        }
+        toVerify = client_hash_Hash(client_vote_Buffer.from(tbsCertificate));
+        break;
+      case 'ed25519':
+        if (this.issuer.keyType !== client_AccountKeyAlgorithm.ED25519) {
+          throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_SCHEME_DOES_NOT_MATCH_ISSUER', 'internal error: Signature scheme does not match issuer (Ed25519)');
+        }
+        toVerify = tbsCertificate;
+        break;
+      default:
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_UNSUPPORTED_SCHEME', `Unsupported signature scheme ${voteSignatureInfoOID}`);
+    }
+
+    /**
+     * Get the signature
+     */
+    const voteSignature = voteWrapper.shift();
+    if (typeof voteSignature !== 'object' || voteSignature === null || !('type' in voteSignature) || !('value' in voteSignature)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_VALUE', 'internal error: Vote signature must be provided');
+    }
+    if (voteSignature.type !== 'bitstring' || !client_vote_Buffer.isBuffer(voteSignature.value)) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_VOTE_SIGNATURE_VALUE', 'internal error: Vote signature must be a BitString with a buffer value');
+    }
+    const isValid = this.issuer.verify(toVerify, voteSignature.value, {
+      raw: true,
+      forCert: true
+    });
+    if (isValid !== true) {
+      throw new src_client_KeetaNetVoteError('VOTE_SIGNATURE_INVALID', 'Vote signature could not be verified');
+    }
+    this.signature = client_bufferToArrayBuffer(voteSignature.value);
+
+    /*
+     * Set UID and its hash
+     */
+    this.$uid = `ID=${this.issuer.publicKeyString.get()}/Serial=${this.serial}`;
+    this.$id = new src_client_BufferStorage(client_hash_Hash(client_vote_Buffer.from(this.$uid)), 32).toString('hex').toUpperCase();
+
+    /**
+    	* The current instant
+    	*/
+    let now;
+    if (options.now) {
+      now = options.now.valueOf();
+    } else {
+      now = Date.now();
+    }
+
+    /**
+     * If the vote is forever viable, it is a permanent vote
+     */
+    if (this.validityTo.valueOf() > now + 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */) {
+      this.$permanent = true;
+    }
+  }
+  toBytes() {
+    return client_vote_classPrivateFieldGet(client_vote, this);
+  }
+  get hash() {
+    if (!client_vote_classPrivateFieldGet(client_vote_hash, this)) {
+      client_vote_classPrivateFieldSet(client_vote_hash, this, new src_client_VoteHash(client_hash_Hash(client_vote_Buffer.from(this.toBytes()))));
+    }
+    return client_vote_classPrivateFieldGet(client_vote_hash, this);
+  }
+  get blocksHash() {
+    if (!client_vote_classPrivateFieldGet(client_blocksHash, this)) {
+      client_vote_classPrivateFieldSet(client_blocksHash, this, src_client_VoteBlockHash.fromVote(this));
+    }
+    return client_vote_classPrivateFieldGet(client_blocksHash, this);
+  }
+  toString() {
+    return client_vote_Buffer.from(this.toBytes()).toString('base64');
+  }
+  toJSON(options) {
+    const additionalFields = {};
+    if (options !== null && options !== void 0 && options.addBinary) {
+      additionalFields['$binary'] = client_vote_Buffer.from(this.toBytes()).toString('base64');
+    }
+    if (this.fee !== undefined) {
+      additionalFields['fee'] = this.fee;
+    }
+    if (this.quote !== undefined) {
+      additionalFields['quote'] = this.quote;
+    }
+    return client_toJSONSerializable({
+      issuer: this.issuer,
+      serial: this.serial,
+      blocks: this.blocks,
+      validityFrom: this.validityFrom,
+      validityTo: this.validityTo,
+      signature: this.signature,
+      $trusted: this.$trusted,
+      $permanent: this.$permanent,
+      $uid: this.$uid,
+      $id: this.$id,
+      ...additionalFields
+    });
+  }
+  expirationCheckMoment() {
+    let now;
+    if (client_vote_classPrivateFieldGet(client_options, this).now) {
+      now = client_vote_classPrivateFieldGet(client_options, this).now.valueOf();
+    } else {
+      now = Date.now();
+    }
+    return now;
+  }
+  get expired() {
+    const now = this.expirationCheckMoment();
+    const from = this.validityFrom.valueOf();
+    const to = this.validityTo.valueOf();
+    if (now + src_client_VoteLikeBase.allowedSlop < from || now - src_client_VoteLikeBase.allowedSlop > to) {
+      return true;
+    }
+    return false;
+  }
+}
+client_VoteLikeBase = src_client_VoteLikeBase;
+client_lib_vote_defineProperty(src_client_VoteLikeBase, "expectedQuoteValue", false);
+client_lib_vote_defineProperty(src_client_VoteLikeBase, "allowedSlop", 60 /* s */ * 1000 /* ms */);
+client_lib_vote_defineProperty(src_client_VoteLikeBase, "permanentVoteThreshold", 100 /* y */ * 365 /* d */ * 86400 /* s */ * 1000 /* ms */);
+client_lib_vote_defineProperty(src_client_VoteLikeBase, "VoteBlocksHash", src_client_VoteBlockHash);
+client_lib_vote_defineProperty(src_client_VoteLikeBase, "isInstance", client_checkableGenerator(client_VoteLikeBase));
+class src_client_PossiblyExpiredVote extends src_client_VoteLikeBase {
+  constructor(vote) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super(vote, options);
+    if (this.quote === true) {
+      throw new src_client_KeetaNetVoteError('VOTE_FEE_IS_QUOTE', `Tried to construct a vote but fee kind is QUOTE`);
+    }
+  }
+}
+
+/**
+ * A vote is a certificate issued indicating that the issuer "vouches" for the
+ * blocks specified will fit into the ledger of the operator/issuer.
+ */
+client_PossiblyExpiredVote = src_client_PossiblyExpiredVote;
+client_lib_vote_defineProperty(src_client_PossiblyExpiredVote, "isInstance", client_checkableGenerator(client_PossiblyExpiredVote));
+class src_client_Vote extends src_client_PossiblyExpiredVote {
+  constructor(vote) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super(vote, options);
+    // We add this so both classes have different signatures
+    client_lib_vote_defineProperty(this, "possiblyExpired", false);
+    if (this.expired) {
+      const expirationCheckMomentISO = new Date(this.expirationCheckMoment()).toISOString();
+      throw new src_client_KeetaNetVoteError('VOTE_EXPIRED', `Vote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
+    }
+  }
+}
+
+/**
+ * A VoteQuote is a certificate issued indicating what the issuer will charge for fees
+ */
+client_Vote = src_client_Vote;
+client_lib_vote_defineProperty(src_client_Vote, "isInstance", client_checkableGenerator(client_Vote));
+class src_client_VoteQuote extends src_client_VoteLikeBase {
+  constructor(vote) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super(vote, options);
+    // We add this so both classes have different signatures
+    client_lib_vote_defineProperty(this, "isVoteQuote", true);
+    if (this.expired) {
+      const expirationCheckMomentISO = new Date(this.expirationCheckMoment()).toISOString();
+      throw new src_client_KeetaNetVoteError('VOTE_EXPIRED', `VoteQuote is expired (expired on ${this.validityTo.toISOString()}; issued on ${this.validityFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
+    }
+    if (!this.quote) {
+      throw new src_client_KeetaNetVoteError('VOTE_FEE_NOT_QUOTE', `Tried to construct a quote but kind is not QUOTE`);
+    }
+  }
+}
+
+/**
+ * A vote staple is a distributable block consisting of one or more blocks
+ * and one or more votes.
+ */
+client_VoteQuote = src_client_VoteQuote;
+client_lib_vote_defineProperty(src_client_VoteQuote, "expectedQuoteValue", true);
+client_lib_vote_defineProperty(src_client_VoteQuote, "isInstance", client_checkableGenerator(client_VoteQuote));
+class src_client_VoteStapleHash extends src_client_BufferStorage {
+  get hashFunctionName() {
+    return client_hash_Hash.functionName;
+  }
+  constructor(stapleHash) {
+    super(stapleHash, 32);
+    client_lib_vote_defineProperty(this, "storageKind", 'VoteStapleHash');
+  }
+}
+
+/**
+ * Accepted input types for constructing VoteStaple and VoteBlockBundle instances
+ */
+client_VoteStapleHash = src_client_VoteStapleHash;
+client_lib_vote_defineProperty(src_client_VoteStapleHash, "isInstance", client_checkableGenerator(client_VoteStapleHash));
+var client_value = /*#__PURE__*/new WeakMap();
+var client_valueCompressed = /*#__PURE__*/new WeakMap();
+var client_hash2 = /*#__PURE__*/new WeakMap();
+var client_blocksHash2 = /*#__PURE__*/new WeakMap();
+var client_blockHashes = /*#__PURE__*/new WeakMap();
+var client_votes = /*#__PURE__*/new WeakMap();
+var client_blocks = /*#__PURE__*/new WeakMap();
+var client_touchedAccounts = /*#__PURE__*/new WeakMap();
+var client_votesRaw = /*#__PURE__*/new WeakMap();
+var client_blocksRaw = /*#__PURE__*/new WeakMap();
+var client_options2 = /*#__PURE__*/new WeakMap();
+var client_asn1Validated = /*#__PURE__*/new WeakMap();
+var client_VoteBlockBundle_brand = /*#__PURE__*/new WeakSet();
+class src_client_VoteBlockBundle {
+  /** @internal */
+  static _Testing() {
+    var _this5 = this;
+    return {
+      fromVotesAndBlocksRaw: function (votes, blocks) {
+        let voteOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+        const encoded = client_JStoASN1([blocks.map(function (item) {
+          return client_vote_Buffer.from(item.toBytes());
+        }), votes.map(function (item) {
+          return client_vote_Buffer.from(item.toBytes());
+        })]);
+        const buffer = client_vote_Buffer.from(encoded.toBER(false));
+        const compressedBuffer = client_lib_default().deflateSync(buffer);
+        return new _this5(compressedBuffer, voteOptions);
+      },
+      voteBlockHash: src_client_VoteBlockHash
+    };
+  }
+
+  /**
+   * Construct a new vote bundle from votes and blocks
+   */
+  static fromVotesAndBlocks(votes, blocks) {
+    let voteOptions = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    if (votes.length < 1) {
+      throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one vote');
+    }
+    const representativeVote = votes[0];
+    const blockHashOrdering = Object.fromEntries(representativeVote.blocks.map(function (blockHash, index) {
+      return [blockHash.toString(), index];
+    }));
+    const blocksOrdered = [...blocks].sort(function (a, b) {
+      return blockHashOrdering[a.hash.toString()] - blockHashOrdering[b.hash.toString()];
+    });
+    const votesOrdered = [...votes].sort(function (a, b) {
+      const aHash = BigInt(`0x${a.hash.toString('hex')}`);
+      const bHash = BigInt(`0x${b.hash.toString('hex')}`);
+      if (aHash < bHash) {
+        return -1;
+      } else if (aHash > bHash) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+    const encoded = client_JStoASN1([blocksOrdered.map(function (item) {
+      return client_vote_Buffer.from(item.toBytes());
+    }), votesOrdered.map(function (item) {
+      return client_vote_Buffer.from(item.toBytes());
+    })]);
+    const buffer = client_vote_Buffer.from(encoded.toBER(false));
+    const compressedBuffer = client_lib_default().deflateSync(buffer);
+    return new this(compressedBuffer, {
+      trustedValues: {
+        blocksMap: Object.fromEntries(blocks.map(function (block) {
+          return [block.hash.toString(), block];
+        })),
+        blocks: blocksOrdered,
+        votes: votesOrdered
+      },
+      ...voteOptions
+    });
+  }
+
+  /**
+   * Convert a list of Votes and Blocks into a VoteStaple
+   * This is slightly different from VoteStaple.fromVotesAndBlocks in
+   * that it will filter the supplied votes to only include those that
+   * are permanent if any permanent votes are present, otherwise only
+   * temporary votes will be included
+   *
+   * Additionally, it will filter out any votes that are expired
+   */
+  static fromVotesAndBlocksWithFiltering(votes, blocks, opts) {
+    const permVotes = [];
+    const tempVotes = [];
+    for (const vote of votes) {
+      if (vote.expired) {
+        continue;
+      }
+      let validatedVote;
+      if (src_client_Vote.isInstance(vote)) {
+        validatedVote = vote;
+      } else {
+        validatedVote = new src_client_Vote(vote);
+      }
+      if (vote.$permanent) {
+        permVotes.push(validatedVote);
+      } else {
+        tempVotes.push(validatedVote);
+      }
+    }
+    let sameKindVotes = permVotes;
+    if (permVotes.length === 0) {
+      sameKindVotes = tempVotes;
+    }
+    if (sameKindVotes.length === 0) {
+      return null;
+    }
+    if (blocks.length === 0) {
+      return null;
+    }
+    const retval = this.fromVotesAndBlocks(sameKindVotes, blocks, opts);
+    return retval;
+  }
+  static fromVotesAndBlocksToHashMap(votes, blocks, opts) {
+    const voteObjects = {};
+    const blockObjects = {};
+    const blockHashToVoteStapleID = new Map();
+    /**
+     * Process each vote and group them by Vote Staple
+     */
+    for (const vote of votes) {
+      const voteStapleID = vote.blocksHash.toString();
+
+      /* Keep track of which blocks we need to process and to which group they belong */
+      for (const blockHash of vote.blocks) {
+        const blockHashStr = blockHash.toString();
+        blockHashToVoteStapleID.set(blockHashStr, voteStapleID);
+      }
+
+      /* Group votes by Vote Staple */
+      if (voteObjects[voteStapleID] === undefined) {
+        voteObjects[voteStapleID] = [];
+        blockObjects[voteStapleID] = [];
+      }
+      voteObjects[voteStapleID].push(vote);
+    }
+
+    /* Group blocks by Vote Staple */
+    for (const block of blocks) {
+      const blocksHash = blockHashToVoteStapleID.get(block.hash.toString());
+      if (blocksHash === undefined) {
+        /* Ignore blocks for which no possible votes exist */
+        continue;
+      }
+      blockObjects[blocksHash].push(block);
+    }
+
+    /**
+     * Get list of VoteBlockHashes to return
+     */
+    let voteStapleIDsToReturn = [];
+    if (opts.voteBlockHashes !== undefined) {
+      voteStapleIDsToReturn = opts.voteBlockHashes;
+    } else {
+      voteStapleIDsToReturn = Object.keys(voteObjects).map(function (blockHash) {
+        return new src_client_VoteBlockHash(blockHash);
+      });
+    }
+
+    /* Construct the final VoteStaples */
+    const retval = new src_client_Vote.VoteBlocksHash.Map();
+    for (const voteStapleID of voteStapleIDsToReturn) {
+      const voteStapleIDStr = voteStapleID.toString();
+      const votes = voteObjects[voteStapleIDStr];
+      const blocks = blockObjects[voteStapleIDStr];
+      if (votes === undefined || blocks === undefined) {
+        retval.set(voteStapleID, null);
+        continue;
+      }
+      const voteStaple = this.fromVotesAndBlocksWithFiltering(votes, blocks, opts);
+      retval.set(voteStapleID, voteStaple);
+    }
+    return retval;
+  }
+  static isValidJSON(staple) {
+    if (!staple.votes || !staple.blocks) {
+      return false;
+    }
+    const {
+      votes,
+      blocks
+    } = staple;
+    if (!Array.isArray(votes) || !Array.isArray(blocks)) {
+      return false;
+    }
+    for (const vote of votes) {
+      if (!src_client_Vote.isValidJSON(vote)) {
+        return false;
+      }
+    }
+    for (const block of blocks) {
+      if (!src_client_Block.isValidJSON(block)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  static fromJSON(staple) {
+    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    const votes = staple.votes.map(vote => new src_client_Vote(vote));
+    const blocks = staple.blocks.map(block => new src_client_Block(block));
+    const voteStaple = this.fromVotesAndBlocks(votes, blocks, voteOptions);
+    return voteStaple;
+  }
+
+  /**
+   * Construct a new staple from a message buffer
+   */
+  constructor(votesStapled) {
+    var _voteOptions$trustedV, _voteOptions$trustedV2, _voteOptions$trustedV3, _voteOptions$trustedV4;
+    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    client_vote_classPrivateMethodInitSpec(this, client_VoteBlockBundle_brand);
+    client_vote_classPrivateFieldInitSpec(this, client_value, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_valueCompressed, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_hash2, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blocksHash2, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blockHashes, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_votes, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blocks, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_touchedAccounts, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_votesRaw, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blocksRaw, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_options2, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_asn1Validated, false);
+    client_lib_vote_defineProperty(this, "_votesValidated", false);
+    if ((_voteOptions$trustedV = voteOptions.trustedValues) !== null && _voteOptions$trustedV !== void 0 && _voteOptions$trustedV.blocksMap) {
+      client_vote_classPrivateFieldSet(client_blockHashes, this, voteOptions.trustedValues.blocksMap);
+    }
+    if ((_voteOptions$trustedV2 = voteOptions.trustedValues) !== null && _voteOptions$trustedV2 !== void 0 && _voteOptions$trustedV2.blocks) {
+      client_vote_classPrivateFieldSet(client_blocks, this, voteOptions.trustedValues.blocks);
+      if (client_vote_classPrivateFieldGet(client_blocks, this) && client_vote_classPrivateFieldGet(client_blocks, this).length === 0) {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one block');
+      }
+    }
+    if ((_voteOptions$trustedV3 = voteOptions.trustedValues) !== null && _voteOptions$trustedV3 !== void 0 && _voteOptions$trustedV3.votes) {
+      client_vote_classPrivateFieldSet(client_votes, this, voteOptions.trustedValues.votes);
+      if (client_vote_classPrivateFieldGet(client_votes, this) && client_vote_classPrivateFieldGet(client_votes, this).length === 0) {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one vote');
+      }
+    }
+    if ((_voteOptions$trustedV4 = voteOptions.trustedValues) !== null && _voteOptions$trustedV4 !== void 0 && _voteOptions$trustedV4.touchedAccounts) {
+      client_vote_classPrivateFieldSet(client_touchedAccounts, this, voteOptions.trustedValues.touchedAccounts);
+    }
+    client_vote_classPrivateFieldSet(client_options2, this, voteOptions);
+    if (typeof votesStapled === 'string') {
+      votesStapled = client_vote_Buffer.from(votesStapled, 'base64');
+    }
+    if (src_client_VoteBlockBundle.isInstance(votesStapled)) {
+      votesStapled = votesStapled.toBytes(true);
+    }
+    if (client_vote_Buffer.isBuffer(votesStapled)) {
+      votesStapled = client_bufferToArrayBuffer(votesStapled);
+    }
+    if (!client_util.types.isArrayBuffer(votesStapled)) {
+      if (votesStapled instanceof src_client_VoteBlockBundle) {
+        votesStapled = votesStapled.toBytes(true);
+      } else if (src_client_VoteBlockBundle.isValidJSON(votesStapled)) {
+        votesStapled = src_client_VoteBlockBundle.fromJSON(votesStapled, voteOptions).toBytes(true);
+      } else {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_INVALID_CONSTRUCTION', 'internal error: votesStapled must be an ArrayBuffer');
+      }
+    }
+
+    /**
+     * Decompress the buffer
+     */
+    try {
+      client_vote_classPrivateFieldSet(client_value, this, client_bufferToArrayBuffer(client_lib_default().inflateSync(client_vote_Buffer.from(votesStapled))));
+      client_vote_classPrivateFieldSet(client_valueCompressed, this, votesStapled);
+    } catch {
+      client_vote_classPrivateFieldSet(client_value, this, votesStapled);
+    }
+
+    /**
+     * Force evaluation of votes and blocks unless lazy loading is specified
+     */
+    if (voteOptions.lazy !== true) {
+      void this.votes;
+      void this.blocks;
+      void client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_blocksAndVotesRaw);
+    }
+  }
+  /**
+   * Get the serialized version
+   */
+  toBytes(uncompressed) {
+    if (!client_vote_classPrivateFieldGet(client_asn1Validated, this)) {
+      void client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_blocksAndVotesRaw);
+    }
+    if (uncompressed) {
+      return client_vote_classPrivateFieldGet(client_value, this);
+    }
+    if (!client_vote_classPrivateFieldGet(client_valueCompressed, this)) {
+      client_vote_classPrivateFieldSet(client_valueCompressed, this, client_bufferToArrayBuffer(client_lib_default().deflateSync(client_vote_Buffer.from(client_vote_classPrivateFieldGet(client_value, this)))));
+    }
+    return client_vote_classPrivateFieldGet(client_valueCompressed, this);
+  }
+  toString() {
+    return client_vote_Buffer.from(this.toBytes()).toString('base64');
+  }
+
+  /**
+   * Hash of the Vote Staple -- this is the hash of the data in the
+   * canonical form of the staple, which may be different from
+   * the hash of the data passed into the this object.
+   */
+  get hash() {
+    if (!client_vote_classPrivateFieldGet(client_hash2, this)) {
+      const canonicalVoteStaple = src_client_VoteBlockBundle.fromVotesAndBlocks(this.votes, this.blocks, {
+        lazy: true
+      });
+      const hash = client_hash_Hash(client_vote_Buffer.from(canonicalVoteStaple.toBytes(true)));
+      client_vote_classPrivateFieldSet(client_hash2, this, new src_client_VoteStapleHash(hash));
+    }
+    return client_vote_classPrivateFieldGet(client_hash2, this);
+  }
+
+  /**
+   * Get the hash of the blockhashes in the staple -- this is a stable ID
+   * for the staple regardless of which votes are included in the staple.
+   */
+  get blocksHash() {
+    if (!client_vote_classPrivateFieldGet(client_blocksHash2, this)) {
+      client_vote_classPrivateFieldSet(client_blocksHash2, this, src_client_VoteBlockHash.fromVoteStaple(this));
+    }
+    return client_vote_classPrivateFieldGet(client_blocksHash2, this);
+  }
+
+  /**
+   * Get the timestamp of the staple
+   *
+   * This is the average of the timestamps of the votes, unless a
+   * particular account is specified then that timestamp is used
+   * if it issued a vote in the staple.
+   */
+  timestamp(preferRep) {
+    /*
+     * Compute the nominal timestamp of the vote staple by
+     * averaging the timestamps of the votes.
+     */
+    let voteTimestampsMin = Number.MAX_SAFE_INTEGER;
+    for (const vote of this.votes) {
+      const voteTime = vote.validityFrom;
+      if (preferRep !== null && preferRep !== void 0 && preferRep.comparePublicKey(vote.issuer)) {
+        return voteTime;
+      }
+      const voteTimestamp = voteTime.valueOf();
+      if (voteTimestamp < voteTimestampsMin) {
+        voteTimestampsMin = voteTimestamp;
+      }
+    }
+    let voteTimestampsAccumulator = 0;
+    let voteTimestampsCount = 0;
+    for (const vote of this.votes) {
+      const voteTimestamp = vote.validityFrom.valueOf();
+      voteTimestampsAccumulator += voteTimestamp - voteTimestampsMin;
+      voteTimestampsCount++;
+    }
+    const timestampValue = voteTimestampsMin + Math.floor(voteTimestampsAccumulator / voteTimestampsCount);
+    const timestamp = new Date(timestampValue);
+    return timestamp;
+  }
+  toJSON(options) {
+    const additionalFields = {};
+    if (options !== null && options !== void 0 && options.addBinary) {
+      additionalFields['$binary'] = client_vote_Buffer.from(this.toBytes()).toString('base64');
+    }
+    return {
+      votes: this.votes.map(function (vote) {
+        return vote.toJSON();
+      }),
+      blocks: this.blocks.map(function (block) {
+        return block.toJSON();
+      }),
+      ...additionalFields
+    };
+  }
+  get votes() {
+    var _classPrivateFieldGet2;
+    if (client_vote_classPrivateFieldGet(client_votes, this) !== undefined && this._votesValidated) {
+      return client_vote_classPrivateFieldGet(client_votes, this);
+    }
+    const voteOptions = client_vote_classPrivateFieldGet(client_options2, this);
+    const blocksUnsorted = Object.values(client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_blockHashes));
+
+    /*
+     * If votes are already known, use them otherwise parse from raw data
+     */
+    const newVotes = (_classPrivateFieldGet2 = client_vote_classPrivateFieldGet(client_votes, this)) !== null && _classPrivateFieldGet2 !== void 0 ? _classPrivateFieldGet2 : client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_votesRaw).map(voteData => {
+      if (!client_vote_Buffer.isBuffer(voteData)) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_VOTES', 'Each vote must be an Octet String');
+      }
+      const vote = new src_client_Vote(voteData, voteOptions);
+      return vote;
+    });
+
+    /**
+     * Validate each vote and ensure they all vote on the same block hashes in order
+     */
+    let stapleBlockHashes;
+    for (const vote of newVotes) {
+      if (vote.blocks.length !== blocksUnsorted.length) {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_COUNT', `Each vote must vote on the exact set of blocks being stapled (same number) (vote: ${vote.blocks.length}; blocks: ${blocksUnsorted.length})`);
+      }
+      for (const voteBlockHash of vote.blocks) {
+        const voteBlockHashCheck = client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_blockHashes)[voteBlockHash.toString()];
+        if (voteBlockHashCheck === undefined) {
+          throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_MISSING', `Each vote must be on the exact set of blocks being stapled (missing ${voteBlockHash.toString()})`);
+        }
+      }
+      if (stapleBlockHashes === undefined) {
+        stapleBlockHashes = vote.blocks;
+        continue;
+      }
+      for (let blockHashIndex = 0; blockHashIndex < vote.blocks.length; blockHashIndex++) {
+        const voteBlocksHash = vote.blocks[blockHashIndex];
+        const stapleBlockHash = stapleBlockHashes[blockHashIndex];
+        if (voteBlocksHash.toString() !== stapleBlockHash.toString()) {
+          throw new src_client_KeetaNetVoteError('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_ORDER', 'All votes must list blocks in the same order');
+        }
+      }
+    }
+    client_vote_classPrivateFieldSet(client_votes, this, newVotes);
+    return client_vote_classPrivateFieldGet(client_votes, this);
+  }
+  get blocks() {
+    if (client_vote_classPrivateFieldGet(client_blocks, this) !== undefined && this._votesValidated) {
+      return client_vote_classPrivateFieldGet(client_blocks, this);
+    }
+
+    /**
+     * Order blocks by the vote ordering
+     */
+    client_vote_classPrivateFieldSet(client_blocks, this, this.votes[0].blocks.map(blockHash => {
+      return client_vote_classPrivateGetter(client_VoteBlockBundle_brand, this, client_get_blockHashes)[blockHash.toString()];
+    }));
+    return client_vote_classPrivateFieldGet(client_blocks, this);
+  }
+  get touchedAccounts() {
+    if (client_vote_classPrivateFieldGet(client_touchedAccounts, this) !== undefined) {
+      return client_vote_classPrivateFieldGet(client_touchedAccounts, this);
+    }
+    const {
+      touched
+    } = client_computeEffectOfBlocks(this.blocks);
+    client_vote_classPrivateFieldSet(client_touchedAccounts, this, touched);
+    return client_vote_classPrivateFieldGet(client_touchedAccounts, this);
+  }
+}
+client_VoteBlockBundle = src_client_VoteBlockBundle;
+function client_get_blocksAndVotesRaw(_this) {
+  /**
+   * Parse BER encoded data into objects
+   */
+  const data = client_ASN1toJS(client_vote_classPrivateFieldGet(client_value, _this));
+  if (!Array.isArray(data)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must be a Sequence');
+  }
+  if (data.length !== 2) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
+  }
+  const [blocksRaw, votesRaw] = data;
+  if (!Array.isArray(blocksRaw) || !Array.isArray(votesRaw)) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
+  }
+  if (blocksRaw.length < 1) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_BLOCKS_AT_LEAST_ONE', 'There must be at least 1 block');
+  }
+  if (votesRaw.length < 1) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_VOTES_AT_LEAST_ONE', 'There must be at least one vote');
+  }
+  client_vote_classPrivateFieldSet(client_votesRaw, _this, votesRaw);
+  client_vote_classPrivateFieldSet(client_blocksRaw, _this, blocksRaw);
+  client_vote_classPrivateFieldSet(client_asn1Validated, _this, true);
+  return {
+    blocksRaw: client_vote_classPrivateFieldGet(client_blocksRaw, _this),
+    votesRaw: client_vote_classPrivateFieldGet(client_votesRaw, _this)
+  };
+}
+function client_get_blocksRaw(_this2) {
+  if (client_vote_classPrivateFieldGet(client_blocksRaw, _this2) !== undefined) {
+    return client_vote_classPrivateFieldGet(client_blocksRaw, _this2);
+  }
+  return client_vote_classPrivateGetter(client_VoteBlockBundle_brand, _this2, client_get_blocksAndVotesRaw).blocksRaw;
+}
+function client_get_votesRaw(_this3) {
+  if (client_vote_classPrivateFieldGet(client_votesRaw, _this3) !== undefined) {
+    return client_vote_classPrivateFieldGet(client_votesRaw, _this3);
+  }
+  return client_vote_classPrivateGetter(client_VoteBlockBundle_brand, _this3, client_get_blocksAndVotesRaw).votesRaw;
+}
+function client_get_blockHashes(_this4) {
+  if (client_vote_classPrivateFieldGet(client_blockHashes, _this4) !== undefined) {
+    return client_vote_classPrivateFieldGet(client_blockHashes, _this4);
+  }
+
+  /**
+   * List of blocks
+   * If blocks are already known, use them otherwise parse from raw data
+   */
+  let blocksUnsorted = [];
+  if (client_vote_classPrivateFieldGet(client_blocks, _this4) !== undefined) {
+    blocksUnsorted = client_vote_classPrivateFieldGet(client_blocks, _this4);
+  } else {
+    blocksUnsorted = client_vote_classPrivateGetter(client_VoteBlockBundle_brand, _this4, client_get_blocksRaw).map(function (blockData) {
+      if (!client_vote_Buffer.isBuffer(blockData)) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE_BLOCKS', 'Each block must be an Octet String');
+      }
+      return new src_client_Block(blockData);
+    });
+  }
+
+  /**
+   * Get a list of every block hash
+   */
+  const blockHashes = {};
+  for (const block of blocksUnsorted) {
+    blockHashes[block.hash.toString()] = block;
+  }
+  client_vote_classPrivateFieldSet(client_blockHashes, _this4, blockHashes);
+  return client_vote_classPrivateFieldGet(client_blockHashes, _this4);
+}
+client_lib_vote_defineProperty(src_client_VoteBlockBundle, "VoteBlockHash", src_client_VoteBlockHash);
+client_lib_vote_defineProperty(src_client_VoteBlockBundle, "isInstance", client_checkableGenerator(client_VoteBlockBundle));
+class src_client_VoteStaple extends src_client_VoteBlockBundle {
+  constructor(votesStapled) {
+    let voteOptions = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super(votesStapled, voteOptions);
+    if (voteOptions.lazy !== true) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      this.votes;
+    }
+  }
+  get votes() {
+    const votes = super.votes;
+    if (this._votesValidated) {
+      return votes;
+    }
+
+    /**
+     * Ensure no representative has more than 1 vote in the bundle
+     * and that every vote has the same level of permanence
+     */
+    const seenReps = new client_lib_account.Set();
+    let votesPermanence = undefined;
+    for (const vote of votes) {
+      if (seenReps.has(vote.issuer)) {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_DUPLICATE_VOTE_ISSUER', `Unable to parse vote information since account ${vote.issuer.publicKeyString.get()} has voted more than once`);
+      }
+      seenReps.add(vote.issuer);
+      if (votesPermanence === undefined) {
+        votesPermanence = vote.$permanent;
+      }
+      if (vote.$permanent !== votesPermanence) {
+        throw new src_client_KeetaNetVoteError('VOTE_STAPLE_PERMANENCE_MISMATCH', `Only votes with permanent set to ${votesPermanence} are permissible in a bundle, however we found a vote that expires on ${vote.validityTo.toISOString()}`);
+      }
+    }
+    this._votesValidated = true;
+    return votes;
+  }
+}
+client_VoteStaple = src_client_VoteStaple;
+client_lib_vote_defineProperty(src_client_VoteStaple, "isInstance", client_checkableGenerator(client_VoteStaple));
+var client_account = /*#__PURE__*/new WeakMap();
+var client_blocks2 = /*#__PURE__*/new WeakMap();
+var client_fee = /*#__PURE__*/new WeakMap();
+class src_client_BaseVoteBuilder {
+  constructor(account) {
+    let blocks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+    let options = arguments.length > 2 ? arguments[2] : undefined;
+    client_vote_classPrivateFieldInitSpec(this, client_account, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_blocks2, void 0);
+    client_vote_classPrivateFieldInitSpec(this, client_fee, undefined);
+    client_lib_vote_defineProperty(this, "quote", false);
+    if (!client_lib_account.isInstance(account)) {
+      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_CONSTRUCTION', 'internal error: account must be an Account');
+    }
+    client_vote_classPrivateFieldSet(client_account, this, account);
+    client_vote_classPrivateFieldSet(client_blocks2, this, []);
+    client_vote_classPrivateFieldSet(client_fee, this, options === null || options === void 0 ? void 0 : options.fee);
+    this.addBlocks(blocks);
+  }
+  addBlocks(blocks) {
+    for (const block of blocks) {
+      if (src_client_Block.isInstance(block)) {
+        client_vote_classPrivateFieldGet(client_blocks2, this).push(block.hash);
+        continue;
+      }
+      if (typeof block === 'string') {
+        client_vote_classPrivateFieldGet(client_blocks2, this).push(new client_block_BlockHash(block));
+        continue;
+      }
+      if (!client_block_BlockHash.isInstance(block)) {
+        throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_BLOCK_TYPE', 'internal error: block must be Block, BlockHash, or string');
+      }
+      client_vote_classPrivateFieldGet(client_blocks2, this).push(block);
+    }
+  }
+  addBlock(block) {
+    this.addBlocks([block]);
+  }
+  addFee(feeInput) {
+    const fee = {
+      amount: BigInt(feeInput.amount)
+    };
+    const payTo = client_lib_account.toAccount(feeInput.payTo);
+    if (payTo !== undefined) {
+      if (payTo.isStorage()) {
+        fee.payTo = payTo;
+      } else {
+        fee.payTo = payTo.assertAccount();
+      }
+    }
+    const token = client_lib_account.toAccount(feeInput.token);
+    if (token !== undefined) {
+      if (token.isToken()) {
+        fee.token = token;
+      } else {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN');
+      }
+    }
+    client_vote_classPrivateFieldSet(client_fee, this, fee);
+  }
+  generateVoteData(serial, validTo, validFrom) {
+    /**
+     * Signature algorithm identifier
+     */
+    let signatureInfoOID;
+
+    /**
+     * Whether or not to hash the data we are signing
+     */
+    let hashData = false;
+    switch (client_vote_classPrivateFieldGet(client_account, this).keyType) {
+      case client_AccountKeyAlgorithm.ECDSA_SECP256K1:
+      case client_AccountKeyAlgorithm.ECDSA_SECP256R1:
+        {
+          /*
+           * Use the default hashing function
+           * throughout the application
+           */
+          const hashFunctionName = client_hash_Hash.functionName;
+          signatureInfoOID = `${hashFunctionName}WithEcDSA`;
+          hashData = true;
+        }
+        break;
+      case client_AccountKeyAlgorithm.ED25519:
+        /* Ed25519 data does not get hashed */
+        signatureInfoOID = 'ed25519';
+        hashData = false;
+        break;
+      default:
+        throw new Error('internal error: Unsupported key type');
+        /* We do not sign with identifier accounts */
+        break;
+    }
+
+    /** Public Key */
+    const publicKey = client_vote_classPrivateFieldGet(client_account, this).publicKey.ASN1.getASN1();
+
+    /** Signature Information */
+    const signatureInfo = [{
+      type: 'oid',
+      oid: signatureInfoOID
+    }];
+    let feeExtension = undefined;
+    if (client_vote_classPrivateFieldGet(client_fee, this) !== undefined) {
+      var _classPrivateFieldGet3, _classPrivateFieldGet4;
+      /** Amount for this vote */
+      const feeData = [this.quote, client_vote_classPrivateFieldGet(client_fee, this).amount];
+
+      /** Account to pay the fee too */
+      const payToPublicKey = (_classPrivateFieldGet3 = client_vote_classPrivateFieldGet(client_fee, this).payTo) === null || _classPrivateFieldGet3 === void 0 ? void 0 : _classPrivateFieldGet3.publicKeyAndType;
+      if (payToPublicKey !== undefined) {
+        feeData.push({
+          type: 'context',
+          value: 0,
+          kind: 'implicit',
+          contains: payToPublicKey
+        });
+      }
+
+      /** Token in which to pay the fee */
+      const tokenPublicKey = (_classPrivateFieldGet4 = client_vote_classPrivateFieldGet(client_fee, this).token) === null || _classPrivateFieldGet4 === void 0 ? void 0 : _classPrivateFieldGet4.publicKeyAndType;
+      if (tokenPublicKey !== undefined) {
+        feeData.push({
+          type: 'context',
+          value: 1,
+          kind: 'implicit',
+          contains: tokenPublicKey
+        });
+      }
+      feeExtension = [{
+        type: 'oid',
+        oid: '1.3.6.1.4.1.62675.0.1.0'
+      },
+      // replace with 'fees' - 1.3.6.1.4.1.62675.0.1.0
+      true, client_vote_Buffer.from(client_JStoASN1({
+        type: 'context',
+        value: 0,
+        kind: 'explicit',
+        contains: feeData
+      }).toBER(false))];
+    }
+
+    /*
+     * Certificate to be signed
+     */
+    const tbsCertificate = [/** Version */
+    {
+      type: 'context',
+      value: 0,
+      kind: 'explicit',
+      contains: 2n
+    }, /** Serial Number */
+    serial, signatureInfo, /** Issuer */
+    [{
+      type: 'set',
+      name: {
+        type: 'oid',
+        oid: 'commonName'
+      },
+      value: {
+        type: 'string',
+        kind: 'utf8',
+        value: client_vote_classPrivateFieldGet(client_account, this).publicKeyString.get()
+      }
+    }], /** Validity */
+    [{
+      type: 'date',
+      kind: 'general',
+      date: validFrom
+    }, {
+      type: 'date',
+      kind: 'general',
+      date: validTo
+    }], /** Subject */
+    [{
+      type: 'set',
+      name: {
+        type: 'oid',
+        oid: 'serialNumber'
+      },
+      value: {
+        type: 'string',
+        kind: 'utf8',
+        value: serial.toString(16)
+      }
+    }],
+    /**
+     * Subject Public Key and Key Description
+     *
+     * The subject of this certificate is really the data,
+     * so we can put something much smaller here to save
+     * space XXX:TODO
+     *
+     * For now we just put the issuer public key for
+     * testing, but the issuer public key is fully
+     * encoded in the commonName attribute of the
+     * issuer DN.
+     */
+    publicKey, /** Extensions */
+    {
+      type: 'context',
+      value: 3,
+      kind: 'explicit',
+      contains: [/** Extension: Hash data */
+      [{
+        type: 'oid',
+        oid: 'hashData' /* XXX:TODO: There may be a better extension to use here */
+      }, true, client_vote_Buffer.from(client_JStoASN1({
+        type: 'context',
+        value: 0,
+        kind: 'explicit',
+        contains: [/** Hash algorithm used to hash blocks */
+        {
+          type: 'oid',
+          oid: client_hash_Hash.functionName
+        }, /** List of block hashes */
+        client_vote_classPrivateFieldGet(client_blocks2, this).map(function (blockhash) {
+          return blockhash.getBuffer();
+        })]
+      }).toBER(false))], ...(feeExtension ? [feeExtension] : [])]
+    }];
+    let toSign;
+    const tbsCertificateDER = client_vote_Buffer.from(client_JStoASN1(tbsCertificate).toBER(false));
+    if (hashData) {
+      toSign = client_hash_Hash(tbsCertificateDER);
+    } else {
+      toSign = tbsCertificateDER;
+    }
+    return {
+      voteData: toSign,
+      tbsCertificate: tbsCertificate,
+      signatureInfo: signatureInfo
+    };
+  }
+  createVote(voteData, tbsCertificate, signatureInfo, signature) {
+    /**
+     * Double-check that the signature we just created is valid for the data
+     */
+    const verification = client_vote_classPrivateFieldGet(client_account, this).verify(voteData, signature, {
+      raw: true,
+      forCert: true
+    });
+    if (!verification) {
+      throw new src_client_KeetaNetVoteError('VOTE_SIGNATURE_INVALID', 'internal error: Verification of signature failed');
+    }
+
+    /**
+     * Entire certificate structure
+     */
+    const certificate = client_JStoASN1([tbsCertificate, signatureInfo, {
+      'type': 'bitstring',
+      value: signature.getBuffer()
+    }]);
+
+    /**
+     * Vote: A DER-encoded certificate
+     */
+    const vote = certificate.toBER(false);
+    return vote;
+  }
+  async generate(serial, validTo, validFrom) {
+    if (validFrom === undefined) {
+      validFrom = new Date();
+    }
+    if (typeof serial !== 'bigint') {
+      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_SERIAL', `internal error: serial must be a bigint, instead got ${serial}`);
+    }
+    if (validTo === null && client_vote_classPrivateFieldGet(client_fee, this) !== undefined) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_IN_PERMANENT_VOTE', 'internal error: permanent votes should not have fees');
+    }
+    if (validTo === null) {
+      /**
+       * Issue a permanent vote
+       */
+      validTo = new Date();
+      validTo.setUTCFullYear(validTo.getUTCFullYear() + 1000, 12, 31);
+      validTo.setUTCHours(0, 0, 0, 0);
+    }
+    if (!client_util.types.isDate(validFrom) || !client_util.types.isDate(validTo)) {
+      throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_VALID_TO_FROM', 'internal error: validFrom must be Date');
+    }
+    if (this.quote && client_vote_classPrivateFieldGet(client_fee, this) === undefined) {
+      throw new src_client_KeetaNetVoteError('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided');
+    }
+    const {
+      voteData,
+      tbsCertificate,
+      signatureInfo
+    } = this.generateVoteData(serial, validTo, validFrom);
+    const signature = await client_vote_classPrivateFieldGet(client_account, this).sign(voteData, {
+      raw: true,
+      forCert: true
+    });
+    const voteLike = this.createVote(voteData, tbsCertificate, signatureInfo, signature);
+    return voteLike;
+  }
+}
+client_BaseVoteBuilder = src_client_BaseVoteBuilder;
+client_lib_vote_defineProperty(src_client_BaseVoteBuilder, "isInstance", client_checkableGenerator(client_BaseVoteBuilder));
+class src_client_VoteBuilder extends src_client_BaseVoteBuilder {
+  async seal(serial, validTo, validFrom) {
+    let voteOptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+    const vote = await super.generate(serial, validTo, validFrom);
+    return new src_client_Vote(vote, voteOptions);
+  }
+}
+client_VoteBuilder = src_client_VoteBuilder;
+client_lib_vote_defineProperty(src_client_VoteBuilder, "isInstance", client_checkableGenerator(client_VoteBuilder));
+class src_client_VoteQuoteBuilder extends src_client_BaseVoteBuilder {
+  constructor() {
+    super(...arguments);
+    client_lib_vote_defineProperty(this, "quote", true);
+  }
+  async seal(serial, validTo, validFrom) {
+    let voteOptions = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+    const voteQuote = await super.generate(serial, validTo, validFrom);
+    return new src_client_VoteQuote(voteQuote, voteOptions);
+  }
+}
+
+// Add respective builders to each
+client_VoteQuoteBuilder = src_client_VoteQuoteBuilder;
+client_lib_vote_defineProperty(src_client_VoteQuoteBuilder, "isInstance", client_checkableGenerator(client_VoteQuoteBuilder));
+src_client_VoteLikeBase.Builder = src_client_BaseVoteBuilder;
+src_client_VoteQuote.Builder = src_client_VoteQuoteBuilder;
+src_client_Vote.Builder = src_client_VoteBuilder;
+// Add to default export
+src_client_Vote.Staple = src_client_VoteStaple;
+src_client_Vote.Quote = src_client_VoteQuote;
+/* harmony default export */ const client_lib_vote = (src_client_Vote);
+
+/** @internal */
+const src_client_Testing = {
+  findRDN: client_findRDN,
+  blockHashesFromVote: client_blockHashesFromVote,
+  feeFromVote: client_feeFromVote
+};
 ;// ./src/lib/ledger/cache.ts
 /* provided dependency */ var client_cache_Buffer = __webpack_require__(8287)["Buffer"];
 function client_cache_classPrivateFieldInitSpec(e, t, a) { client_cache_checkPrivateRedeclaration(e, t), t.set(e, a); }
@@ -126082,6 +126574,7 @@ class client_LogTargetConsole {
     this.logLevel = (_config$logLevel = config === null || config === void 0 ? void 0 : config.logLevel) !== null && _config$logLevel !== void 0 ? _config$logLevel : 'ALL';
     client_target_console_classPrivateFieldSet(client_console, this, (_config$console = config === null || config === void 0 ? void 0 : config.console) !== null && _config$console !== void 0 ? _config$console : console);
     this.filter = (_config$filter = config === null || config === void 0 ? void 0 : config.filter) !== null && _config$filter !== void 0 ? _config$filter : null;
+    this.context = config === null || config === void 0 ? void 0 : config.context;
   }
   async emitLogs(logs) {
     for (const rawLog of logs) {
@@ -126107,9 +126600,13 @@ class client_LogTargetConsole {
           client_assertNever(log.level);
       }
       const requestID = log.options.currentRequestInfo.id;
-      client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
+      const contextPrefix = this.context ? Object.entries(this.context).map(_ref => {
+        let [k, v] = _ref;
+        return `${k}=${v}`;
+      }).join(' ') + ' ' : '';
+      client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from}:`, ...log.args);
       if (log.trace !== undefined) {
-        client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
+        client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from} TRACE:`, log.trace);
       }
     }
   }
@@ -128943,7 +129440,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.14.14+gdd8e58acb0e1edfb9050da584aaa65b7e5f722a2';
+const client_version = '0.16.0+g906ddd004c65d7e5d33559183bed9119e681c5ae';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -128958,7 +129455,6 @@ function client_p2p_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new Ty
 function client_p2p_classPrivateFieldGet(s, a) { return s.get(client_p2p_assertClassBrand(s, a)); }
 function client_p2p_classPrivateFieldSet(s, a, r) { return s.set(client_p2p_assertClassBrand(s, a), r), r; }
 function client_p2p_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
-
 
 
 
@@ -130279,11 +130775,32 @@ class src_client_P2PSwitch {
     });
 
     /**
+     * For 'add' messages, parse VoteStaple for filtering.
+     * Data can be a VoteStaple object (already parsed with trustedValues from PubSub)
+     * or a binary string that needs parsing.
+     */
+    let voteStaple;
+    let sendData = data;
+    if (type === 'add') {
+      if (src_client_VoteStaple.isInstance(data)) {
+        voteStaple = data;
+        // Convert back to binary for sending over the wire
+        sendData = voteStaple.toString();
+      } else if (typeof data === 'string') {
+        voteStaple = new src_client_VoteStaple(data);
+        sendData = data;
+      } else {
+        this._log.error(`[${id}]`, 'Invalid data for add message, must be VoteStaple or string, received: ', typeof data);
+        return false;
+      }
+    }
+
+    /**
      * Construct the message JSON
      */
     const messageString = JSON.stringify({
       id: id,
-      [type]: data,
+      [type]: sendData,
       ttl: ttl
     });
 
@@ -130328,10 +130845,14 @@ class src_client_P2PSwitch {
       } else {
         target = to;
       }
-      const passesFilter = await client_p2p_assertClassBrand(client_P2PSwitch_brand, this, client_passesFilter).call(this, target, data);
-      if (!passesFilter) {
-        client_p2p_classPrivateFieldGet(client_localNode, this).stats.incr('p2p', 'outgoingMessagesPeerFiltered');
-        return false;
+
+      // Only apply filter for 'add' messages with a VoteStaple
+      if (voteStaple !== undefined) {
+        const passesFilter = await client_p2p_assertClassBrand(client_P2PSwitch_brand, this, client_passesFilter).call(this, target, voteStaple);
+        if (!passesFilter) {
+          client_p2p_classPrivateFieldGet(client_localNode, this).stats.incr('p2p', 'outgoingMessagesPeerFiltered');
+          return false;
+        }
       }
 
       /**
@@ -130587,24 +131108,31 @@ class src_client_P2PSwitch {
   }
 
   /**
+   * Check if any registered filter matches the VoteStaple's touched accounts.
+   * Uses the VoteStaple's touchedAccounts getter which may be pre-computed via trustedValues.
+   *
    * TODO - make this private after refactoring websockets to handle higher load
    * https://github.com/KeetaNetwork/node/issues/785
    */
-  async haveAnyFilter(data) {
+  async haveAnyFilter(voteStaple) {
     const kvFilters = await this.config.kv.getAll('messageFilters');
+    const touched = voteStaple.touchedAccounts;
     for (const key in kvFilters) {
       const kvFilter = kvFilters[key];
       if (kvFilter && typeof kvFilter === 'string') {
-        const filter = client_lib_account.fromPublicKeyAndType(kvFilter);
-        const voteStaple = new src_client_VoteStaple(data);
-        const {
-          touched
-        } = client_computeEffectOfBlocks(voteStaple.blocks);
-        return touched.has(filter);
+        const filterAccount = client_lib_account.fromPublicKeyAndType(kvFilter);
+        if (touched.has(filterAccount)) {
+          return true;
+        }
       }
     }
     return false;
   }
+
+  /**
+   * Check if the VoteStaple passes the filter for the target connection.
+   * Uses the VoteStaple's touchedAccounts getter which may be pre-computed via trustedValues.
+   */
 }
 client_P2PSwitch = src_client_P2PSwitch;
 async function client_connectedPeerConnection(peer) {
@@ -130844,7 +131372,12 @@ async function client_handleIncomingGreeting(from, message) {
    * Perform peer exchange
    */
   promises.push(client_p2p_assertClassBrand(client_P2PSwitch_brand, this, client_relayActiveState).call(this, from));
-  await Promise.allSettled(promises);
+  const promiseResults = await Promise.allSettled(promises);
+  for (const result of promiseResults) {
+    if (result.status === 'rejected') {
+      this._log.error('Error during greeting handling:', result.reason);
+    }
+  }
   return true;
 }
 function client_updateConnTimeout(conn) {
@@ -130899,7 +131432,7 @@ async function client_connectToPeer(peer, logId) {
   }
   return p2pConnection;
 }
-async function client_passesFilter(target, data) {
+async function client_passesFilter(target, voteStaple) {
   let filter = client_p2p_classPrivateFieldGet(client_messageFilterCache, this)[target.connString];
   if (filter === undefined) {
     const kvFilter = await this.config.kv.get('messageFilters', target.connString);
@@ -130911,11 +131444,7 @@ async function client_passesFilter(target, data) {
 
   // If there is a filter, only send effected accounts matching the filter
   if (filter) {
-    const voteStaple = new src_client_VoteStaple(data);
-    const {
-      touched
-    } = client_computeEffectOfBlocks(voteStaple.blocks);
-    return touched.has(filter);
+    return voteStaple.touchedAccounts.has(filter);
   }
   return true;
 }
@@ -131575,7 +132104,7 @@ async function client_generateInitialVoteStaple(options) {
 /* provided dependency */ var client_builder_Buffer = __webpack_require__(8287)["Buffer"];
 var client_PendingAccount, client_UserClientBuilder;
 function client_builder_classPrivateMethodInitSpec(e, a) { client_builder_checkPrivateRedeclaration(e, a), a.add(e); }
-function src_client_classPrivateGetter(s, r, a) { return a(client_builder_assertClassBrand(s, r)); }
+function client_builder_classPrivateGetter(s, r, a) { return a(client_builder_assertClassBrand(s, r)); }
 function client_builder_classPrivateFieldInitSpec(e, t, a) { client_builder_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_builder_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
 function client_builder_defineProperty(e, r, t) { return (r = client_builder_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -131584,6 +132113,7 @@ function client_builder_toPrimitive(t, r) { if ("object" != typeof t || !t) retu
 function client_builder_classPrivateFieldSet(s, a, r) { return s.set(client_builder_assertClassBrand(s, a), r), r; }
 function client_builder_classPrivateFieldGet(s, a) { return s.get(client_builder_assertClassBrand(s, a)); }
 function client_builder_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
 
 
 
@@ -131652,7 +132182,7 @@ class src_client_PendingAccount {
     return client_builder_classPrivateFieldGet(client_builder_account, this);
   }
   toJSON() {
-    return this.account;
+    return this.account.publicKeyString.get();
   }
 }
 client_PendingAccount = src_client_PendingAccount;
@@ -131726,10 +132256,31 @@ class src_client_UserClientBuilder {
         if (operations.createIdentifiers !== undefined) {
           pendingOperations.createIdentifiers = operations.createIdentifiers.map(function (_ref) {
             let {
-              type
+              type,
+              createArguments
             } = _ref;
+            let createArgumentsParsed;
+            if (createArguments !== undefined) {
+              if (createArguments.type === client_AccountKeyAlgorithm.MULTISIG) {
+                createArgumentsParsed = {
+                  type: client_AccountKeyAlgorithm.MULTISIG,
+                  quorum: BigInt(createArguments.quorum),
+                  signers: createArguments.signers.map(signer => {
+                    const parsed = src_client_Account.toAccount(signer);
+                    if (parsed.isAccount() || parsed.isMultisig()) {
+                      return parsed;
+                    } else {
+                      throw new Error('Multisig signer must be an account or multisig identifier');
+                    }
+                  })
+                };
+              } else {
+                client_assertNever(createArguments.type);
+              }
+            }
             return {
-              type
+              type,
+              createArguments: createArgumentsParsed
             };
           });
         }
@@ -131875,7 +132426,7 @@ class src_client_UserClientBuilder {
     }
     client_builder_classPrivateFieldSet(client_allPending, this, previousPending);
     client_builder_classPrivateFieldSet(client_defaultOptions, this, _options);
-    client_builder_classPrivateFieldSet(client_pendingOptions, this, src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions));
+    client_builder_classPrivateFieldSet(client_pendingOptions, this, client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions));
     if (previousPending.length > 0) {
       client_builder_classPrivateFieldSet(client_rendered, this, false);
     }
@@ -131889,8 +132440,8 @@ class src_client_UserClientBuilder {
   }
   updateAccounts(accountOptions) {
     const newAccountOptions = {
-      account: src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).account,
-      signer: src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).signer,
+      account: client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).account,
+      signer: client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).signer,
       ...accountOptions
     };
     client_builder_assertClassBrand(client_UserClientBuilder_brand, this, client_useOptions).call(this, newAccountOptions);
@@ -132042,7 +132593,8 @@ class src_client_UserClientBuilder {
       }
       for (const {
         type,
-        toResolve
+        toResolve,
+        createArguments
       } of (_pending$createIdenti = pending.createIdentifiers) !== null && _pending$createIdenti !== void 0 ? _pending$createIdenti : []) {
         var _pending$createIdenti;
         const createdAddress = account.generateIdentifier(type, previous, operations.length);
@@ -132051,7 +132603,8 @@ class src_client_UserClientBuilder {
         }
         operations.push({
           type: src_client_Block.OperationType.CREATE_IDENTIFIER,
-          identifier: createdAddress
+          identifier: createdAddress,
+          createArguments: createArguments
         });
       }
       const allSends = {};
@@ -132360,16 +132913,50 @@ class src_client_UserClientBuilder {
     client_builder_assertClassBrand(client_UserClientBuilder_brand, this, client_useOptions).call(this, options);
     client_builder_classPrivateFieldGet(client_pendingOperations, this).setRep = to;
   }
-  generateIdentifier(type) {
+
+  /**
+   * Create a new identifier for the given arguments and add to the pending operations
+   *
+   * @param toCreate The arguments used to create the identifier (ex: multisig configuration)
+   * @param options The options to use for the request
+   * @return The identifier that was generated
+   */
+
+  /**
+   * Create a new identifier with the given type and add to the pending operations
+   *
+   * @param type The type of identifier to generate
+   * @param options The options to use for the request
+   * @return The identifier that was generated
+   */
+
+  /**
+   * Create a new identifier and add to the pending operations
+   *
+   * @param toCreate The type of identifier or the arguments to create an identifier
+   * @param options The options to use for the request
+   * @return The identifier that was generated
+   */
+
+  generateIdentifier(toCreate) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     client_builder_assertClassBrand(client_UserClientBuilder_brand, this, client_useOptions).call(this, options);
+    let createType;
+    let createArguments;
+    if (typeof toCreate === 'number') {
+      createType = toCreate;
+    } else {
+      createArguments = toCreate;
+      createType = toCreate.type;
+    }
     if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).createIdentifiers) {
       client_builder_classPrivateFieldGet(client_pendingOperations, this).createIdentifiers = [];
     }
     const toResolve = new src_client_PendingAccount();
     client_builder_classPrivateFieldGet(client_pendingOperations, this).createIdentifiers.push({
-      type,
-      toResolve
+      type: createType,
+      toResolve,
+      createArguments
     });
     return toResolve;
   }
@@ -132409,7 +132996,7 @@ function client_pushPending() {
   }
   client_builder_classPrivateFieldSet(client_rendered, this, false);
   client_builder_classPrivateFieldSet(client_allPending, this, updated);
-  client_builder_classPrivateFieldSet(client_pendingOptions, this, src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions));
+  client_builder_classPrivateFieldSet(client_pendingOptions, this, client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions));
   client_builder_classPrivateFieldSet(client_pendingOperations, this, {});
 }
 function client_useOptions(options) {
@@ -132419,12 +133006,12 @@ function client_useOptions(options) {
   const newOptions = {
     ...client_builder_classPrivateFieldGet(client_pendingOptions, this)
   };
-  const newAccount = (_options$account = options.account) !== null && _options$account !== void 0 ? _options$account : src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).account;
+  const newAccount = (_options$account = options.account) !== null && _options$account !== void 0 ? _options$account : client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).account;
   if (!client_builder_classPrivateFieldGet(client_pendingOptions, this).account.comparePublicKey(newAccount)) {
     newOptions.account = newAccount;
     shouldPush = true;
   }
-  const newSigner = (_options$signer = options.signer) !== null && _options$signer !== void 0 ? _options$signer : src_client_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).signer;
+  const newSigner = (_options$signer = options.signer) !== null && _options$signer !== void 0 ? _options$signer : client_builder_classPrivateGetter(client_UserClientBuilder_brand, this, client_get_defaultAccountOptions).signer;
   if (!client_builder_classPrivateFieldGet(client_pendingOptions, this).signer.comparePublicKey(newSigner)) {
     newOptions.signer = newSigner;
     shouldPush = true;
@@ -135203,14 +135790,31 @@ class src_client_UserClient {
   /**
    * Generate a new identifier for the given type and publish the blocks
    *
+   * @param toCreate The arguments used to create the identifier (ex: multisig configuration)
+   * @param options The options to use for the request
+   * @return The identifier that was generated
+   */
+
+  /**
+   * Generate a new identifier for the given type and publish the blocks
+   *
    * @param type The type of identifier to generate
    * @param options The options to use for the request
    * @return The identifier that was generated
    */
-  async generateIdentifier(type) {
+
+  /**
+   * Generate a new identifier and publish the blocks
+   *
+   * @param toCreate The type of identifier or the arguments to create an identifier
+   * @param options The options to use for the request
+   * @return The identifier that was generated
+   */
+
+  async generateIdentifier(toCreate) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     const builder = this.initBuilder(options);
-    const generated = builder.generateIdentifier(type);
+    const generated = builder.generateIdentifier(toCreate);
     await this.publishBuilder(builder);
     return generated;
   }

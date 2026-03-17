@@ -135,7 +135,7 @@ export declare class VoteBlockHash extends BufferStorage {
     get hashFunctionName(): string;
     static fromBlockHashes(blockHashes: BlockHash[]): VoteBlockHash;
     static fromVote(vote: PossiblyExpiredVote | Vote): VoteBlockHash;
-    static fromVoteStaple(voteStaple: VoteStaple): VoteBlockHash;
+    static fromVoteStaple(voteStaple: VoteBlockBundle | VoteStaple): VoteBlockHash;
     constructor(stapleHash: ConstructorParameters<typeof BufferStorage>[0]);
 }
 /**
@@ -146,6 +146,40 @@ type VoteOptions = {
      * The instant at which a vote's expiration is validated against (default is moment of instantiation)
      */
     now?: Date;
+    /**
+     * If specified as true then the VoteStaple will assume that the
+     * constraints have been validated and will not re-validate them
+     * until the fields are accessed
+     */
+    lazy?: boolean;
+};
+type VoteStapleOptions = {
+    /**
+     * Optional pre-computed and trusted values to avoid re-validation
+     *
+     * Only supply these values if you are 100% certain that they are correct,
+     * otherwise the VoteStaple may be corrupt and lead to invalid behavior.
+     */
+    trustedValues?: {
+        /**
+         * Pre-populated mapping of BlockHashes to Blocks
+         */
+        blocksMap?: {
+            [blockHashHex: string]: Block;
+        };
+        /**
+         * Pre-populate the list of blocks
+         */
+        blocks?: Block[];
+        /**
+         * Pre-populate the list of votes
+         */
+        votes?: Vote[];
+        /**
+         * Pre-populate the set of accounts touched by this vote staple
+         */
+        touchedAccounts?: InstanceType<typeof Account.Set>;
+    };
 };
 /**
  * Options for Vote Builder
@@ -187,15 +221,21 @@ declare class VoteLikeBase {
     get blocksHash(): VoteBlockHash;
     toString(): string;
     toJSON(options?: ToJSONSerializableOptions): {
-        $binary?: string;
-        fee?: FeeAmountAndTokenJSON;
-        quote?: boolean;
-        issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
-        serial: bigint;
-        blocks: BlockHash[];
-        validityFrom: Date;
-        validityTo: Date;
-        signature: ArrayBuffer;
+        $binary?: string | undefined;
+        fee?: {
+            amount: string;
+            payTo?: string | undefined;
+            token?: string | undefined;
+        } | undefined;
+        quote?: boolean | undefined;
+        issuer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
+        serial: string;
+        blocks: (string & {
+            readonly __blockhash: never;
+        })[];
+        validityFrom: string;
+        validityTo: string;
+        signature: string;
         $trusted: boolean;
         $permanent: boolean;
         $uid: string;
@@ -238,8 +278,12 @@ declare class VoteStapleHash extends BufferStorage {
     get hashFunctionName(): string;
     constructor(stapleHash: ConstructorParameters<typeof BufferStorage>[0]);
 }
+/**
+ * Accepted input types for constructing VoteStaple and VoteBlockBundle instances
+ */
+type VoteStapleInputs = ArrayBuffer | Buffer | VoteStapleJSON | string;
 interface VoteBundleConstructor<T> {
-    new (votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions: VoteOptions): T;
+    new (votesStapled: VoteStapleInputs, voteOptions: VoteOptions & VoteStapleOptions): T;
     fromVotesAndBlocks(votes: Vote[], blocks: Block[], voteOptions?: VoteOptions): T;
     fromVotesAndBlocksWithFiltering(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2]): T | null;
     fromVotesAndBlocksToHashMap(votes: PossiblyExpiredVote[], blocks: Block[], opts: Parameters<typeof VoteBlockBundle['fromVotesAndBlocks']>[2] & {
@@ -249,8 +293,7 @@ interface VoteBundleConstructor<T> {
 }
 export declare class VoteBlockBundle {
     #private;
-    readonly votes: Vote[];
-    readonly blocks: Block[];
+    protected _votesValidated: boolean;
     static readonly VoteBlockHash: typeof VoteBlockHash;
     static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteBlockBundle;
     /**
@@ -275,7 +318,7 @@ export declare class VoteBlockBundle {
     /**
      * Construct a new staple from a message buffer
      */
-    constructor(votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions?: VoteOptions);
+    constructor(votesStapled: VoteStapleInputs, voteOptions?: VoteOptions & VoteStapleOptions);
     /**
      * Get the serialized version
      */
@@ -303,42 +346,194 @@ export declare class VoteBlockBundle {
     toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
         votes: {
-            $binary?: string;
-            fee?: FeeAmountAndTokenJSON;
-            quote?: boolean;
-            issuer: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
-            serial: bigint;
-            blocks: BlockHash[];
-            validityFrom: Date;
-            validityTo: Date;
-            signature: ArrayBuffer;
+            $binary?: string | undefined;
+            fee?: {
+                amount: string;
+                payTo?: string | undefined;
+                token?: string | undefined;
+            } | undefined;
+            quote?: boolean | undefined;
+            issuer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
+            serial: string;
+            blocks: (string & {
+                readonly __blockhash: never;
+            })[];
+            validityFrom: string;
+            validityTo: string;
+            signature: string;
             $trusted: boolean;
             $permanent: boolean;
             $uid: string;
             $id: string;
         }[];
         blocks: {
-            $binary?: string;
-            signature?: string;
-            signatures?: string[];
+            $binary?: string | undefined;
+            signature?: string | undefined;
+            signatures?: string[] | undefined;
             version: 1 | 2;
             idempotent: string | undefined;
-            date: Date;
-            previous: BlockHash;
-            account: import("./account").GenericAccount;
+            date: string;
+            previous: string & {
+                readonly __blockhash: never;
+            };
+            account: import("./account").TokenPublicKeyString | import("./account").NetworkPublicKeyString | import("./account").StoragePublicKeyString | import("./account").MultisigPublicKeyString | import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
             purpose: import("./block").BlockPurpose;
-            signer: Account | [import("./account").MultisigAddress, any[]];
-            network: bigint;
-            subnet: bigint | undefined;
-            operations: import("./block/operations").ExportedJSONOperation[];
-            $hash: BlockHash;
+            signer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [never, never[]])[]])[]])[]])[]];
+            network: string;
+            subnet: string | undefined;
+            operations: ({
+                type: import("./block/operations").OperationType.SEND;
+                to: string;
+                amount: string;
+                token: import("./account").TokenPublicKeyString;
+                external?: string | undefined;
+            } | {
+                type: import("./block/operations").OperationType.SET_REP;
+                to: string;
+            } | {
+                type: import("./block/operations").OperationType.SET_INFO;
+                name: string;
+                description: string;
+                metadata: string;
+                defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | undefined;
+            } | {
+                type: import("./block/operations").OperationType.MODIFY_PERMISSIONS;
+                principal: string;
+                method: import("./block").AdjustMethod;
+                permissions: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | null;
+                target?: string | undefined;
+            } | {
+                type: import("./block/operations").OperationType.CREATE_IDENTIFIER;
+                identifier: string;
+                createArguments?: {
+                    type: AccountKeyAlgorithm.MULTISIG;
+                    signers: (import("./account").MultisigPublicKeyString | import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString)[];
+                    quorum: string;
+                } | {
+                    type: AccountKeyAlgorithm.MULTISIG;
+                    signers: (import("./account").MultisigPublicKeyString | import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString)[];
+                    quorum: string;
+                } | undefined;
+            } | {
+                type: import("./block/operations").OperationType.TOKEN_ADMIN_SUPPLY;
+                amount: string;
+                method: import("./block").AdjustMethod.ADD | import("./block").AdjustMethod.SUBTRACT;
+            } | {
+                type: import("./block/operations").OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
+                token: import("./account").TokenPublicKeyString;
+                amount: string;
+                method: import("./block").AdjustMethod;
+            } | {
+                type: import("./block/operations").OperationType.RECEIVE;
+                amount: string;
+                token: import("./account").TokenPublicKeyString;
+                from: string;
+                forward?: string | undefined;
+                exact?: boolean | undefined;
+            } | {
+                type: import("./block/operations").OperationType.MANAGE_CERTIFICATE;
+                certificateOrHash: string | (string & {
+                    readonly __certificateHash: never;
+                }) | {
+                    $binary?: string | undefined;
+                    $chain?: undefined;
+                    serial: string;
+                    notBefore: string;
+                    notAfter: string;
+                    subject: string;
+                    issuer: string;
+                    subjectPublicKey: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
+                    baseExtensions: {
+                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                        keyUsage?: {
+                            digitalSignature?: boolean | undefined;
+                            nonRepudiation?: boolean | undefined;
+                            keyEncipherment?: boolean | undefined;
+                            dataEncipherment?: boolean | undefined;
+                            keyAgreement?: boolean | undefined;
+                            keyCertSign?: boolean | undefined;
+                            cRLSign?: boolean | undefined;
+                            encipherOnly?: boolean | undefined;
+                            decipherOnly?: boolean | undefined;
+                        } | undefined;
+                        subjectKeyIdentifier?: string | undefined;
+                        authorityKeyIdentifier?: {
+                            type: "context";
+                            value: 0;
+                            contains: string;
+                        } | undefined;
+                    } | undefined;
+                    subjectDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    issuerDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    $hash: string & {
+                        readonly __certificateHash: never;
+                    };
+                } | {
+                    $binary?: string | undefined;
+                    $chain?: undefined;
+                    serial: string;
+                    notBefore: string;
+                    notAfter: string;
+                    subject: string;
+                    issuer: string;
+                    subjectPublicKey: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
+                    baseExtensions: {
+                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                        keyUsage?: {
+                            digitalSignature?: boolean | undefined;
+                            nonRepudiation?: boolean | undefined;
+                            keyEncipherment?: boolean | undefined;
+                            dataEncipherment?: boolean | undefined;
+                            keyAgreement?: boolean | undefined;
+                            keyCertSign?: boolean | undefined;
+                            cRLSign?: boolean | undefined;
+                            encipherOnly?: boolean | undefined;
+                            decipherOnly?: boolean | undefined;
+                        } | undefined;
+                        subjectKeyIdentifier?: string | undefined;
+                        authorityKeyIdentifier?: {
+                            type: "context";
+                            value: 0;
+                            contains: string;
+                        } | undefined;
+                    } | undefined;
+                    subjectDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    issuerDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    $hash: string & {
+                        readonly __certificateHash: never;
+                    };
+                };
+                intermediateCertificates?: string | {
+                    certificates: string[];
+                } | null | undefined;
+                method: Exclude<import("./block").AdjustMethod, import("./block").AdjustMethod.SET>;
+            })[];
+            $hash: string & {
+                readonly __blockhash: never;
+            };
             $opening: boolean;
         }[];
     };
+    get votes(): Vote[];
+    get blocks(): Block[];
+    get touchedAccounts(): InstanceType<typeof Account.Set>;
 }
 export declare class VoteStaple extends VoteBlockBundle {
     static readonly isInstance: (obj: any, strict?: boolean) => obj is VoteStaple;
-    constructor(votesStapled: ArrayBuffer | Buffer | VoteStapleJSON | string, voteOptions?: VoteOptions);
+    constructor(votesStapled: VoteStapleInputs, voteOptions?: VoteOptions & VoteStapleOptions);
+    get votes(): Vote[];
 }
 export declare class BaseVoteBuilder {
     #private;

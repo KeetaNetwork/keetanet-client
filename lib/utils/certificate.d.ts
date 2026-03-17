@@ -1,8 +1,8 @@
 import * as ASN1 from './asn1';
-import Account, { AccountKeyAlgorithm } from '../account';
+import Account from '../account';
 import * as HashLib from './hash';
 import { BufferStorage } from './buffer';
-import type { ToJSONSerializableOptions, ToJSONSerializable } from './conversion';
+import { type ToJSONSerializableOptions } from './conversion';
 /**
  * De-normalized mapped Certificate Schema, for use in type annotations since
  * we do not want to expose such a complex type
@@ -148,6 +148,10 @@ export declare class CertificateBuilder {
      */
     private accountToKeyId;
     /**
+     * Set the CA path length
+     */
+    protected setCAPathLen(pathLen: bigint | undefined): void;
+    /**
      * Produce the extensions to include in this certificate
      */
     protected addExtensions(params: CertificateBuilderParams): Promise<([{
@@ -211,10 +215,11 @@ export declare class CertificateHash extends BufferStorage {
     toJSON(): CertificateHashString;
     toString(): CertificateHashString;
 }
+export type CertificateBundleJSONOutput = ReturnType<CertificateBundle['toJSON']>;
 export declare class CertificateBundle {
     #private;
     static isInstance: (obj: any, strict?: boolean) => obj is CertificateBundle;
-    constructor(input: CertificateBundle | Certificate[] | ArrayBuffer | Buffer | string | (ConstructorParameters<typeof Certificate>[0])[] | Set<Certificate>);
+    constructor(input: CertificateBundle | Certificate[] | ArrayBuffer | Buffer | string | CertificateBundleJSONOutput | (ConstructorParameters<typeof Certificate>[0])[] | Set<Certificate>);
     get bundleSize(): number;
     getDER(): ArrayBuffer;
     getDERBuffer(): Buffer;
@@ -223,7 +228,12 @@ export declare class CertificateBundle {
         certificates: string[];
     };
 }
-export type CertificateJSONOutput = ToJSONSerializable<ReturnType<Certificate['toJSON']>>;
+declare const keyUsageBits: readonly ["digitalSignature", "nonRepudiation", "keyEncipherment", "dataEncipherment", "keyAgreement", "keyCertSign", "cRLSign", "encipherOnly", "decipherOnly"];
+type KeyUsageBits = typeof keyUsageBits[number];
+type KeyUsage = {
+    [P in KeyUsageBits]?: boolean;
+};
+export type CertificateJSONOutput = ReturnType<Certificate['toJSON']>;
 export declare class Certificate {
     #private;
     /**
@@ -297,6 +307,10 @@ export declare class Certificate {
             pathLenConstraint?: bigint
         ];
         /**
+         * Defines the purpose of the key
+         */
+        keyUsage?: KeyUsage;
+        /**
          * Subject Key Identifier
          */
         subjectKeyIdentifier?: Buffer;
@@ -325,7 +339,7 @@ export declare class Certificate {
      * Is a certificate object?
      */
     static isCertificate(value: unknown): value is Certificate;
-    constructor(input: Certificate | ArrayBuffer | Buffer | string, options?: CertificateOptions);
+    constructor(input: Certificate | CertificateJSONOutput | ArrayBuffer | Buffer | string, options?: CertificateOptions);
     /**
      * Finalize construction of the certificate -- if this method is
      * replaced in a subclass, remember to call it at the end of the
@@ -353,6 +367,15 @@ export declare class Certificate {
      */
     verify(account: Account | Certificate): boolean;
     /**
+     * Verify that a given chain meets the depth requirements
+     */
+    protected static verifyChainDepth(chain: Certificate[]): {
+        valid: true;
+    } | {
+        valid: false;
+        reason: string;
+    };
+    /**
      * Asserts provided certificates can construct a valid graph with no loops or orphans, and that all provided certificates can reach the root, or current certificate
      * @param certificates Additional intermediate certificates to verify
      */
@@ -360,6 +383,7 @@ export declare class Certificate {
     /**
      * Verify against a given certificate store
      */
+    verifyChain(store: NonNullable<CertificateOptions['store']>): Certificate[] | null;
     verifyChain(store: NonNullable<CertificateOptions['store']>, _ignore_seenCerts?: Set<Certificate>): Certificate[] | null;
     /**
      * Check if the certificate is valid at a given moment
@@ -438,31 +462,23 @@ export declare class Certificate {
      * Get a JSON representation of the certificate
      */
     toJSON(options?: ToJSONSerializableOptions, includeChain?: boolean): {
-        $binary?: string;
-        $chain?: unknown;
-        serial: bigint;
-        notBefore: Date;
-        notAfter: Date;
+        $binary?: string | undefined;
+        $chain?: undefined;
+        serial: string;
+        notBefore: string;
+        notAfter: string;
         subject: string;
         issuer: string;
-        subjectPublicKey: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+        subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
         baseExtensions: {
-            /**
-             * Basic Constraints
-             */
-            basicConstraints?: [ca: boolean, pathLenConstraint?: bigint];
-            /**
-             * Subject Key Identifier
-             */
-            subjectKeyIdentifier?: Buffer;
-            /**
-             * Authority Key Identifier
-             */
+            basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+            keyUsage?: KeyUsage | undefined;
+            subjectKeyIdentifier?: string | undefined;
             authorityKeyIdentifier?: {
                 type: "context";
                 value: 0;
-                contains: Buffer;
-            };
+                contains: string;
+            } | undefined;
         } | undefined;
         subjectDN: {
             name: string;
@@ -472,7 +488,7 @@ export declare class Certificate {
             name: string;
             value: string;
         }[];
-        $hash: CertificateHash;
+        $hash: CertificateHashString;
     };
 }
 export {};

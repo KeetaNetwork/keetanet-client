@@ -9,11 +9,17 @@ type LogTargetGCPConfig = {
     environment: string;
     product: string;
     vendor: string;
+    context?: {
+        [key: string]: string;
+    };
 };
 declare class LogTargetGCP implements LogTarget {
     #private;
     readonly logLevel: LogTargetLevel;
     readonly filter: RegExp | null;
+    readonly context?: {
+        [key: string]: string;
+    };
     constructor(config: LogTargetGCPConfig);
     /**
      * This function tries to log a test message to GCP Logging, and if it fails,

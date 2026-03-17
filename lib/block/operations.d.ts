@@ -6,7 +6,7 @@ import type { AcceptedPermissionTypes } from '../permissions';
 import { Permissions } from '../permissions';
 import type { ToJSONSerializable } from '../utils/conversion';
 import Block, { AdjustMethod } from '.';
-import { Certificate, CertificateBundle, CertificateHash } from '../utils/certificate';
+import { Certificate, CertificateBundle, type CertificateBundleJSONOutput, CertificateHash } from '../utils/certificate';
 import type { MultisigConfig } from '../ledger/types';
 /**
  * All supported operations
@@ -180,7 +180,7 @@ export interface BlockJSONOperation {
     type: OperationType;
 }
 interface BlockOperationValidateContext {
-    block: Block;
+    block: Pick<Block, 'network' | 'account' | 'signer' | 'operations' | 'previous' | 'date'>;
     operationIndex: number;
 }
 declare class BlockOperation {
@@ -211,7 +211,7 @@ declare class BlockOperationSEND extends BlockOperation implements BlockJSONOper
     set amount(amount: string | bigint);
     get amount(): bigint;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationSEND;
+    toJSON(): ToJSONSerializable<BlockJSONOperationSEND>;
 }
 export interface BlockJSONOperationRECEIVE extends BlockJSONOperation {
     type: OperationType.RECEIVE;
@@ -237,7 +237,7 @@ declare class BlockOperationRECEIVE extends BlockOperation implements BlockJSONO
     set amount(amount: string | bigint);
     get amount(): bigint;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationRECEIVE;
+    toJSON(): ToJSONSerializable<BlockJSONOperationRECEIVE>;
 }
 export interface BlockJSONOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockJSONOperation {
     type: OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
@@ -257,7 +257,7 @@ declare class BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockOperation im
     set amount(amount: string | bigint);
     get amount(): bigint;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationTOKEN_ADMIN_MODIFY_BALANCE;
+    toJSON(): ToJSONSerializable<BlockJSONOperationTOKEN_ADMIN_MODIFY_BALANCE>;
 }
 /**
  * SetRep operation
@@ -274,7 +274,7 @@ declare class BlockOperationSET_REP extends BlockOperation implements BlockJSONO
     set to(to: string | Account);
     get to(): Account;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationSET_REP;
+    toJSON(): ToJSONSerializable<BlockJSONOperationSET_REP>;
 }
 /**
  * TokenCreate Operation
@@ -300,7 +300,7 @@ declare class BlockOperationCREATE_IDENTIFIER extends BlockOperation implements 
     set createArguments(input: IdentifierCreateArguments | ToJSONSerializable<IdentifierCreateArguments> | undefined);
     get createArguments(): IdentifierCreateArguments | undefined;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationCREATE_IDENTIFIER;
+    toJSON(): ToJSONSerializable<BlockJSONOperationCREATE_IDENTIFIER>;
 }
 /**
  * SetInfo operation
@@ -326,7 +326,7 @@ declare class BlockOperationSET_INFO extends BlockOperation implements BlockJSON
     set defaultPermission(newPerms: Permissions | undefined);
     get defaultPermission(): Permissions | undefined;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationSET_INFO;
+    toJSON(): ToJSONSerializable<BlockJSONOperationSET_INFO>;
 }
 /**
  * Set Permissions Operation
@@ -352,7 +352,7 @@ declare class BlockOperationMODIFY_PERMISSIONS extends BlockOperation implements
     set method(method: AdjustMethod);
     get method(): AdjustMethod;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationMODIFY_PERMISSIONS;
+    toJSON(): ToJSONSerializable<BlockJSONOperationMODIFY_PERMISSIONS>;
 }
 /**
  * Token Supply operation
@@ -372,20 +372,16 @@ declare class BlockOperationTOKEN_ADMIN_SUPPLY extends BlockOperation implements
     set method(shouldAdd: BlockJSONOperationTOKEN_ADMIN_SUPPLY['method']);
     get method(): BlockJSONOperationTOKEN_ADMIN_SUPPLY['method'];
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationTOKEN_ADMIN_SUPPLY;
+    toJSON(): ToJSONSerializable<BlockJSONOperationTOKEN_ADMIN_SUPPLY>;
 }
 /**
  * X.509 Certificate operations
  */
 export interface BlockJSONOperationMANAGE_CERTIFICATE extends BlockJSONOperation {
     type: OperationType.MANAGE_CERTIFICATE;
-    certificateOrHash: string | Certificate | Buffer | CertificateHash;
-    intermediateCertificates?: string | CertificateBundle | Buffer | null;
+    certificateOrHash: string | CertificateHash | ConstructorParameters<typeof Certificate>[0];
+    intermediateCertificates?: string | CertificateBundle | CertificateBundleJSONOutput | null;
     method: Exclude<AdjustMethod, AdjustMethod.SET>;
-}
-export interface BlockJSONOperationMANAGE_CERTIFICATESerializable extends Omit<BlockJSONOperationMANAGE_CERTIFICATE, 'certificateOrHash' | 'intermediateCertificates'> {
-    certificateOrHash: string | Buffer;
-    intermediateCertificates?: string | Buffer | null;
 }
 declare class BlockOperationMANAGE_CERTIFICATE extends BlockOperation implements BlockJSONOperationMANAGE_CERTIFICATE {
     #private;
@@ -398,7 +394,7 @@ declare class BlockOperationMANAGE_CERTIFICATE extends BlockOperation implements
     set method(shouldAdd: Exclude<AdjustMethod, AdjustMethod.SET>);
     get method(): Exclude<AdjustMethod, AdjustMethod.SET>;
     validate(context: BlockOperationValidateContext): void;
-    toJSON(): BlockJSONOperationMANAGE_CERTIFICATESerializable;
+    toJSON(): ToJSONSerializable<BlockJSONOperationMANAGE_CERTIFICATE>;
 }
 /**
  * Aggregate set of operations
@@ -419,14 +415,11 @@ export type BlockOperations = InstanceType<typeof Operation[keyof typeof Operati
 export type BlockJSONOperations = ConstructorParameters<typeof Operation[keyof typeof OperationType]>[0];
 export declare function createBlockOperation(input: BlockJSONOperations | ToJSONSerializable<BlockJSONOperations>): BlockOperationSEND | BlockOperationSET_REP | BlockOperationSET_INFO | BlockOperationMODIFY_PERMISSIONS | BlockOperationCREATE_IDENTIFIER | BlockOperationTOKEN_ADMIN_SUPPLY | BlockOperationTOKEN_ADMIN_MODIFY_BALANCE | BlockOperationRECEIVE | BlockOperationMANAGE_CERTIFICATE;
 export declare function isBlockOperation(input: any): input is BlockOperations;
-export type ExportedJSONOperation = {
-    [K in keyof typeof Operation]: ToJSONSerializable<ReturnType<InstanceType<typeof Operation[K]>['toJSON']>>;
-}[keyof typeof Operation];
 /**
  * Export the "operations" mapping as something compatible with being
  * serialized to JSON
  */
-export declare function ExportOperationsJSON(operations: BlockOperations[]): ExportedJSONOperation[];
+export declare function ExportOperationsJSON(operations: BlockOperations[]): ToJSONSerializable<BlockJSONOperations>[];
 export declare function ImportOperationsJSON(operations: (BlockOperations | BlockJSONOperations)[]): BlockOperations[];
 export declare function ExportBlockOperations(operations: BlockOperations[]): ((Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {
     contains: [bigint, bigint];

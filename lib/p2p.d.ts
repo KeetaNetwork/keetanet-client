@@ -6,6 +6,7 @@ import type { JSONSerializable, JSONSerializableObject } from './utils/conversio
 import type { DistributiveOmit } from './utils/helper';
 import type { KVStorageProvider } from './kv';
 import type { Representative } from '../config';
+import { VoteStaple } from './vote';
 /**
  * Peer to Peer connection configuration
  */
@@ -95,7 +96,7 @@ interface P2PPeerRepBase extends P2PPeerBase {
 /**
  * Peering information for a Representative
  */
-type P2PPeerRep = P2PPeerRepBase & ({
+export type P2PPeerRep = P2PPeerRepBase & ({
     /**
      * Certificate from this peer which confirms its endpoints
      */
@@ -327,9 +328,12 @@ export declare class P2PSwitch {
      */
     sendMessage(to: P2PConnection | Account | P2PPeer | null, id: string, type: string, data: any, ttl?: number, exclude?: (string | P2PConnection)[], skipConnectToPeers?: boolean): Promise<boolean>;
     /**
+     * Check if any registered filter matches the VoteStaple's touched accounts.
+     * Uses the VoteStaple's touchedAccounts getter which may be pre-computed via trustedValues.
+     *
      * TODO - make this private after refactoring websockets to handle higher load
      * https://github.com/KeetaNetwork/node/issues/785
      */
-    haveAnyFilter(data: any): Promise<boolean>;
+    haveAnyFilter(voteStaple: VoteStaple): Promise<boolean>;
 }
 export default P2PSwitch;

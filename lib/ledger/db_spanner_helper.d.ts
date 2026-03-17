@@ -483,7 +483,7 @@ export declare class Helper {
     static getPrimaryKeyNames<X extends TableIndexName>(table: X): string[];
     static getNameFromType(filterType: 'INDEX'): IndexName[];
     static getNameFromType(filterType: 'TABLE'): TableName[];
-    static getAllTables(): ("blocks" | "permissions" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "accountCertificates" | "heapBlocks" | "heapStorage" | "delegation" | "idempotentKeys" | "voteBlocks")[];
+    static getAllTables(): ("permissions" | "blocks" | "votes" | "ledger" | "chain" | "history" | "weight" | "accountInfo" | "accountCertificates" | "heapBlocks" | "heapStorage" | "delegation" | "idempotentKeys" | "voteBlocks")[];
     static IsTable(name: TableIndexName): name is TableName;
     static IsIndex(name: TableIndexName): name is IndexName;
     static getIndexParent(index: IndexName): TableName;

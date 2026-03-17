@@ -57280,6 +57280,7 @@ const permissions_1 = __webpack_require__(5860);
 const conversion_1 = __webpack_require__(2360);
 const helper_1 = __webpack_require__(3208);
 const certificate_1 = __webpack_require__(5661);
+const never_1 = __webpack_require__(8692);
 class PendingAccount {
     constructor() {
         _PendingAccount_account.set(this, void 0);
@@ -57303,7 +57304,7 @@ class PendingAccount {
         return (__classPrivateFieldGet(this, _PendingAccount_account, "f"));
     }
     toJSON() {
-        return (this.account);
+        return (this.account.publicKeyString.get());
     }
 }
 exports.PendingAccount = PendingAccount;
@@ -57362,8 +57363,29 @@ class UserClientBuilder {
                     pendingOperations.tokenSupply = (0, conversion_1.parseHexBigIntString)(operations.tokenSupply);
                 }
                 if (operations.createIdentifiers !== undefined) {
-                    pendingOperations.createIdentifiers = operations.createIdentifiers.map(function ({ type }) {
-                        return ({ type });
+                    pendingOperations.createIdentifiers = operations.createIdentifiers.map(function ({ type, createArguments }) {
+                        let createArgumentsParsed;
+                        if (createArguments !== undefined) {
+                            if (createArguments.type === account_1.AccountKeyAlgorithm.MULTISIG) {
+                                createArgumentsParsed = {
+                                    type: account_1.AccountKeyAlgorithm.MULTISIG,
+                                    quorum: BigInt(createArguments.quorum),
+                                    signers: createArguments.signers.map(signer => {
+                                        const parsed = account_1.Account.toAccount(signer);
+                                        if (parsed.isAccount() || parsed.isMultisig()) {
+                                            return (parsed);
+                                        }
+                                        else {
+                                            throw (new Error('Multisig signer must be an account or multisig identifier'));
+                                        }
+                                    })
+                                };
+                            }
+                            else {
+                                (0, never_1.assertNever)(createArguments.type);
+                            }
+                        }
+                        return ({ type, createArguments: createArgumentsParsed });
                     });
                 }
                 if (operations.send !== undefined) {
@@ -57615,14 +57637,15 @@ class UserClientBuilder {
             if (!previous) {
                 previous = await renderOptions.getPrevious(account) ?? block_1.Block.NO_PREVIOUS;
             }
-            for (const { type, toResolve } of (pending.createIdentifiers ?? [])) {
+            for (const { type, toResolve, createArguments } of (pending.createIdentifiers ?? [])) {
                 const createdAddress = account.generateIdentifier(type, previous, operations.length);
                 if (PendingAccount.IsInstance(toResolve)) {
                     toResolve.account = createdAddress;
                 }
                 operations.push({
                     type: block_1.Block.OperationType.CREATE_IDENTIFIER,
-                    identifier: createdAddress
+                    identifier: createdAddress,
+                    createArguments: createArguments
                 });
             }
             const allSends = {};
@@ -57864,13 +57887,22 @@ class UserClientBuilder {
         __classPrivateFieldGet(this, _UserClientBuilder_instances, "m", _UserClientBuilder_useOptions).call(this, options);
         __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").setRep = to;
     }
-    generateIdentifier(type, options = {}) {
+    generateIdentifier(toCreate, options = {}) {
         __classPrivateFieldGet(this, _UserClientBuilder_instances, "m", _UserClientBuilder_useOptions).call(this, options);
+        let createType;
+        let createArguments;
+        if (typeof toCreate === 'number') {
+            createType = toCreate;
+        }
+        else {
+            createArguments = toCreate;
+            createType = toCreate.type;
+        }
         if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").createIdentifiers) {
             __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").createIdentifiers = [];
         }
         const toResolve = new PendingAccount();
-        __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").createIdentifiers.push({ type, toResolve });
+        __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").createIdentifiers.push({ type: createType, toResolve, createArguments });
         return (toResolve);
     }
     get blocks() {
@@ -60443,16 +60475,9 @@ class UserClient {
     async getQuotes(blocks) {
         return (await __classPrivateFieldGet(this, _UserClient_client, "f").getVoteQuotes(blocks));
     }
-    /**
-     * Generate a new identifier for the given type and publish the blocks
-     *
-     * @param type The type of identifier to generate
-     * @param options The options to use for the request
-     * @return The identifier that was generated
-     */
-    async generateIdentifier(type, options = {}) {
+    async generateIdentifier(toCreate, options = {}) {
         const builder = this.initBuilder(options);
-        const generated = builder.generateIdentifier(type);
+        const generated = builder.generateIdentifier(toCreate);
         await this.publishBuilder(builder);
         return (generated);
     }
@@ -61106,7 +61131,7 @@ exports.baseValidationConfig = {
         }
     },
     idempotentKey: {
-        maxByteLength: 32
+        maxByteLength: 36
     }
 };
 function getNetworkAlias(networkOrID) {
@@ -62849,23 +62874,23 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-};
 var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
     if (kind === "m") throw new TypeError("Private method is not writable");
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
 };
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Block_instances, _a, _Block_valueBytes, _Block_valueHash, _Block_getSortedRequiredSigners, _Block_validateBytes, _Block_validateOperationsPurpose, _Block_validateSignerField, _Block_validateSignatures, _BlockBuilder_block;
+var _PossiblyUnsignedBlock_instances, _a, _PossiblyUnsignedBlock_valueBytes, _PossiblyUnsignedBlock_valueHash, _PossiblyUnsignedBlock_hasSignature, _PossiblyUnsignedBlock_nonNullableSignatures_get, _PossiblyUnsignedBlock_validateRecalculatedBytes, _PossiblyUnsignedBlock_validateOperationsPurpose, _PossiblyUnsignedBlock_validateSignerField, _PossiblyUnsignedBlock_validateSignatures, _PossiblyUnsignedBlock_validateIdempotent, _PossiblyUnsignedBlock_toBytesInternal, _b, _BlockBuilder_block, _BlockBuilder_ValidateInputs;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.BlockBuilder = exports.Block = exports.BlockHash = exports.AdjustMethod = exports.BlockPurpose = void 0;
+exports.BlockBuilder = exports.Block = exports.UnsignedBlock = exports.BlockHash = exports.AdjustMethod = exports.BlockPurpose = void 0;
 exports.toAdjustMethod = toAdjustMethod;
 const account_1 = __importStar(__webpack_require__(9415));
 const buffer_1 = __webpack_require__(3310);
@@ -62873,6 +62898,7 @@ const hash_1 = __webpack_require__(7908);
 const ASN1 = __importStar(__webpack_require__(6045));
 const helper_1 = __webpack_require__(3208);
 const util_1 = __webpack_require__(9023);
+const conversion_1 = __webpack_require__(2360);
 const Operations = __importStar(__webpack_require__(2778));
 const block_1 = __importDefault(__webpack_require__(7412));
 const common_1 = __webpack_require__(5663);
@@ -63115,6 +63141,12 @@ function _ignore_static_checks() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _ignore_check_blockasn1v2_reverse_2 = _ignore_check_blockasn1v2_reverse_1;
 }
+function validateIdempotentKeyLength(idempotent, network) {
+    const idempotentValidationConfig = (0, config_1.getValidation)(network).idempotentKey;
+    if (idempotent.length > idempotentValidationConfig.maxByteLength) {
+        throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${idempotent.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`));
+    }
+}
 function parseBlockIdempotent(input, network) {
     let output;
     if (Buffer.isBuffer(input)) {
@@ -63132,10 +63164,7 @@ function parseBlockIdempotent(input, network) {
         throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_FORMAT', 'Could not parse Block idempotent'));
     }
     if (network !== undefined) {
-        const idempotentValidationConfig = (0, config_1.getValidation)(network).idempotentKey;
-        if (output.length > idempotentValidationConfig.maxByteLength) {
-            throw (new block_1.default('BLOCK_INVALID_IDEMPOTENT_LENGTH', `Block idempotent key is length ${output.length}, but maxByteLength is ${idempotentValidationConfig.maxByteLength}`));
-        }
+        validateIdempotentKeyLength(output, network);
     }
     return (output);
 }
@@ -63285,11 +63314,22 @@ function assertBlockSignatureField(input) {
         throw (new Error('Input must include 1+ signatures'));
     }
 }
+function getBlockSignatureFieldFromVersion(version) {
+    if (version === 1) {
+        return ('signature');
+    }
+    else if (version === 2) {
+        return ('signatures');
+    }
+    else {
+        throw (new Error(`Unsupported block version for signature field: ${version}`));
+    }
+}
 /**
  * Block:  An item which contains a number of operations (transactions) which
  * originated from an account at a particular instant
  */
-class Block {
+class PossiblyUnsignedBlock {
     get principal() {
         if (Array.isArray(this.signer)) {
             return (this.signer[0]);
@@ -63298,52 +63338,43 @@ class Block {
             return (this.signer);
         }
     }
-    static async fromUnsignedJSON(input) {
-        const inputCheck = input;
-        if (typeof inputCheck === 'object' && inputCheck !== null) {
-            if ('signature' in inputCheck || 'signatures' in inputCheck) {
-                throw (new Error('fromUnsignedJSON() was called when a signature(s) already exists'));
+    static getSortedRequiredSigners(input) {
+        const queue = [input];
+        const visited = new account_1.default.Set();
+        const out = [];
+        while (queue.length > 0) {
+            // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const cur = queue.shift();
+            if (account_1.default.isInstance(cur)) {
+                if (visited.has(cur)) {
+                    continue;
+                }
+                visited.add(cur);
+                out.push(cur);
+            }
+            else {
+                queue.unshift(...cur[1]);
             }
         }
-        const container = this.getASN1ContainerWithoutSignature(input);
-        // We have to ignore the type here because the ASN1.JStoASN1 function does not handle recursive types well
-        // @ts-ignore
-        const bytes = ASN1.JStoASN1(container).toBER(false);
-        const hash = new BlockHash((0, hash_1.Hash)(Buffer.from(bytes)));
-        const signers = __classPrivateFieldGet(this, _a, "m", _Block_getSortedRequiredSigners).call(this, input.signer);
-        const signatures = await Promise.all(signers.map(async function (signer) {
-            const signature = await signer.sign(hash.getBuffer());
-            return (signature.getBuffer());
-        }));
-        let blockInput;
-        if (input.version === 1) {
-            blockInput = { ...input, signature: signatures[0] };
-        }
-        else {
-            blockInput = { ...input, signatures };
-        }
-        return (new _a(blockInput));
+        return (out);
     }
-    static isValidJSON(block, version) {
+    static isValidJSONSignedOrUnsigned(assertSignatureIncluded, block, version) {
         if (!block || typeof block !== 'object' || Array.isArray(block)) {
             return (false);
         }
-        if (!('version' in block)) {
+        if (!('version' in block) || typeof block.version !== 'number') {
             return (false);
         }
         if (version !== undefined && block.version !== version) {
             return (false);
         }
         const checkFields = ['date', 'previous', 'network', 'network', 'account', 'signer', 'operations'];
-        if (block.version === 1) {
-            checkFields.push('signature');
+        if (assertSignatureIncluded) {
+            checkFields.push(getBlockSignatureFieldFromVersion(block.version));
         }
-        else if (block.version === 2) {
-            checkFields.push('signatures');
+        if (block.version === 2) {
             checkFields.push('purpose');
-        }
-        else {
-            return (false);
         }
         for (const checkField of checkFields) {
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -63353,10 +63384,11 @@ class Block {
         }
         return (true);
     }
-    constructor(input) {
-        _Block_instances.add(this);
-        _Block_valueBytes.set(this, void 0);
-        _Block_valueHash.set(this, void 0);
+    constructor(input, hasSignature) {
+        _PossiblyUnsignedBlock_instances.add(this);
+        _PossiblyUnsignedBlock_valueBytes.set(this, void 0);
+        _PossiblyUnsignedBlock_valueHash.set(this, void 0);
+        _PossiblyUnsignedBlock_hasSignature.set(this, void 0);
         // Extra attributes
         this.$opening = false;
         if (typeof input === 'string') {
@@ -63365,7 +63397,10 @@ class Block {
         if ((0, helper_1.isBuffer)(input)) {
             input = (0, helper_1.bufferToArrayBuffer)(input);
         }
+        let foundSignatureField;
         if (util_1.types.isArrayBuffer(input)) {
+            // For some reason, typescript says this is excessively deep
+            // @ts-ignore
             const data = new ASN1.BufferStorageASN1(input, BlockASN1Schema).getASN1();
             if (Array.isArray(data)) {
                 if (data[0] !== 0n) {
@@ -63392,7 +63427,13 @@ class Block {
                 const prevHashBuf = data[7];
                 this.previous = new BlockHash(prevHashBuf);
                 this.operations = Operations.ImportOperationsASN1(data[8], this.network);
-                this.signatures = [data[9]];
+                if (data[9]) {
+                    // @ts-ignore
+                    foundSignatureField = [data[9]];
+                }
+                else {
+                    foundSignatureField = null;
+                }
             }
             else if (data.value === 1) {
                 this.version = 2;
@@ -63419,24 +63460,31 @@ class Block {
                 this.previous = new BlockHash(container[7]);
                 this.operations = Operations.ImportOperationsASN1(container[8], this.network);
                 const signatureContainer = container[9];
-                if (Buffer.isBuffer(signatureContainer)) {
-                    this.signatures = [signatureContainer];
+                if (signatureContainer) {
+                    if (Buffer.isBuffer(signatureContainer)) {
+                        foundSignatureField = [signatureContainer];
+                    }
+                    else {
+                        if (signatureContainer.length <= 1) {
+                            throw (new Error('Signature field invalid, must be greater than one when using sequence of'));
+                        }
+                        assertBlockSignatureField(signatureContainer);
+                        foundSignatureField = signatureContainer;
+                    }
                 }
                 else {
-                    if (signatureContainer.length <= 1) {
-                        throw (new Error('Signature field invalid, must be greater than one when using sequence of'));
-                    }
-                    assertBlockSignatureField(signatureContainer);
-                    this.signatures = signatureContainer;
+                    foundSignatureField = null;
                 }
             }
             else {
                 throw (new Error('Unknown block version'));
             }
-            __classPrivateFieldSet(this, _Block_valueBytes, input, "f");
+            __classPrivateFieldSet(this, _PossiblyUnsignedBlock_valueBytes, input, "f");
         }
         else {
-            if (_a.isInstance(input)) {
+            // These will be loaded even though they are defined later in the file because the constructor does not get automatically called before their definitions
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            if (Block.isInstance(input) || UnsignedBlock.isInstance(input)) {
                 this.version = input.version;
                 this.purpose = input.purpose;
                 this.idempotent = input.idempotent;
@@ -63447,9 +63495,9 @@ class Block {
                 this.account = input.account;
                 this.operations = input.operations;
                 this.signer = input.signer;
-                this.signatures = input.signatures;
+                foundSignatureField = input.signatures;
             }
-            else if (_a.isValidJSON(input, 1)) {
+            else if (_a.isValidJSONSignedOrUnsigned(hasSignature, input, 1)) {
                 /*
                 * Map input to our values
                 */
@@ -63469,19 +63517,24 @@ class Block {
                 * sign the hash of the block based on what has been
                 * processed
                 */
-                if (input.signature === undefined) {
-                    throw (new Error('Cannot construct block without a signature and explicit direction to sign'));
-                }
-                let signature;
-                if (typeof input.signature === 'string') {
-                    signature = Buffer.from(input.signature, 'hex');
+                if ('signature' in input && input.signature) {
+                    let signature;
+                    if (typeof input.signature === 'string') {
+                        signature = Buffer.from(input.signature, 'hex');
+                    }
+                    else if (Buffer.isBuffer(input.signature)) {
+                        signature = Buffer.from(input.signature);
+                    }
+                    else {
+                        throw (new Error('Invalid signature format in input'));
+                    }
+                    foundSignatureField = [signature];
                 }
                 else {
-                    signature = Buffer.from(input.signature);
+                    foundSignatureField = null;
                 }
-                this.signatures = [signature];
             }
-            else if (_a.isValidJSON(input, 2)) {
+            else if (_a.isValidJSONSignedOrUnsigned(hasSignature, input, 2)) {
                 /*
                 * Map input to our values
                 */
@@ -63501,25 +63554,34 @@ class Block {
                 * sign the hash of the block based on what has been
                 * processed
                 */
-                if (input.signatures === undefined) {
-                    throw (new Error('Cannot construct block without a signature and explicit direction to sign'));
+                if ('signatures' in input && input.signatures) {
+                    const signatures = input.signatures.map(function (signature) {
+                        if (typeof signature === 'string') {
+                            return (Buffer.from(signature, 'hex'));
+                        }
+                        else {
+                            return (Buffer.from(signature));
+                        }
+                    });
+                    assertBlockSignatureField(signatures);
+                    foundSignatureField = signatures;
                 }
-                const signatures = input.signatures.map(function (signature) {
-                    if (typeof signature === 'string') {
-                        return (Buffer.from(signature, 'hex'));
-                    }
-                    else {
-                        return (Buffer.from(signature));
-                    }
-                });
-                assertBlockSignatureField(signatures);
-                this.signatures = signatures;
+                else {
+                    foundSignatureField = null;
+                }
             }
             else {
                 throw (new Error('Cannot construct block, it is not a valid Block JSON object'));
             }
             /* XXX:TODO: Verify that no extra keys were passed in */
         }
+        if ((foundSignatureField === null) === hasSignature) {
+            throw (new Error('Block signature presence does not match expected hasSignature value'));
+        }
+        // We can assume that the foundSignatureField is of the correct type here since we have verified the hasSignature condition
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        this.signatures = foundSignatureField;
+        __classPrivateFieldSet(this, _PossiblyUnsignedBlock_hasSignature, hasSignature, "f");
         if (this.previous.compareHexString(this.hash)) {
             throw (new block_1.default('BLOCK_PREVIOUS_SELF', 'internal error: Block references itself'));
         }
@@ -63542,84 +63604,25 @@ class Block {
         if (this.account.isMultisig()) {
             throw (new block_1.default('BLOCK_NO_MULTISIG_OP', 'Cannot create a block for a multisig account'));
         }
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateBytes).call(this);
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignerField).call(this);
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateOperationsPurpose).call(this);
-        __classPrivateFieldGet(this, _Block_instances, "m", _Block_validateSignatures).call(this);
+        __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_validateSignerField).call(this);
+        __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_validateOperationsPurpose).call(this);
+        __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_validateIdempotent).call(this);
+        __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_validateRecalculatedBytes).call(this);
+        if (hasSignature) {
+            __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_validateSignatures).call(this);
+        }
     }
     static getAccountOpeningHash(account) {
         return (BlockHash.getAccountOpeningHash(account));
     }
-    toBytes(includeSignatures = true, useCached = true) {
-        if (useCached) {
-            if (__classPrivateFieldGet(this, _Block_valueBytes, "f") !== undefined && includeSignatures) {
-                return (__classPrivateFieldGet(this, _Block_valueBytes, "f"));
-            }
+    toBytes(includeSignatures) {
+        if (includeSignatures === undefined) {
+            includeSignatures = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f");
         }
-        const sharedBlockValues = {
-            previous: this.previous,
-            operations: this.operations,
-            account: this.account,
-            network: this.network,
-            subnet: this.subnet,
-            date: this.date,
-            idempotent: this.idempotent
-        };
-        let container;
-        if (this.version === 1) {
-            if (Array.isArray(this.signer) || this.signatures.length !== 1) {
-                throw (new Error('Block v1 only supports single signer'));
-            }
-            container = _a.getV1ASN1ContainerWithoutSignature({
-                ...sharedBlockValues,
-                version: 1,
-                signer: this.signer
-            });
-            if (includeSignatures) {
-                container.push(this.signatures[0]);
-            }
+        else if (includeSignatures !== __classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f")) {
+            throw (new block_1.default('BLOCK_SIGNATURE_PARAMETER_DIFFERS', 'Can only include signatures in toBytes if block has signatures, and vice versa'));
         }
-        else {
-            const versionTag = this.version - 1;
-            if (versionTag !== 1) {
-                // We only support version 2
-                throw (new block_1.default('BLOCK_INVALID_VERSION', 'We only support version 1/2 blocks'));
-            }
-            const v2Container = _a.getV2ASN1ContainerWithoutSignature({
-                ...sharedBlockValues,
-                purpose: this.purpose,
-                version: this.version,
-                signer: this.signer
-            });
-            const baseContextTag = {
-                type: 'context',
-                kind: 'explicit',
-                value: versionTag
-            };
-            if (includeSignatures) {
-                let signatureContainer;
-                if (this.signatures.length > 1) {
-                    signatureContainer = this.signatures;
-                }
-                else if (this.signatures.length === 1) {
-                    signatureContainer = this.signatures[0];
-                }
-                else {
-                    throw (new Error('Block has not been signed'));
-                }
-                container = { ...baseContextTag, contains: [...v2Container, signatureContainer] };
-            }
-            else {
-                container = { ...baseContextTag, contains: v2Container };
-            }
-        }
-        // We know the container is valid because of the container type, but the ASN1.JStoASN1 function does not handle recursive types well
-        // @ts-ignore
-        const retval = ASN1.JStoASN1(container).toBER(false);
-        if (includeSignatures) {
-            __classPrivateFieldSet(this, _Block_valueBytes, retval, "f");
-        }
-        return (retval);
+        return (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_toBytesInternal).call(this, includeSignatures));
     }
     static getV1ASN1ContainerWithoutSignature(input) {
         let outputAccount;
@@ -63691,32 +63694,32 @@ class Block {
         if (options?.addBinary) {
             additionalFields['$binary'] = Buffer.from(this.toBytes()).toString('base64');
         }
-        const signatures = this.signatures.map(function (signature) {
-            return (signature.toString('hex').toUpperCase());
-        });
-        if (this.version === 1) {
-            additionalFields.signature = signatures[0];
+        if (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f")) {
+            const signatures = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get).map(function (signature) {
+                return (signature.toString('hex').toUpperCase());
+            });
+            if (this.version === 1) {
+                additionalFields.signature = signatures[0];
+            }
+            else {
+                additionalFields.signatures = signatures;
+            }
         }
-        else {
-            additionalFields.signatures = signatures;
-        }
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             version: this.version,
             idempotent: this.idempotent?.toString('base64'),
             date: this.date,
             previous: this.previous,
             account: this.account,
             purpose: this.purpose,
-            // XXX:TODO We need to use a type assertion here because toJSONSerializable does not support recursive types
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             signer: this.signer,
             network: this.network,
             subnet: this.subnet,
-            operations: Operations.ExportOperationsJSON(this.operations),
+            operations: this.operations,
             $hash: this.hash,
             $opening: this.$opening,
             ...additionalFields
-        });
+        }));
     }
     /**
      * Hash of the block minus the signature
@@ -63727,48 +63730,32 @@ class Block {
      *           signature (which isn't signed)
      */
     get hash() {
-        if (__classPrivateFieldGet(this, _Block_valueHash, "f") !== undefined) {
-            return (__classPrivateFieldGet(this, _Block_valueHash, "f"));
+        if (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_valueHash, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_valueHash, "f"));
         }
-        const retval = new BlockHash((0, hash_1.Hash)(Buffer.from(this.toBytes(false))));
-        __classPrivateFieldSet(this, _Block_valueHash, retval, "f");
+        const retval = new BlockHash((0, hash_1.Hash)(Buffer.from(__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_toBytesInternal).call(this, false))));
+        __classPrivateFieldSet(this, _PossiblyUnsignedBlock_valueHash, retval, "f");
         return (retval);
     }
 }
-exports.Block = Block;
-_a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(), _Block_instances = new WeakSet(), _Block_getSortedRequiredSigners = function _Block_getSortedRequiredSigners(input) {
-    const queue = [input];
-    const visited = new account_1.default.Set();
-    const out = [];
-    while (queue.length > 0) {
-        // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const cur = queue.shift();
-        if (account_1.default.isInstance(cur)) {
-            if (visited.has(cur)) {
-                continue;
-            }
-            visited.add(cur);
-            out.push(cur);
-        }
-        else {
-            queue.unshift(...cur[1]);
-        }
+_a = PossiblyUnsignedBlock, _PossiblyUnsignedBlock_valueBytes = new WeakMap(), _PossiblyUnsignedBlock_valueHash = new WeakMap(), _PossiblyUnsignedBlock_hasSignature = new WeakMap(), _PossiblyUnsignedBlock_instances = new WeakSet(), _PossiblyUnsignedBlock_nonNullableSignatures_get = function _PossiblyUnsignedBlock_nonNullableSignatures_get() {
+    if (!this.signatures) {
+        throw (new Error('No signature field input found on block'));
     }
-    return (out);
-}, _Block_validateBytes = function _Block_validateBytes() {
-    const existingBytes = __classPrivateFieldGet(this, _Block_valueBytes, "f");
+    return (this.signatures);
+}, _PossiblyUnsignedBlock_validateRecalculatedBytes = function _PossiblyUnsignedBlock_validateRecalculatedBytes() {
+    const existingBytes = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_valueBytes, "f");
     if (existingBytes === undefined) {
         return;
     }
-    const recalculatedBytesBuffer = Buffer.from(this.toBytes(true, false));
+    const recalculatedBytesBuffer = Buffer.from(__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "m", _PossiblyUnsignedBlock_toBytesInternal).call(this, __classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f"), false));
     const existingBytesBuffer = Buffer.from(existingBytes);
     if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
         const existingBytesHash = Buffer.from((0, hash_1.Hash)(existingBytesBuffer)).toString('hex').toUpperCase();
         const recalculatedBytesHash = Buffer.from((0, hash_1.Hash)(recalculatedBytesBuffer)).toString('hex').toUpperCase();
         throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash})`));
     }
-}, _Block_validateOperationsPurpose = function _Block_validateOperationsPurpose() {
+}, _PossiblyUnsignedBlock_validateOperationsPurpose = function _PossiblyUnsignedBlock_validateOperationsPurpose() {
     /**
      * Do not allow blocks to contain invalid constructions
      */
@@ -63785,7 +63772,7 @@ _a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(),
         operation.validate(context);
         context.operationIndex++;
     }
-}, _Block_validateSignerField = function _Block_validateSignerField() {
+}, _PossiblyUnsignedBlock_validateSignerField = function _PossiblyUnsignedBlock_validateSignerField() {
     if (!Array.isArray(this.signer)) {
         return;
     }
@@ -63814,26 +63801,172 @@ _a = Block, _Block_valueBytes = new WeakMap(), _Block_valueHash = new WeakMap(),
             }
         }
     }
-}, _Block_validateSignatures = function _Block_validateSignatures() {
-    const signers = __classPrivateFieldGet(_a, _a, "m", _Block_getSortedRequiredSigners).call(_a, this.signer);
-    if (this.signatures.length !== signers.length) {
+}, _PossiblyUnsignedBlock_validateSignatures = function _PossiblyUnsignedBlock_validateSignatures() {
+    if (!__classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f")) {
+        throw (new block_1.default('BLOCK_SIGNATURE_REQUIRED', 'Block has not been signed'));
+    }
+    const signers = _a.getSortedRequiredSigners(this.signer);
+    const signatureArray = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get);
+    if (signatureArray.length !== signers.length) {
         throw (new block_1.default('BLOCK_INVALID_SIGNER', 'Signer count does not match signature count'));
     }
     for (let i = 0; i < signers.length; i++) {
-        const signature = new buffer_1.BufferStorage(this.signatures[i], 64);
+        const signature = new buffer_1.BufferStorage(signatureArray[i], 64);
         const valid = signers[i].verify(this.hash.get(), signature.get());
         if (valid !== true) {
-            throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${this.signatures[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`));
+            throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get)[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`));
         }
     }
+}, _PossiblyUnsignedBlock_validateIdempotent = function _PossiblyUnsignedBlock_validateIdempotent() {
+    if (this.idempotent === undefined) {
+        return;
+    }
+    validateIdempotentKeyLength(this.idempotent, this.network);
+}, _PossiblyUnsignedBlock_toBytesInternal = function _PossiblyUnsignedBlock_toBytesInternal(includeSignatures, useCached = true) {
+    const isCacheable = includeSignatures || !__classPrivateFieldGet(this, _PossiblyUnsignedBlock_hasSignature, "f");
+    if (useCached && __classPrivateFieldGet(this, _PossiblyUnsignedBlock_valueBytes, "f") !== undefined && isCacheable) {
+        return (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_valueBytes, "f"));
+    }
+    const sharedBlockValues = {
+        previous: this.previous,
+        operations: this.operations,
+        account: this.account,
+        network: this.network,
+        subnet: this.subnet,
+        date: this.date,
+        idempotent: this.idempotent
+    };
+    let container;
+    if (this.version === 1) {
+        if (Array.isArray(this.signer)) {
+            throw (new Error('Block v1 only supports single signer'));
+        }
+        container = _a.getV1ASN1ContainerWithoutSignature({
+            ...sharedBlockValues,
+            version: 1,
+            signer: this.signer
+        });
+        if (includeSignatures) {
+            if (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get).length !== 1) {
+                throw (new Error('Block v1 only supports single signature'));
+            }
+            container.push(__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get)[0]);
+        }
+    }
+    else {
+        const versionTag = this.version - 1;
+        if (versionTag !== 1) {
+            // We only support version 2
+            throw (new block_1.default('BLOCK_INVALID_VERSION', 'We only support version 1/2 blocks'));
+        }
+        const v2Container = _a.getV2ASN1ContainerWithoutSignature({
+            ...sharedBlockValues,
+            purpose: this.purpose,
+            version: this.version,
+            signer: this.signer
+        });
+        const baseContextTag = {
+            type: 'context',
+            kind: 'explicit',
+            value: versionTag
+        };
+        if (includeSignatures) {
+            let signatureContainer;
+            if (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get).length > 1) {
+                signatureContainer = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get);
+            }
+            else if (__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get).length === 1) {
+                signatureContainer = __classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get)[0];
+            }
+            else {
+                throw (new Error('Block has not been signed'));
+            }
+            container = { ...baseContextTag, contains: [...v2Container, signatureContainer] };
+        }
+        else {
+            container = { ...baseContextTag, contains: v2Container };
+        }
+    }
+    // We know the container is valid because of the container type, but the ASN1.JStoASN1 function does not handle recursive types well
+    // @ts-ignore
+    const retval = ASN1.JStoASN1(container).toBER(false);
+    if (isCacheable) {
+        __classPrivateFieldSet(this, _PossiblyUnsignedBlock_valueBytes, retval, "f");
+    }
+    return (retval);
 };
-Block.isInstance = (0, helper_1.checkableGenerator)(_a);
-Block.Hash = BlockHash;
-Block.OperationType = Operations.OperationType;
-Block.Operation = Operations.Operation;
-Block.NO_PREVIOUS = NO_PREVIOUS;
-Block.AdjustMethod = AdjustMethod;
-Block.Purpose = BlockPurpose;
+PossiblyUnsignedBlock.Hash = BlockHash;
+PossiblyUnsignedBlock.OperationType = Operations.OperationType;
+PossiblyUnsignedBlock.Operation = Operations.Operation;
+PossiblyUnsignedBlock.NO_PREVIOUS = NO_PREVIOUS;
+PossiblyUnsignedBlock.AdjustMethod = AdjustMethod;
+PossiblyUnsignedBlock.Purpose = BlockPurpose;
+class UnsignedBlock extends PossiblyUnsignedBlock {
+    constructor(input) {
+        super(input, false);
+    }
+    static isValidJSON(block, version) {
+        return (super.isValidJSONSignedOrUnsigned(false, block, version));
+    }
+    static async fromUnsignedJSON(input) {
+        return (new this(input));
+    }
+    async seal() {
+        const signers = UnsignedBlock.getSortedRequiredSigners(this.signer);
+        const hash = this.hash;
+        const signatures = await Promise.all(signers.map(async function (signer) {
+            const signature = await signer.sign(hash.getBuffer());
+            return (signature.getBuffer());
+        }));
+        const shared = {
+            idempotent: this.idempotent,
+            date: this.date,
+            previous: this.previous,
+            account: this.account,
+            network: this.network,
+            subnet: this.subnet,
+            signer: this.signer,
+            operations: this.operations
+        };
+        let blockInput;
+        if (this.version === 1) {
+            if (Array.isArray(this.signer)) {
+                throw (new Error('Block v1 only supports single signer'));
+            }
+            blockInput = { ...shared, version: this.version, signer: this.signer, signature: signatures[0] };
+        }
+        else if (this.version === 2) {
+            blockInput = { ...shared, version: this.version, purpose: this.purpose, signatures };
+        }
+        else {
+            throw (new block_1.default('BLOCK_INVALID_VERSION', 'Invalid Version'));
+        }
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        return (new Block(blockInput));
+    }
+}
+exports.UnsignedBlock = UnsignedBlock;
+UnsignedBlock.isInstance = (0, helper_1.checkableGenerator)(UnsignedBlock);
+class Block extends PossiblyUnsignedBlock {
+    constructor(input) {
+        super(input, true);
+    }
+    static isValidJSON(block, version) {
+        return (super.isValidJSONSignedOrUnsigned(true, block, version));
+    }
+    static async fromUnsignedJSON(input) {
+        const unsigned = new UnsignedBlock(input);
+        return (await unsigned.seal());
+    }
+    getUnsignedBlock() {
+        return (new UnsignedBlock({
+            ...(this.toJSON({ addBinary: false })),
+            signatures: undefined
+        }));
+    }
+}
+exports.Block = Block;
+Block.isInstance = (0, helper_1.checkableGenerator)(Block);
 class BlockBuilder {
     constructor(block) {
         _BlockBuilder_block.set(this, void 0);
@@ -63855,31 +63988,16 @@ class BlockBuilder {
                 __classPrivateFieldSet(this, _BlockBuilder_block, new Block(block), "f");
             }
             else {
-                const incompleteBlockJSON = { version: 1, ...block };
-                if (incompleteBlockJSON.date === undefined) {
-                    incompleteBlockJSON.date = (new Date()).toISOString();
+                if (block === undefined) {
+                    __classPrivateFieldSet(this, _BlockBuilder_block, {}, "f");
+                    return;
                 }
                 /*
-                 * Map input to our values
+                 * Validate input values
                  */
-                let setPreviousNoBlock = false;
-                if (incompleteBlockJSON.previous === BlockBuilder.NO_PREVIOUS) {
-                    setPreviousNoBlock = true;
-                }
-                let newBlockJSON;
-                if (incompleteBlockJSON.version === 1) {
-                    // We have to use a type assertion here because the MapV1InputValues function does not support recursive types
-                    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                    newBlockJSON = MapV1InputValues({ ...incompleteBlockJSON, version: 1 });
-                }
-                else if (incompleteBlockJSON.version === 2) {
-                    newBlockJSON = MapV2InputValues({ ...incompleteBlockJSON, version: 2 });
-                }
-                else {
-                    throw (new Error('Cannot construct block, it is not a valid Block JSON object'));
-                }
-                if (setPreviousNoBlock) {
-                    newBlockJSON.previous = BlockBuilder.NO_PREVIOUS;
+                const newBlockJSON = __classPrivateFieldGet(_b, _b, "m", _BlockBuilder_ValidateInputs).call(_b, block);
+                if (block.previous === _b.NO_PREVIOUS) {
+                    newBlockJSON.previous = _b.NO_PREVIOUS;
                 }
                 __classPrivateFieldSet(this, _BlockBuilder_block, newBlockJSON, "f");
             }
@@ -63908,7 +64026,7 @@ class BlockBuilder {
         if (opts?.addBinary) {
             throw (new Error('Cannot add binary within blockBuilder.toJSON'));
         }
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             version: this.version,
             idempotent: this.idempotent,
             date: this.date,
@@ -63920,23 +64038,22 @@ class BlockBuilder {
             operations: this.operations,
             purpose: this.purpose,
             ['$opening']: this.$opening
-        });
+        }));
     }
-    async seal() {
-        if (this.version === undefined) {
+    async getUnsignedBlock() {
+        const input = __classPrivateFieldGet(_b, _b, "m", _BlockBuilder_ValidateInputs).call(_b, this);
+        if (input.version === undefined) {
             throw (new Error('Cannot seal block without version'));
         }
-        let input;
-        // There is no clean way to tell the compiler which version `this` is, so we have to use a type assertion
-        if (this.version === 1) {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            input = MapV1InputValues(this);
+        // Date is required for a sealed block, so added it if it wasn't provided
+        if (input.date === undefined) {
+            input.date = new Date();
         }
-        else {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            input = MapV2InputValues(this);
-        }
-        const block = await Block.fromUnsignedJSON(input);
+        return (new UnsignedBlock(input));
+    }
+    async seal() {
+        const unsigned = await this.getUnsignedBlock();
+        const block = await unsigned.seal();
         __classPrivateFieldSet(this, _BlockBuilder_block, block, "f");
         return (block);
     }
@@ -64052,7 +64169,7 @@ class BlockBuilder {
         if (BlockHash.isInstance(previous)) {
             return (previous);
         }
-        if (previous === BlockBuilder.NO_PREVIOUS) {
+        if (previous === _b.NO_PREVIOUS) {
             if (this.account !== undefined) {
                 return (BlockHash.getAccountOpeningHash(this.account));
             }
@@ -64073,7 +64190,7 @@ class BlockBuilder {
         if (previous === undefined) {
             return (undefined);
         }
-        if (previous === BlockBuilder.NO_PREVIOUS) {
+        if (previous === _b.NO_PREVIOUS) {
             return (true);
         }
         const sentinel = Block.getAccountOpeningHash(account);
@@ -64178,8 +64295,41 @@ class BlockBuilder {
     }
 }
 exports.BlockBuilder = BlockBuilder;
-_BlockBuilder_block = new WeakMap();
-BlockBuilder.isInstance = (0, helper_1.checkableGenerator)(BlockBuilder);
+_b = BlockBuilder, _BlockBuilder_block = new WeakMap(), _BlockBuilder_ValidateInputs = function _BlockBuilder_ValidateInputs(blockInput) {
+    let block = blockInput;
+    // Keep the signer as the original object so we can seal the block
+    if (_b.isInstance(blockInput)) {
+        block = {
+            ...blockInput.toJSON(),
+            signer: blockInput.signer
+        };
+    }
+    let validatedBlockJSON;
+    if (block.version === undefined || block.version === 1) {
+        if (block.signer && typeof block.signer !== 'string' && !account_1.default.isInstance(block.signer)) {
+            throw (new block_1.default('BLOCK_INVALID_SIGNER', 'V1 Blocks Cannot use MultiSig Signers'));
+        }
+        if (block.purpose !== undefined && block.purpose !== BlockPurpose.GENERIC) {
+            throw (new block_1.default('BLOCK_INVALID_PURPOSE_VALIDATION', 'V1 Block Purpose should be undefined'));
+        }
+        // Create narrowed block input
+        const blockV1 = {
+            ...block,
+            version: 1,
+            signer: block.signer,
+            purpose: block.purpose
+        };
+        validatedBlockJSON = MapV1InputValues(blockV1);
+    }
+    else if (block.version === 2) {
+        validatedBlockJSON = MapV2InputValues({ ...block, version: 2 });
+    }
+    else {
+        throw (new block_1.default('BLOCK_INVALID_VERSION', `Cannot construct block, expected version: 1 | 2, received: ${block.version}`));
+    }
+    return (validatedBlockJSON);
+};
+BlockBuilder.isInstance = (0, helper_1.checkableGenerator)(_b);
 BlockBuilder.OperationType = Block.OperationType;
 BlockBuilder.AdjustMethod = Block.AdjustMethod;
 BlockBuilder.Operation = Block.Operation;
@@ -64247,11 +64397,11 @@ const account_1 = __importStar(__webpack_require__(9415));
 const permissions_1 = __webpack_require__(5860);
 const block_1 = __importDefault(__webpack_require__(7412));
 const conversion_1 = __webpack_require__(2360);
-const _1 = __webpack_require__(6158);
-const _2 = __importStar(__webpack_require__(6158));
+const _1 = __importStar(__webpack_require__(6158));
 const config_1 = __webpack_require__(1491);
 const certificate_1 = __webpack_require__(5661);
 const common_1 = __webpack_require__(5663);
+const util_1 = __webpack_require__(9023);
 /**
  * All supported operations
  */
@@ -64409,7 +64559,10 @@ class BlockOperation {
         if (amount === undefined || amount === null) {
             throw (new Error('internal error: "amount" is invalid'));
         }
-        return (BigInt(amount));
+        if (typeof amount === 'bigint') {
+            return (amount);
+        }
+        return ((0, conversion_1.parseHexBigIntString)(amount));
     }
 }
 BlockOperation.isInstance = (0, helper_1.checkableGenerator)(BlockOperation);
@@ -64480,13 +64633,13 @@ class BlockOperationSEND extends BlockOperation {
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             to: this.to,
             amount: this.amount,
             external: this.external,
             token: this.token
-        });
+        }));
     }
 }
 _BlockOperationSEND_to = new WeakMap(), _BlockOperationSEND_amount = new WeakMap(), _BlockOperationSEND_token = new WeakMap(), _BlockOperationSEND_instances = new WeakSet(), _BlockOperationSEND_computeToken = function _BlockOperationSEND_computeToken(token) {
@@ -64566,14 +64719,14 @@ class BlockOperationRECEIVE extends BlockOperation {
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             amount: this.amount,
             token: this.token,
             from: this.from,
             exact: this.exact,
             forward: this.forward
-        });
+        }));
     }
 }
 _BlockOperationRECEIVE_amount = new WeakMap(), _BlockOperationRECEIVE_token = new WeakMap(), _BlockOperationRECEIVE_from = new WeakMap(), _BlockOperationRECEIVE_forward = new WeakMap(), _BlockOperationRECEIVE_exact = new WeakMap(), _BlockOperationRECEIVE_instances = new WeakSet(), _BlockOperationRECEIVE_computeExact = function _BlockOperationRECEIVE_computeExact(exact) {
@@ -64635,12 +64788,12 @@ class BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends BlockOperation {
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             token: this.token,
             amount: this.amount,
             method: this.method
-        });
+        }));
     }
 }
 _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_token = new WeakMap(), _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_method = new WeakMap(), _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_amount = new WeakMap(), _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_instances = new WeakSet(), _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken = function _BlockOperationTOKEN_ADMIN_MODIFY_BALANCE_computeToken(token) {
@@ -64683,10 +64836,10 @@ class BlockOperationSET_REP extends BlockOperation {
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             to: this.to
-        });
+        }));
     }
 }
 _BlockOperationSET_REP_to = new WeakMap();
@@ -64755,11 +64908,11 @@ class BlockOperationCREATE_IDENTIFIER extends BlockOperation {
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             identifier: this.identifier,
             createArguments: __classPrivateFieldGet(this, _BlockOperationCREATE_IDENTIFIER_createArguments, "f")
-        });
+        }));
     }
 }
 _BlockOperationCREATE_IDENTIFIER_identifier = new WeakMap(), _BlockOperationCREATE_IDENTIFIER_createArguments = new WeakMap(), _BlockOperationCREATE_IDENTIFIER_instances = new WeakSet(), _BlockOperationCREATE_IDENTIFIER_computeIdentifier = function _BlockOperationCREATE_IDENTIFIER_computeIdentifier(identifierStr) {
@@ -64874,7 +65027,7 @@ class BlockOperationSET_INFO extends BlockOperation {
         if (this.defaultPermission !== undefined) {
             val.defaultPermission = this.defaultPermission;
         }
-        return (val);
+        return ((0, conversion_1.toJSONSerializable)(val));
     }
 }
 _BlockOperationSET_INFO_name = new WeakMap(), _BlockOperationSET_INFO_description = new WeakMap(), _BlockOperationSET_INFO_metadata = new WeakMap(), _BlockOperationSET_INFO_defaultPermission = new WeakMap(), _BlockOperationSET_INFO_instances = new WeakSet(), _BlockOperationSET_INFO_validateNameDesc = function _BlockOperationSET_INFO_validateNameDesc(field, value, network) {
@@ -64934,7 +65087,7 @@ class BlockOperationMODIFY_PERMISSIONS extends BlockOperation {
     validate(context) {
         const { block } = context;
         if (this.permissions === null) {
-            if (this.method !== _2.AdjustMethod.SET) {
+            if (this.method !== _1.AdjustMethod.SET) {
                 throw (new Error('Method must be SET when permissions = null'));
             }
         }
@@ -64960,7 +65113,7 @@ class BlockOperationMODIFY_PERMISSIONS extends BlockOperation {
             if (this.target !== undefined && settingAdminOrHigher) {
                 throw (new block_1.default('BLOCK_NO_ADMIN_ON_TARGET', 'Cannot set admin or higher with a target specified'));
             }
-            if (this.method !== _2.default.AdjustMethod.SET && !this.permissions.canUseDelegation) {
+            if (this.method !== _1.default.AdjustMethod.SET && !this.permissions.canUseDelegation) {
                 throw (new block_1.default('BLOCK_NO_DELEGATE_ADMIN', `Cannot use delegation for ${baseFlagsString}`));
             }
         }
@@ -64981,19 +65134,19 @@ class BlockOperationMODIFY_PERMISSIONS extends BlockOperation {
             if (foundMethod === undefined) {
                 continue;
             }
-            if (method === _2.default.AdjustMethod.SET) {
+            if (method === _1.default.AdjustMethod.SET) {
                 throw (new block_1.default('BLOCK_NO_MODIFY_PERMISSION_DUPE', 'Cannot have a SET operation after any other change with the same target in MODIFY_PERMISSIONS'));
             }
         }
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             principal: this.principal,
             method: this.method,
             permissions: this.permissions,
             target: this.target
-        });
+        }));
     }
 }
 _BlockOperationMODIFY_PERMISSIONS_principal = new WeakMap(), _BlockOperationMODIFY_PERMISSIONS_target = new WeakMap(), _BlockOperationMODIFY_PERMISSIONS_method = new WeakMap(), _BlockOperationMODIFY_PERMISSIONS_permissions = new WeakMap(), _BlockOperationMODIFY_PERMISSIONS_instances = new WeakSet(), _BlockOperationMODIFY_PERMISSIONS_computePermissions = function _BlockOperationMODIFY_PERMISSIONS_computePermissions(permissions) {
@@ -65037,16 +65190,16 @@ class BlockOperationTOKEN_ADMIN_SUPPLY extends BlockOperation {
         (0, common_1.validateSupply)(__classPrivateFieldGet(this, _BlockOperationTOKEN_ADMIN_SUPPLY_amount, "f"), block.network);
     }
     toJSON() {
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
             amount: this.amount,
             method: this.method
-        });
+        }));
     }
 }
 _BlockOperationTOKEN_ADMIN_SUPPLY_amount = new WeakMap(), _BlockOperationTOKEN_ADMIN_SUPPLY_method = new WeakMap(), _BlockOperationTOKEN_ADMIN_SUPPLY_instances = new WeakSet(), _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod = function _BlockOperationTOKEN_ADMIN_SUPPLY_computeSupplyMethod(method) {
     const numericMethod = (0, _1.toAdjustMethod)(method);
-    if (numericMethod === _2.default.AdjustMethod.SET) {
+    if (numericMethod === _1.default.AdjustMethod.SET) {
         throw (new Error('Cannot use AdjustMethod.SET on a TOKEN_ADMIN_SUPPLY operation'));
     }
     return (numericMethod);
@@ -65065,10 +65218,10 @@ class BlockOperationMANAGE_CERTIFICATE extends BlockOperation {
         }
         __classPrivateFieldSet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, __classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_instances, "m", _BlockOperationMANAGE_CERTIFICATE_asCertificate).call(this, input.certificateOrHash), "f");
         __classPrivateFieldSet(this, _BlockOperationMANAGE_CERTIFICATE_method, __classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_instances, "m", _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod).call(this, input.method), "f");
-        if ((input.intermediateCertificates === undefined) === (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.ADD)) {
+        if ((input.intermediateCertificates === undefined) === (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _1.default.AdjustMethod.ADD)) {
             throw (new block_1.default('BLOCK_INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'Must provide intermediate certificates with a MANAGE_CERTIFICATE operation that is an ADD operation'));
         }
-        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.ADD) {
+        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _1.default.AdjustMethod.ADD) {
             __classPrivateFieldSet(this, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, __classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_instances, "m", _BlockOperationMANAGE_CERTIFICATE_asIntermediateCertificates).call(this, input.intermediateCertificates), "f");
         }
         else {
@@ -65076,7 +65229,7 @@ class BlockOperationMANAGE_CERTIFICATE extends BlockOperation {
         }
     }
     get intermediateCertificates() {
-        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.SUBTRACT) {
+        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _1.default.AdjustMethod.SUBTRACT) {
             return (undefined);
         }
         return (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, "f"));
@@ -65086,12 +65239,12 @@ class BlockOperationMANAGE_CERTIFICATE extends BlockOperation {
     }
     get certificateOrHash() {
         if (certificate_1.CertificateHash.isInstance(__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"))) {
-            if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.ADD) {
+            if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _1.default.AdjustMethod.ADD) {
                 throw (new block_1.default('BLOCK_INVALID_CERTIFICATE_VALUE', 'Cannot add a certificate by hash, you must provide the full certificate'));
             }
             return (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"));
         }
-        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.SUBTRACT && !certificate_1.CertificateHash.isInstance(__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"))) {
+        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _1.default.AdjustMethod.SUBTRACT && !certificate_1.CertificateHash.isInstance(__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"))) {
             return (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f").hash());
         }
         return (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"));
@@ -65106,7 +65259,7 @@ class BlockOperationMANAGE_CERTIFICATE extends BlockOperation {
         return (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f"));
     }
     validate(context) {
-        if (this.method === _2.default.AdjustMethod.ADD) {
+        if (this.method === _1.default.AdjustMethod.ADD) {
             if (certificate_1.CertificateHash.isInstance(__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_certificateOrHash, "f"))) {
                 throw (new block_1.default('BLOCK_INVALID_CERTIFICATE_VALUE', 'Cannot add a certificate by hash, you must provide the full certificate'));
             }
@@ -65142,35 +65295,12 @@ class BlockOperationMANAGE_CERTIFICATE extends BlockOperation {
         }
     }
     toJSON() {
-        let intermediateCertificates;
-        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.SUBTRACT) {
-            intermediateCertificates = undefined;
-        }
-        else {
-            intermediateCertificates = null;
-            if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, "f") && __classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, "f").bundleSize > 0) {
-                intermediateCertificates = __classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates, "f").getDERBuffer().toString('base64');
-            }
-        }
-        let serializedCertificate;
-        if (__classPrivateFieldGet(this, _BlockOperationMANAGE_CERTIFICATE_method, "f") === _2.default.AdjustMethod.SUBTRACT) {
-            if (!certificate_1.CertificateHash.isInstance(this.certificateOrHash)) {
-                throw (new Error('Invalid response from get certificate, expected a CertificateHash'));
-            }
-            serializedCertificate = this.certificateOrHash.toString();
-        }
-        else {
-            if (!certificate_1.Certificate.isCertificate(this.certificateOrHash)) {
-                throw (new Error('Invalid response from get certificate, expected a Certificate'));
-            }
-            serializedCertificate = this.certificateOrHash.toPEM();
-        }
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             type: this.type,
-            certificateOrHash: serializedCertificate,
+            certificateOrHash: this.certificateOrHash,
             method: this.method,
-            intermediateCertificates: intermediateCertificates
-        });
+            intermediateCertificates: this.intermediateCertificates
+        }));
     }
 }
 _BlockOperationMANAGE_CERTIFICATE_certificateOrHash = new WeakMap(), _BlockOperationMANAGE_CERTIFICATE_intermediateCertificates = new WeakMap(), _BlockOperationMANAGE_CERTIFICATE_method = new WeakMap(), _BlockOperationMANAGE_CERTIFICATE_instances = new WeakSet(), _BlockOperationMANAGE_CERTIFICATE_asCertificate = function _BlockOperationMANAGE_CERTIFICATE_asCertificate(certificate) {
@@ -65185,6 +65315,10 @@ _BlockOperationMANAGE_CERTIFICATE_certificateOrHash = new WeakMap(), _BlockOpera
     }
     catch {
         /* Ignore Errors */
+    }
+    if (!util_1.types.isArrayBuffer(certificate) && !Buffer.isBuffer(certificate) && typeof certificate === 'object') {
+        // We still have an object that should have created a certificate but it failed
+        throw (new Error('Could not reconstruct Certificate from JSON'));
     }
     try {
         return (new certificate_1.CertificateHash(certificate));
@@ -65204,7 +65338,7 @@ _BlockOperationMANAGE_CERTIFICATE_certificateOrHash = new WeakMap(), _BlockOpera
     return (bundleObject);
 }, _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod = function _BlockOperationMANAGE_CERTIFICATE_computeCertificateMethod(method) {
     const numericMethod = (0, _1.toAdjustMethod)(method);
-    if (numericMethod === _2.default.AdjustMethod.SET) {
+    if (numericMethod === _1.default.AdjustMethod.SET) {
         throw (new Error('Cannot use AdjustMethod.SET on a MANAGE_CERTIFICATE operation.'));
     }
     return (numericMethod);
@@ -65238,9 +65372,9 @@ function isBlockOperation(input) {
  * serialized to JSON
  */
 function ExportOperationsJSON(operations) {
-    return ((0, conversion_1.toJSONSerializable)(operations.map(function (operation) {
+    return (operations.map(function (operation) {
         return (operation.toJSON());
-    })));
+    }));
 }
 function ImportOperationsJSON(operations) {
     const newOperations = [];
@@ -65401,10 +65535,10 @@ function ImportOperationsASN1(input, network) {
             else if ((0, helper_1.isBuffer)(keyValueIn)) {
                 if (type === OperationType.MANAGE_CERTIFICATE && key === 'certificateOrHash') {
                     const method = (0, _1.toAdjustMethod)(operation['method']);
-                    if (method === _2.AdjustMethod.SUBTRACT) {
+                    if (method === _1.AdjustMethod.SUBTRACT) {
                         keyValueOut = new certificate_1.CertificateHash(keyValueIn);
                     }
-                    else if (method === _2.AdjustMethod.ADD) {
+                    else if (method === _1.AdjustMethod.ADD) {
                         keyValueOut = new certificate_1.Certificate(keyValueIn);
                     }
                     else {
@@ -65596,7 +65730,9 @@ exports.BlockErrorCodes = [
     'PERMISSIONS_INVALID_TARGET',
     'PREVIOUS_SELF',
     'SUPPLY_INVALID',
-    'TOKEN_RECEIVE_DIFFERS'
+    'TOKEN_RECEIVE_DIFFERS',
+    'SIGNATURE_REQUIRED',
+    'SIGNATURE_PARAMETER_DIFFERS'
 ];
 exports.FullBlockErrorCodes = exports.BlockErrorCodes.map(code => `${BlockErrorType}_${code}`);
 class KeetaNetBlockError extends base_1.KeetaNetErrorBase {
@@ -70125,6 +70261,7 @@ class LogTargetConsole {
         this.logLevel = config?.logLevel ?? 'ALL';
         __classPrivateFieldSet(this, _LogTargetConsole_console, config?.console ?? console, "f");
         this.filter = config?.filter ?? null;
+        this.context = config?.context;
     }
     async emitLogs(logs) {
         for (const rawLog of logs) {
@@ -70150,9 +70287,10 @@ class LogTargetConsole {
                     (0, never_1.assertNever)(log.level);
             }
             const requestID = log.options.currentRequestInfo.id;
-            __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${log.level} ${log.from}:`, ...log.args);
+            const contextPrefix = this.context ? Object.entries(this.context).map(([k, v]) => `${k}=${v}`).join(' ') + ' ' : '';
+            __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from}:`, ...log.args);
             if (log.trace !== undefined) {
-                __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${log.level} ${log.from} TRACE:`, log.trace);
+                __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from} TRACE:`, log.trace);
             }
         }
     }
@@ -70710,7 +70848,6 @@ const asn1_1 = __webpack_require__(6045);
 const helper_1 = __webpack_require__(3208);
 const kv_memory_1 = __importDefault(__webpack_require__(1557));
 const vote_1 = __webpack_require__(1130);
-const effects_1 = __webpack_require__(7346);
 const version_1 = __webpack_require__(5672);
 const defaultP2PConfig = {
     timeoutIdle: 10 /* s */ * 1000 /* ms */,
@@ -71922,11 +72059,33 @@ class P2PSwitch {
             ttl: this.config.seenMessageTTL
         });
         /**
+         * For 'add' messages, parse VoteStaple for filtering.
+         * Data can be a VoteStaple object (already parsed with trustedValues from PubSub)
+         * or a binary string that needs parsing.
+         */
+        let voteStaple;
+        let sendData = data;
+        if (type === 'add') {
+            if (vote_1.VoteStaple.isInstance(data)) {
+                voteStaple = data;
+                // Convert back to binary for sending over the wire
+                sendData = voteStaple.toString();
+            }
+            else if (typeof data === 'string') {
+                voteStaple = new vote_1.VoteStaple(data);
+                sendData = data;
+            }
+            else {
+                this._log.error(`[${id}]`, 'Invalid data for add message, must be VoteStaple or string, received: ', typeof data);
+                return (false);
+            }
+        }
+        /**
          * Construct the message JSON
          */
         const messageString = JSON.stringify({
             id: id,
-            [type]: data,
+            [type]: sendData,
             ttl: ttl
         });
         /**
@@ -71971,10 +72130,13 @@ class P2PSwitch {
             else {
                 target = to;
             }
-            const passesFilter = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_passesFilter).call(this, target, data);
-            if (!passesFilter) {
-                __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").stats.incr('p2p', 'outgoingMessagesPeerFiltered');
-                return (false);
+            // Only apply filter for 'add' messages with a VoteStaple
+            if (voteStaple !== undefined) {
+                const passesFilter = await __classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_passesFilter).call(this, target, voteStaple);
+                if (!passesFilter) {
+                    __classPrivateFieldGet(this, _P2PSwitch_localNode, "f").stats.incr('p2p', 'outgoingMessagesPeerFiltered');
+                    return (false);
+                }
             }
             /**
              * Allow greetings to be sent prior to identification of a peer
@@ -72212,18 +72374,22 @@ class P2PSwitch {
         return (false);
     }
     /**
+     * Check if any registered filter matches the VoteStaple's touched accounts.
+     * Uses the VoteStaple's touchedAccounts getter which may be pre-computed via trustedValues.
+     *
      * TODO - make this private after refactoring websockets to handle higher load
      * https://github.com/KeetaNetwork/node/issues/785
      */
-    async haveAnyFilter(data) {
+    async haveAnyFilter(voteStaple) {
         const kvFilters = await this.config.kv.getAll('messageFilters');
+        const touched = voteStaple.touchedAccounts;
         for (const key in kvFilters) {
             const kvFilter = kvFilters[key];
             if (kvFilter && typeof kvFilter === 'string') {
-                const filter = account_1.default.fromPublicKeyAndType(kvFilter);
-                const voteStaple = new vote_1.VoteStaple(data);
-                const { touched } = (0, effects_1.computeEffectOfBlocks)(voteStaple.blocks);
-                return (touched.has(filter));
+                const filterAccount = account_1.default.fromPublicKeyAndType(kvFilter);
+                if (touched.has(filterAccount)) {
+                    return (true);
+                }
             }
         }
         return (false);
@@ -72467,7 +72633,12 @@ async function _P2PSwitch_relayActiveState(conn) {
      * Perform peer exchange
      */
     promises.push(__classPrivateFieldGet(this, _P2PSwitch_instances, "m", _P2PSwitch_relayActiveState).call(this, from));
-    await Promise.allSettled(promises);
+    const promiseResults = await Promise.allSettled(promises);
+    for (const result of promiseResults) {
+        if (result.status === 'rejected') {
+            this._log.error('Error during greeting handling:', result.reason);
+        }
+    }
     return (true);
 }, _P2PSwitch_updateConnTimeout = function _P2PSwitch_updateConnTimeout(conn) {
     if (conn.peer) {
@@ -72520,7 +72691,12 @@ async function _P2PSwitch_relayActiveState(conn) {
         this._log.error('Failed to add peer:', addPeerError);
     }
     return (p2pConnection);
-}, _P2PSwitch_passesFilter = async function _P2PSwitch_passesFilter(target, data) {
+}, _P2PSwitch_passesFilter = 
+/**
+ * Check if the VoteStaple passes the filter for the target connection.
+ * Uses the VoteStaple's touchedAccounts getter which may be pre-computed via trustedValues.
+ */
+async function _P2PSwitch_passesFilter(target, voteStaple) {
     let filter = __classPrivateFieldGet(this, _P2PSwitch_messageFilterCache, "f")[target.connString];
     if (filter === undefined) {
         const kvFilter = await this.config.kv.get('messageFilters', target.connString);
@@ -72531,9 +72707,7 @@ async function _P2PSwitch_relayActiveState(conn) {
     }
     // If there is a filter, only send effected accounts matching the filter
     if (filter) {
-        const voteStaple = new vote_1.VoteStaple(data);
-        const { touched } = (0, effects_1.computeEffectOfBlocks)(voteStaple.blocks);
-        return (touched.has(filter));
+        return (voteStaple.touchedAccounts.has(filter));
     }
     return (true);
 };
@@ -75538,7 +75712,9 @@ exports.Buffer = exports.BufferStorage = void 0;
 exports.DecodeBase32 = DecodeBase32;
 exports.EncodeBase32 = EncodeBase32;
 exports.DecodeBase64 = DecodeBase64;
+exports.DecodeBase64URL = DecodeBase64URL;
 exports.EncodeBase64 = EncodeBase64;
+exports.EncodeBase64URL = EncodeBase64URL;
 exports.ZlibInflate = ZlibInflate;
 exports.ZlibDeflate = ZlibDeflate;
 exports.ZlibInflateAsync = ZlibInflateAsync;
@@ -75558,8 +75734,10 @@ function DecodeBase32(data, length) {
     const retval = rfc4648_1.base32.parse(data, {
         loose: true
     });
-    if (retval.length !== length) {
-        throw (new Error(`Expected ${length} bytes, got ${retval.length}`));
+    if (length !== undefined) {
+        if (retval.length !== length) {
+            throw (new Error(`Expected ${length} bytes, got ${retval.length}`));
+        }
     }
     return (retval);
 }
@@ -75575,8 +75753,25 @@ function EncodeBase32(data) {
 function DecodeBase64(data) {
     return ((0, helper_1.bufferToArrayBuffer)(buffer_1.Buffer.from(data, 'base64')));
 }
+function DecodeBase64URL(data) {
+    switch (data.length % 4) {
+        case 2:
+            data += '==';
+            break;
+        case 3:
+            data += '=';
+            break;
+    }
+    data = data.replace(/-/g, '+').replace(/_/g, '/');
+    return (DecodeBase64(data));
+}
 function EncodeBase64(data) {
     return (buffer_1.Buffer.from(data).toString('base64'));
+}
+function EncodeBase64URL(data) {
+    let output = EncodeBase64(data);
+    output = output.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return (output);
 }
 function ZlibInflate(data, options) {
     return ((0, helper_1.bufferToArrayBuffer)(zlib_1.default.inflateSync(buffer_1.Buffer.from(data), options)));
@@ -75593,34 +75788,65 @@ async function ZlibDeflateAsync(data, options = {}) {
     return ((0, helper_1.bufferToArrayBuffer)(buffer));
 }
 class BufferStorage {
-    constructor(key, length) {
-        _BufferStorage_key.set(this, void 0);
-        this.storageKind = 'GenericBuffer';
+    static decodeKey(key, length) {
+        if (key instanceof Uint8Array) {
+            key = buffer_1.Buffer.from(key);
+        }
+        if (buffer_1.Buffer.isBuffer(key)) {
+            if (length !== undefined && key.length !== length) {
+                throw (new Error(`When decoding Buffer we got different number of bytes than expected (${key.length} expected ${length})`));
+            }
+            return ((0, helper_1.bufferToArrayBuffer)(key));
+        }
+        if (key instanceof ArrayBuffer) {
+            if (length !== undefined && key.byteLength !== length) {
+                throw (new Error(`When decoding ArrayBuffer we got different number of bytes than expected (${key.byteLength} expected ${length})`));
+            }
+            return (key);
+        }
         if (typeof (key) === 'string') {
             /*
              * Convert from a hex-encoded string into a buffer
              */
-            const buffer_key = buffer_1.Buffer.from(key, 'hex');
-            if (buffer_key.length !== length) {
-                throw (new Error(`When decoding buffer we got different number of bytes than expected (${buffer_key.length} expected ${length})`));
+            const keyBuffer = buffer_1.Buffer.from(key, 'hex');
+            const keyUint8 = new Uint8Array(keyBuffer);
+            const keyArrayBuffer = keyUint8.buffer;
+            if (length !== undefined && keyBuffer.length !== length) {
+                throw (new Error(`When decoding hex string we got different number of bytes than expected (${keyBuffer.length} expected ${length})`));
             }
-            __classPrivateFieldSet(this, _BufferStorage_key, buffer_key, "f");
+            return (keyArrayBuffer);
         }
         else if (typeof key === 'bigint') {
+            if (length === undefined) {
+                throw (new Error('When decoding BigInt we need to know the expected length of the buffer'));
+            }
             let value = key.toString(16);
+            if (value.length % 2 !== 0) {
+                value = '0' + value;
+            }
+            // Pad with zeros to length specified
             if (value.length > (length * 2)) {
-                throw (new Error(`When decoding BigInt we got different number of bytes than expected (${value.length} expected ${length * 2})`));
+                throw (new Error(`When decoding BigInt we got different number of bytes than expected (${value.length / 2} expected ${length})`));
             }
             value = '0'.repeat(length * 2) + value;
             value = value.slice(length * 2 * -1);
-            __classPrivateFieldSet(this, _BufferStorage_key, buffer_1.Buffer.from(value, 'hex'), "f");
+            const keyBuffer = buffer_1.Buffer.from(value, 'hex');
+            const keyUint8 = new Uint8Array(keyBuffer);
+            const keyArrayBuffer = keyUint8.buffer;
+            return (keyArrayBuffer);
         }
         else {
-            if (buffer_1.Buffer.from(key).length !== length) {
-                throw (new Error(`When storing buffer we got different number of bytes than expected (${buffer_1.Buffer.from(key).length} expected ${length})`));
-            }
-            __classPrivateFieldSet(this, _BufferStorage_key, key, "f");
+            return (key);
         }
+    }
+    constructor(key, length) {
+        _BufferStorage_key.set(this, void 0);
+        this.storageKind = 'GenericBuffer';
+        const keyDecoded = BufferStorage.decodeKey(key, length);
+        if (buffer_1.Buffer.from(keyDecoded).length !== length) {
+            throw (new Error(`When storing buffer we got different number of bytes than expected (${buffer_1.Buffer.from(keyDecoded).length} expected ${length})`));
+        }
+        __classPrivateFieldSet(this, _BufferStorage_key, keyDecoded, "f");
     }
     get() {
         return (__classPrivateFieldGet(this, _BufferStorage_key, "f"));
@@ -75722,7 +75948,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _CertificateBuilder_params, _CertificateBundle_raw, _CertificateBundle_contents, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued;
+var _CertificateBuilder_params, _CertificateBuilder_caPathLen, _CertificateBundle_raw, _CertificateBundle_contents, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_isSelfSigned, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_parseKeyUsage, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Certificate = exports.CertificateBundle = exports.CertificateHash = exports.CertificateBuilder = void 0;
 const ASN1 = __importStar(__webpack_require__(6045));
@@ -75732,7 +75958,9 @@ const helper_1 = __webpack_require__(3208);
 const HashLib = __importStar(__webpack_require__(7908));
 const crypto_1 = __importDefault(__webpack_require__(6982));
 const buffer_1 = __webpack_require__(3310);
+const conversion_1 = __webpack_require__(2360);
 const certificate_1 = __importDefault(__webpack_require__(9890));
+const util_1 = __webpack_require__(9023);
 /** @internal */
 const CertificateSchemaInternal = [
     /* TBS Certificate */
@@ -75860,6 +76088,7 @@ const defaultHashName = HashLib.HashFunctionName;
 class CertificateBuilder {
     constructor(params) {
         _CertificateBuilder_params.set(this, void 0);
+        _CertificateBuilder_caPathLen.set(this, void 0);
         __classPrivateFieldSet(this, _CertificateBuilder_params, {
             ...params
         }, "f");
@@ -75920,6 +76149,12 @@ class CertificateBuilder {
         ]), 20)));
     }
     /**
+     * Set the CA path length
+     */
+    setCAPathLen(pathLen) {
+        __classPrivateFieldSet(this, _CertificateBuilder_caPathLen, pathLen, "f");
+    }
+    /**
      * Produce the extensions to include in this certificate
      */
     async addExtensions(params) {
@@ -75941,13 +76176,17 @@ class CertificateBuilder {
             isCertificateAuthority = params.isCA;
         }
         if (isCertificateAuthority) {
+            const basicConstraints = [true];
+            if (__classPrivateFieldGet(this, _CertificateBuilder_caPathLen, "f") !== undefined) {
+                basicConstraints.push(__classPrivateFieldGet(this, _CertificateBuilder_caPathLen, "f"));
+            }
             extensions.push(
             /** Extension: Basic Constraints (CA) */
-            CertificateBuilder.extension('2.5.29.19', [true], true), 
+            CertificateBuilder.extension('2.5.29.19', basicConstraints, true), 
             /** Extension: Key Usage */
             CertificateBuilder.extension('2.5.29.15', {
                 type: 'bitstring',
-                value: Buffer.from([0
+                value: Buffer.from([0 /* encipherOnly and decipherOnly */
                         | (1 << 1) /* CRL Sign */
                         | (1 << 2) /* Cert Sign */
                         | (0 << 3) /* Key Agreement */
@@ -75963,7 +76202,7 @@ class CertificateBuilder {
             /** Extension: Key Usage */
             CertificateBuilder.extension('2.5.29.15', {
                 type: 'bitstring',
-                value: Buffer.from([0
+                value: Buffer.from([0 /* encipherOnly and decipherOnly */
                         | (0 << 1) /* CRL Sign */
                         | (0 << 2) /* Cert Sign */
                         | (0 << 3) /* Key Agreement */
@@ -76164,7 +76403,7 @@ class CertificateBuilder {
     }
 }
 exports.CertificateBuilder = CertificateBuilder;
-_CertificateBuilder_params = new WeakMap();
+_CertificateBuilder_params = new WeakMap(), _CertificateBuilder_caPathLen = new WeakMap();
 /**
  * Certificate hash
  */
@@ -76200,6 +76439,10 @@ class CertificateBundle {
     constructor(input) {
         _CertificateBundle_raw.set(this, void 0);
         _CertificateBundle_contents.set(this, void 0);
+        // If input is toJSON output
+        if (typeof input === 'object' && 'certificates' in input) {
+            input = input.certificates;
+        }
         if (CertificateBundle.isInstance(input)) {
             __classPrivateFieldSet(this, _CertificateBundle_raw, input.getDER(), "f");
         }
@@ -76271,6 +76514,17 @@ class CertificateBundle {
 exports.CertificateBundle = CertificateBundle;
 _CertificateBundle_raw = new WeakMap(), _CertificateBundle_contents = new WeakMap();
 CertificateBundle.isInstance = (0, helper_1.checkableGenerator)(CertificateBundle);
+const keyUsageBits = [
+    'digitalSignature',
+    'nonRepudiation',
+    'keyEncipherment',
+    'dataEncipherment',
+    'keyAgreement',
+    'keyCertSign',
+    'cRLSign',
+    'encipherOnly',
+    'decipherOnly'
+];
 class Certificate {
     /**
      * Is a certificate object?
@@ -76306,6 +76560,10 @@ class Certificate {
          * Has finalizeConstruction been called?
          */
         _Certificate_finalizeConstructionCalled.set(this, false);
+        /**
+         * Cached value for isSelfSigned
+         */
+        _Certificate_isSelfSigned.set(this, void 0);
         /*
          * If a certificate is provided, then extract the raw
          * certificate and process it -- do not merge any of
@@ -76314,6 +76572,18 @@ class Certificate {
         if (Certificate.isCertificate(input)) {
             // For use in browser, have to use toDER instead of accessing #raw directly
             input = input.toDER();
+        }
+        else if (!util_1.types.isArrayBuffer(input) && !Buffer.isBuffer(input) && typeof input === 'object') {
+            /**
+             * If certificate input is output from toJSON then reconstruct from $binary
+             * $binary is PEM format which will get parsed later
+             */
+            if ('$binary' in input && input.$binary !== undefined) {
+                input = input.$binary;
+            }
+            else {
+                throw (new Error('Certificate from JSON should include $binary'));
+            }
         }
         /*
          * Define an object type ID as an un-enumerable property to
@@ -76481,7 +76751,11 @@ class Certificate {
      * Verifies that a certificate is self-signed
      */
     isSelfSigned() {
-        return (this.checkIssued(this));
+        if (__classPrivateFieldGet(this, _Certificate_isSelfSigned, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _Certificate_isSelfSigned, "f"));
+        }
+        __classPrivateFieldSet(this, _Certificate_isSelfSigned, this.checkIssued(this), "f");
+        return (__classPrivateFieldGet(this, _Certificate_isSelfSigned, "f"));
     }
     /**
      * Verifies that the certificate is was signed by the given account or certificate
@@ -76547,6 +76821,54 @@ class Certificate {
         return (verified);
     }
     /**
+     * Verify that a given chain meets the depth requirements
+     */
+    static verifyChainDepth(chain) {
+        if (chain.length === 0) {
+            return ({ valid: false, reason: 'Empty chain' });
+        }
+        const depthByIssuer = new Map();
+        // Traverse from root to leaf
+        for (let i = 0; i < chain.length; i++) {
+            const certificate = chain[i];
+            // Leaf certificates are still validated for total depth but excluded from other checks
+            const isLeaf = i === chain.length - 1;
+            const basicConstraints = certificate.baseExtensions?.basicConstraints;
+            // basicConstraints are required for CA if it's not a leaf
+            if (!isLeaf && !basicConstraints) {
+                return ({ valid: false, reason: `Missing basicConstraints in certificate: ${certificate.subject}` });
+            }
+            const [isCA, pathLenConstraint] = basicConstraints ?? [false, undefined];
+            // Root and intermediates should be a CA
+            if (!isLeaf && !isCA) {
+                return ({ valid: false, reason: `Non-CA certificate in chain: ${certificate.subject}` });
+            }
+            // CA should have usage set to be able to sign
+            const keyUsage = certificate.baseExtensions?.keyUsage;
+            if (!isLeaf && keyUsage && !keyUsage.keyCertSign) {
+                return ({ valid: false, reason: `CA certificate missing keyCertSign in keyUsage: ${certificate.subject}` });
+            }
+            // Skip constraint checks if self-signed
+            if (!certificate.isSelfSigned()) {
+                // Validate against all existing constraints
+                for (const [issuer, remainingDepth] of depthByIssuer.entries()) {
+                    if (remainingDepth < 0n) {
+                        return ({
+                            valid: false,
+                            reason: `Path length constraint exceeded for CA: ${issuer.subject} on Certificate: ${certificate.subject}`
+                        });
+                    }
+                    depthByIssuer.set(issuer, remainingDepth - 1n);
+                }
+            }
+            // If this cert is a CA and has a pathLenConstraint, track it
+            if (pathLenConstraint !== undefined) {
+                depthByIssuer.set(certificate, pathLenConstraint);
+            }
+        }
+        return ({ valid: true });
+    }
+    /**
      * Asserts provided certificates can construct a valid graph with no loops or orphans, and that all provided certificates can reach the root, or current certificate
      * @param certificates Additional intermediate certificates to verify
      */
@@ -76606,9 +76928,6 @@ class Certificate {
             }
         }
     }
-    /**
-     * Verify against a given certificate store
-     */
     verifyChain(store, _ignore_seenCerts /* XXX:TODO */) {
         /*
          * Check to see if the certificate is signed by any of the Root CAs
@@ -76621,10 +76940,15 @@ class Certificate {
             if (retval !== null) {
                 return;
             }
-            const checkIssued = this.checkIssued(rootCertificate, true);
+            const checkIssued = __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_checkIssued).call(this, rootCertificate);
             if (checkIssued.issued) {
                 if (rootCertificate.checkValid(this.moment)) {
-                    retval = [rootCertificate];
+                    const checkRetval = [rootCertificate];
+                    const validChain = Certificate.verifyChainDepth([...checkRetval, this]);
+                    if (validChain.valid) {
+                        retval = checkRetval;
+                        return;
+                    }
                 }
             }
         });
@@ -76639,12 +76963,17 @@ class Certificate {
                 if (retval !== null) {
                     return;
                 }
-                if (this.checkIssued(intermediateCertificate)) {
+                const checkIssued = __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_checkIssued).call(this, intermediateCertificate);
+                if (checkIssued.issued) {
                     if (intermediateCertificate.checkValid(this.moment)) {
-                        const moreChain = intermediateCertificate.verifyChain(store /* , seenCerts XXX:TODO */);
+                        const moreChain = intermediateCertificate.verifyChain(store, undefined /* seenCerts XXX:TODO */);
                         if (moreChain !== null) {
-                            retval = [...moreChain, intermediateCertificate];
-                            return;
+                            const checkRetval = [...moreChain, intermediateCertificate];
+                            const validChain = Certificate.verifyChainDepth([...checkRetval, this]);
+                            if (validChain.valid) {
+                                retval = checkRetval;
+                                return;
+                            }
                         }
                     }
                 }
@@ -76805,7 +77134,8 @@ class Certificate {
         this.assertConstructed();
         // XXX:TODO Fix this type
         const additionalFields = {};
-        if (options?.addBinary) {
+        // Default to including $binary so we can reconstruct this cert from PEM
+        if (options === undefined || options.addBinary !== false) {
             additionalFields['$binary'] = this.toPEM();
         }
         if (includeChain && this.chain !== undefined) {
@@ -76813,7 +77143,7 @@ class Certificate {
                 return (chainCert.toJSON({ ...options, addBinary: false }, false));
             });
         }
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             serial: this.serial,
             notBefore: this.notBefore,
             notAfter: this.notAfter,
@@ -76825,11 +77155,11 @@ class Certificate {
             issuerDN: fromDNSequence(this.issuerDNSet),
             $hash: this.hash(),
             ...additionalFields
-        });
+        }));
     }
 }
 exports.Certificate = Certificate;
-_Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificate_extensionsRaw = new WeakMap(), _Certificate_extensionsProcessed = new WeakMap(), _Certificate_finalizeConstructionCalled = new WeakMap(), _Certificate_instances = new WeakSet(), _Certificate_processExtensionsInternal = function _Certificate_processExtensionsInternal(extensions, processedSet, handleExtension) {
+_Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificate_extensionsRaw = new WeakMap(), _Certificate_extensionsProcessed = new WeakMap(), _Certificate_finalizeConstructionCalled = new WeakMap(), _Certificate_isSelfSigned = new WeakMap(), _Certificate_instances = new WeakSet(), _Certificate_processExtensionsInternal = function _Certificate_processExtensionsInternal(extensions, processedSet, handleExtension) {
     if (extensions === undefined) {
         return;
     }
@@ -76869,6 +77199,32 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
         seenExtensions.add(id);
     }
     __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_processExtensionsInternal).call(this, extensions, __classPrivateFieldGet(this, _Certificate_extensionsProcessed, "f"), __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_processBaseExtension).bind(this));
+}, _Certificate_parseKeyUsage = function _Certificate_parseKeyUsage(buffer, unusedBits = 0) {
+    const result = {};
+    let bitIndex = 0;
+    for (let byteIndex = 0; byteIndex < buffer.length; byteIndex++) {
+        const byte = buffer[byteIndex];
+        let bitsToRead = 8;
+        // If it's the last byte, subtract unused bits
+        if (byteIndex === buffer.length - 1 && unusedBits > 0) {
+            bitsToRead -= unusedBits;
+        }
+        for (let bit = 7; bit >= 8 - bitsToRead; bit--) {
+            if (bitIndex >= keyUsageBits.length) {
+                break;
+            }
+            const usageName = keyUsageBits[bitIndex];
+            const isSet = (byte & (1 << bit)) !== 0;
+            result[usageName] = isSet;
+            bitIndex++;
+        }
+    }
+    // Fill in remaining with false
+    while (bitIndex < keyUsageBits.length) {
+        result[keyUsageBits[bitIndex]] = false;
+        bitIndex++;
+    }
+    return (result);
 }, _Certificate_processBaseExtension = function _Certificate_processBaseExtension(id, value) {
     if (this.baseExtensions === undefined) {
         throw (new Error('internal error: baseExtensions not defined'));
@@ -76887,9 +77243,12 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
             return (true);
         }
         /** Extension: Key Usage */
-        case '2.5.29.15':
+        case '2.5.29.15': {
             /* XXX:TODO */
+            const bits = new ASN1.BufferStorageASN1(value, ASN1.ValidateASN1.IsBitString).getASN1();
+            this.baseExtensions.keyUsage = __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_parseKeyUsage).call(this, bits.value, bits.unusedBits);
             return (true);
+        }
         /** Extension: Authority Key Identifier */
         case '2.5.29.35':
             this.baseExtensions.authorityKeyIdentifier = new ASN1.BufferStorageASN1(value, [{ choice: [
@@ -76981,13 +77340,22 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
      * Verify that the issuer has the authority to issue the
      * certificate (basic constraints)
      */
-    /* XXX:TODO */
+    if (issuer.baseExtensions?.basicConstraints === undefined) {
+        return ({ issued: false, reason: 'Issuer certificate lacks the ability to sign certificates (missing basicConstraints)' });
+    }
+    if (!issuer.baseExtensions.basicConstraints[0]) {
+        return ({ issued: false, reason: 'Issuer certificate lacks the ability to sign certificates (basicConstraints is false)' });
+    }
     /**
      * If the key usage extension is present, then check that the
      * issuer key usage is consistent with the certificate being
      * a CA
      */
     /* XXX:TODO */
+    const keyUsage = issuer.baseExtensions?.keyUsage;
+    if (keyUsage && !keyUsage.keyCertSign) {
+        return ({ issued: false, reason: `CA certificate missing keyCertSign in keyUsage` });
+    }
     /**
      * Verify the signature
      */
@@ -78301,7 +78669,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee;
+var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_instances, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBlockBundle__blockHashes, _VoteBlockBundle__votes, _VoteBlockBundle__blocks, _VoteBlockBundle__touchedAccounts, _VoteBlockBundle_votesRaw, _VoteBlockBundle_blocksRaw, _VoteBlockBundle_options, _VoteBlockBundle__asn1Validated, _VoteBlockBundle__blocksAndVotesRaw_get, _VoteBlockBundle__blocksRaw_get, _VoteBlockBundle__votesRaw_get, _VoteBlockBundle_blockHashes_get, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Testing = exports.VoteQuoteBuilder = exports.VoteBuilder = exports.BaseVoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.VoteQuote = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
 /*
@@ -78316,9 +78684,11 @@ const account_1 = __importStar(__webpack_require__(9415));
 const asn1_1 = __webpack_require__(6045);
 const helper_1 = __webpack_require__(3208);
 const zlib_1 = __importDefault(__webpack_require__(3106));
+const conversion_1 = __webpack_require__(2360);
 const buffer_1 = __webpack_require__(3310);
 const util_1 = __webpack_require__(9023);
 const vote_1 = __importDefault(__webpack_require__(3689));
+const effects_1 = __webpack_require__(7346);
 class VoteHash extends buffer_1.BufferStorage {
     constructor(blockhash) {
         super(blockhash, 32);
@@ -79051,7 +79421,7 @@ class VoteLikeBase {
         if (this.quote !== undefined) {
             additionalFields['quote'] = this.quote;
         }
-        return ({
+        return ((0, conversion_1.toJSONSerializable)({
             issuer: this.issuer,
             serial: this.serial,
             blocks: this.blocks,
@@ -79063,7 +79433,7 @@ class VoteLikeBase {
             $uid: this.$uid,
             $id: this.$id,
             ...additionalFields
-        });
+        }));
     }
     expirationCheckMoment() {
         let now;
@@ -79209,7 +79579,16 @@ class VoteBlockBundle {
         ]);
         const buffer = Buffer.from(encoded.toBER(false));
         const compressedBuffer = zlib_1.default.deflateSync(buffer);
-        return (new this(compressedBuffer, voteOptions));
+        return (new this(compressedBuffer, {
+            trustedValues: {
+                blocksMap: Object.fromEntries(blocks.map(function (block) {
+                    return ([block.hash.toString(), block]);
+                })),
+                blocks: blocksOrdered,
+                votes: votesOrdered
+            },
+            ...voteOptions
+        }));
     }
     /**
      * Convert a list of Votes and Blocks into a VoteStaple
@@ -79341,10 +79720,39 @@ class VoteBlockBundle {
      * Construct a new staple from a message buffer
      */
     constructor(votesStapled, voteOptions = {}) {
+        _VoteBlockBundle_instances.add(this);
         _VoteBlockBundle_value.set(this, void 0);
         _VoteBlockBundle_valueCompressed.set(this, void 0);
         _VoteBlockBundle__hash.set(this, void 0);
         _VoteBlockBundle__blocksHash.set(this, void 0);
+        _VoteBlockBundle__blockHashes.set(this, void 0);
+        _VoteBlockBundle__votes.set(this, void 0);
+        _VoteBlockBundle__blocks.set(this, void 0);
+        _VoteBlockBundle__touchedAccounts.set(this, void 0);
+        _VoteBlockBundle_votesRaw.set(this, void 0);
+        _VoteBlockBundle_blocksRaw.set(this, void 0);
+        _VoteBlockBundle_options.set(this, void 0);
+        _VoteBlockBundle__asn1Validated.set(this, false);
+        this._votesValidated = false;
+        if (voteOptions.trustedValues?.blocksMap) {
+            __classPrivateFieldSet(this, _VoteBlockBundle__blockHashes, voteOptions.trustedValues.blocksMap, "f");
+        }
+        if (voteOptions.trustedValues?.blocks) {
+            __classPrivateFieldSet(this, _VoteBlockBundle__blocks, voteOptions.trustedValues.blocks, "f");
+            if (__classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f") && __classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f").length === 0) {
+                throw (new vote_1.default('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one block'));
+            }
+        }
+        if (voteOptions.trustedValues?.votes) {
+            __classPrivateFieldSet(this, _VoteBlockBundle__votes, voteOptions.trustedValues.votes, "f");
+            if (__classPrivateFieldGet(this, _VoteBlockBundle__votes, "f") && __classPrivateFieldGet(this, _VoteBlockBundle__votes, "f").length === 0) {
+                throw (new vote_1.default('VOTE_STAPLE_INVALID_CONSTRUCTION', 'Vote Staples must contain at least one vote'));
+            }
+        }
+        if (voteOptions.trustedValues?.touchedAccounts) {
+            __classPrivateFieldSet(this, _VoteBlockBundle__touchedAccounts, voteOptions.trustedValues.touchedAccounts, "f");
+        }
+        __classPrivateFieldSet(this, _VoteBlockBundle_options, voteOptions, "f");
         if (typeof votesStapled === 'string') {
             votesStapled = Buffer.from(votesStapled, 'base64');
         }
@@ -79376,83 +79784,21 @@ class VoteBlockBundle {
             __classPrivateFieldSet(this, _VoteBlockBundle_value, votesStapled, "f");
         }
         /**
-         * Parse BER encoded data into objects
+         * Force evaluation of votes and blocks unless lazy loading is specified
          */
-        const data = (0, asn1_1.ASN1toJS)(__classPrivateFieldGet(this, _VoteBlockBundle_value, "f"));
-        if (!Array.isArray(data)) {
-            throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must be a Sequence'));
-        }
-        if (data.length !== 2) {
-            throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)'));
-        }
-        const [blocksRaw, votesRaw] = data;
-        if (!Array.isArray(blocksRaw) || !Array.isArray(votesRaw)) {
-            throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)'));
-        }
-        if (blocksRaw.length < 1) {
-            throw (new vote_1.default('VOTE_MALFORMED_STAPLE_BLOCKS_AT_LEAST_ONE', 'There must be at least 1 block'));
-        }
-        /**
-         * List of blocks
-         */
-        const blocksUnsorted = blocksRaw.map(function (blockData) {
-            if (!(Buffer.isBuffer(blockData))) {
-                throw (new vote_1.default('VOTE_MALFORMED_STAPLE_BLOCKS', 'Each block must be an Octet String'));
-            }
-            return (new block_1.Block(blockData));
-        });
-        if (votesRaw.length < 1) {
-            throw (new vote_1.default('VOTE_MALFORMED_STAPLE_VOTES_AT_LEAST_ONE', 'There must be at least one vote'));
-        }
-        /**
-         * Get a list of every block hash
-         */
-        const blockHashes = {};
-        for (const block of blocksUnsorted) {
-            blockHashes[block.hash.toString()] = block;
-        }
-        /*
-         * Ensure blocks are sorted the same way as the vote
-         */
-        this.votes = votesRaw.map(function (voteData) {
-            if (!(Buffer.isBuffer(voteData))) {
-                throw (new vote_1.default('VOTE_MALFORMED_STAPLE_VOTES', 'Each vote must be an Octet String'));
-            }
-            const vote = new Vote(voteData, voteOptions);
-            if (vote.blocks.length !== blocksUnsorted.length) {
-                throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_COUNT', `Each vote must vote on the exact set of blocks being stapled (same number) (vote: ${vote.blocks.length}; blocks: ${blocksUnsorted.length})`));
-            }
-            for (const voteBlockHash of vote.blocks) {
-                const voteBlockHashCheck = blockHashes[voteBlockHash.toString()];
-                if (voteBlockHashCheck === undefined) {
-                    throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_MISSING', `Each vote must be on the exact set of blocks being stapled (missing ${voteBlockHash.toString()})`));
-                }
-            }
-            return (vote);
-        });
-        /**
-         * Order blocks by the vote ordering
-         */
-        this.blocks = this.votes[0].blocks.map(function (blockHash) {
-            return (blockHashes[blockHash.toString()]);
-        });
-        /**
-         * Ensure every vote has the block hashes in the same order
-         */
-        for (const vote of this.votes) {
-            for (let blockHashIndex = 0; blockHashIndex < vote.blocks.length; blockHashIndex++) {
-                const voteBlockHash = vote.blocks[blockHashIndex];
-                const stapleBlockHash = this.blocks[blockHashIndex];
-                if (voteBlockHash.toString() !== stapleBlockHash.hash.toString()) {
-                    throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_ORDER', 'All votes must list blocks in the same order'));
-                }
-            }
+        if (voteOptions.lazy !== true) {
+            void this.votes;
+            void this.blocks;
+            void __classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__blocksAndVotesRaw_get);
         }
     }
     /**
      * Get the serialized version
      */
     toBytes(uncompressed) {
+        if (!__classPrivateFieldGet(this, _VoteBlockBundle__asn1Validated, "f")) {
+            void __classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__blocksAndVotesRaw_get);
+        }
         if (uncompressed) {
             return (__classPrivateFieldGet(this, _VoteBlockBundle_value, "f"));
         }
@@ -79471,7 +79817,7 @@ class VoteBlockBundle {
      */
     get hash() {
         if (!__classPrivateFieldGet(this, _VoteBlockBundle__hash, "f")) {
-            const canonicalVoteStaple = VoteBlockBundle.fromVotesAndBlocks(this.votes, this.blocks);
+            const canonicalVoteStaple = VoteBlockBundle.fromVotesAndBlocks(this.votes, this.blocks, { lazy: true });
             const hash = (0, hash_1.Hash)(Buffer.from(canonicalVoteStaple.toBytes(true)));
             __classPrivateFieldSet(this, _VoteBlockBundle__hash, new VoteStapleHash(hash), "f");
         }
@@ -79536,21 +79882,163 @@ class VoteBlockBundle {
             ...additionalFields
         });
     }
+    get votes() {
+        if (__classPrivateFieldGet(this, _VoteBlockBundle__votes, "f") !== undefined && this._votesValidated) {
+            return (__classPrivateFieldGet(this, _VoteBlockBundle__votes, "f"));
+        }
+        const voteOptions = __classPrivateFieldGet(this, _VoteBlockBundle_options, "f");
+        const blocksUnsorted = Object.values(__classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle_blockHashes_get));
+        /*
+         * If votes are already known, use them otherwise parse from raw data
+         */
+        const newVotes = __classPrivateFieldGet(this, _VoteBlockBundle__votes, "f") ?? __classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__votesRaw_get).map((voteData) => {
+            if (!(Buffer.isBuffer(voteData))) {
+                throw (new vote_1.default('VOTE_MALFORMED_STAPLE_VOTES', 'Each vote must be an Octet String'));
+            }
+            const vote = new Vote(voteData, voteOptions);
+            return (vote);
+        });
+        /**
+         * Validate each vote and ensure they all vote on the same block hashes in order
+         */
+        let stapleBlockHashes;
+        for (const vote of newVotes) {
+            if (vote.blocks.length !== blocksUnsorted.length) {
+                throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_COUNT', `Each vote must vote on the exact set of blocks being stapled (same number) (vote: ${vote.blocks.length}; blocks: ${blocksUnsorted.length})`));
+            }
+            for (const voteBlockHash of vote.blocks) {
+                const voteBlockHashCheck = __classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle_blockHashes_get)[voteBlockHash.toString()];
+                if (voteBlockHashCheck === undefined) {
+                    throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_MISSING', `Each vote must be on the exact set of blocks being stapled (missing ${voteBlockHash.toString()})`));
+                }
+            }
+            if (stapleBlockHashes === undefined) {
+                stapleBlockHashes = vote.blocks;
+                continue;
+            }
+            for (let blockHashIndex = 0; blockHashIndex < vote.blocks.length; blockHashIndex++) {
+                const voteBlocksHash = vote.blocks[blockHashIndex];
+                const stapleBlockHash = stapleBlockHashes[blockHashIndex];
+                if (voteBlocksHash.toString() !== stapleBlockHash.toString()) {
+                    throw (new vote_1.default('VOTE_STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_ORDER', 'All votes must list blocks in the same order'));
+                }
+            }
+        }
+        __classPrivateFieldSet(this, _VoteBlockBundle__votes, newVotes, "f");
+        return (__classPrivateFieldGet(this, _VoteBlockBundle__votes, "f"));
+    }
+    get blocks() {
+        if (__classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f") !== undefined && this._votesValidated) {
+            return (__classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f"));
+        }
+        /**
+         * Order blocks by the vote ordering
+         */
+        __classPrivateFieldSet(this, _VoteBlockBundle__blocks, this.votes[0].blocks.map((blockHash) => {
+            return (__classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle_blockHashes_get)[blockHash.toString()]);
+        }), "f");
+        return (__classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f"));
+    }
+    get touchedAccounts() {
+        if (__classPrivateFieldGet(this, _VoteBlockBundle__touchedAccounts, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _VoteBlockBundle__touchedAccounts, "f"));
+        }
+        const { touched } = (0, effects_1.computeEffectOfBlocks)(this.blocks);
+        __classPrivateFieldSet(this, _VoteBlockBundle__touchedAccounts, touched, "f");
+        return (__classPrivateFieldGet(this, _VoteBlockBundle__touchedAccounts, "f"));
+    }
 }
 exports.VoteBlockBundle = VoteBlockBundle;
-_VoteBlockBundle_value = new WeakMap(), _VoteBlockBundle_valueCompressed = new WeakMap(), _VoteBlockBundle__hash = new WeakMap(), _VoteBlockBundle__blocksHash = new WeakMap();
+_VoteBlockBundle_value = new WeakMap(), _VoteBlockBundle_valueCompressed = new WeakMap(), _VoteBlockBundle__hash = new WeakMap(), _VoteBlockBundle__blocksHash = new WeakMap(), _VoteBlockBundle__blockHashes = new WeakMap(), _VoteBlockBundle__votes = new WeakMap(), _VoteBlockBundle__blocks = new WeakMap(), _VoteBlockBundle__touchedAccounts = new WeakMap(), _VoteBlockBundle_votesRaw = new WeakMap(), _VoteBlockBundle_blocksRaw = new WeakMap(), _VoteBlockBundle_options = new WeakMap(), _VoteBlockBundle__asn1Validated = new WeakMap(), _VoteBlockBundle_instances = new WeakSet(), _VoteBlockBundle__blocksAndVotesRaw_get = function _VoteBlockBundle__blocksAndVotesRaw_get() {
+    /**
+     * Parse BER encoded data into objects
+     */
+    const data = (0, asn1_1.ASN1toJS)(__classPrivateFieldGet(this, _VoteBlockBundle_value, "f"));
+    if (!Array.isArray(data)) {
+        throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must be a Sequence'));
+    }
+    if (data.length !== 2) {
+        throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)'));
+    }
+    const [blocksRaw, votesRaw] = data;
+    if (!Array.isArray(blocksRaw) || !Array.isArray(votesRaw)) {
+        throw (new vote_1.default('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)'));
+    }
+    if (blocksRaw.length < 1) {
+        throw (new vote_1.default('VOTE_MALFORMED_STAPLE_BLOCKS_AT_LEAST_ONE', 'There must be at least 1 block'));
+    }
+    if (votesRaw.length < 1) {
+        throw (new vote_1.default('VOTE_MALFORMED_STAPLE_VOTES_AT_LEAST_ONE', 'There must be at least one vote'));
+    }
+    __classPrivateFieldSet(this, _VoteBlockBundle_votesRaw, votesRaw, "f");
+    __classPrivateFieldSet(this, _VoteBlockBundle_blocksRaw, blocksRaw, "f");
+    __classPrivateFieldSet(this, _VoteBlockBundle__asn1Validated, true, "f");
+    return ({
+        blocksRaw: __classPrivateFieldGet(this, _VoteBlockBundle_blocksRaw, "f"),
+        votesRaw: __classPrivateFieldGet(this, _VoteBlockBundle_votesRaw, "f")
+    });
+}, _VoteBlockBundle__blocksRaw_get = function _VoteBlockBundle__blocksRaw_get() {
+    if (__classPrivateFieldGet(this, _VoteBlockBundle_blocksRaw, "f") !== undefined) {
+        return (__classPrivateFieldGet(this, _VoteBlockBundle_blocksRaw, "f"));
+    }
+    return (__classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__blocksAndVotesRaw_get).blocksRaw);
+}, _VoteBlockBundle__votesRaw_get = function _VoteBlockBundle__votesRaw_get() {
+    if (__classPrivateFieldGet(this, _VoteBlockBundle_votesRaw, "f") !== undefined) {
+        return (__classPrivateFieldGet(this, _VoteBlockBundle_votesRaw, "f"));
+    }
+    return (__classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__blocksAndVotesRaw_get).votesRaw);
+}, _VoteBlockBundle_blockHashes_get = function _VoteBlockBundle_blockHashes_get() {
+    if (__classPrivateFieldGet(this, _VoteBlockBundle__blockHashes, "f") !== undefined) {
+        return (__classPrivateFieldGet(this, _VoteBlockBundle__blockHashes, "f"));
+    }
+    /**
+     * List of blocks
+     * If blocks are already known, use them otherwise parse from raw data
+     */
+    let blocksUnsorted = [];
+    if (__classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f") !== undefined) {
+        blocksUnsorted = __classPrivateFieldGet(this, _VoteBlockBundle__blocks, "f");
+    }
+    else {
+        blocksUnsorted = __classPrivateFieldGet(this, _VoteBlockBundle_instances, "a", _VoteBlockBundle__blocksRaw_get).map(function (blockData) {
+            if (!(Buffer.isBuffer(blockData))) {
+                throw (new vote_1.default('VOTE_MALFORMED_STAPLE_BLOCKS', 'Each block must be an Octet String'));
+            }
+            return (new block_1.Block(blockData));
+        });
+    }
+    /**
+     * Get a list of every block hash
+     */
+    const blockHashes = {};
+    for (const block of blocksUnsorted) {
+        blockHashes[block.hash.toString()] = block;
+    }
+    __classPrivateFieldSet(this, _VoteBlockBundle__blockHashes, blockHashes, "f");
+    return (__classPrivateFieldGet(this, _VoteBlockBundle__blockHashes, "f"));
+};
 VoteBlockBundle.VoteBlockHash = VoteBlockHash;
 VoteBlockBundle.isInstance = (0, helper_1.checkableGenerator)(VoteBlockBundle);
 class VoteStaple extends VoteBlockBundle {
     constructor(votesStapled, voteOptions = {}) {
         super(votesStapled, voteOptions);
+        if (voteOptions.lazy !== true) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            this.votes;
+        }
+    }
+    get votes() {
+        const votes = super.votes;
+        if (this._votesValidated) {
+            return (votes);
+        }
         /**
          * Ensure no representative has more than 1 vote in the bundle
          * and that every vote has the same level of permanence
          */
         const seenReps = new account_1.default.Set();
         let votesPermanence = undefined;
-        for (const vote of this.votes) {
+        for (const vote of votes) {
             if (seenReps.has(vote.issuer)) {
                 throw (new vote_1.default('VOTE_STAPLE_DUPLICATE_VOTE_ISSUER', `Unable to parse vote information since account ${vote.issuer.publicKeyString.get()} has voted more than once`));
             }
@@ -79562,6 +80050,8 @@ class VoteStaple extends VoteBlockBundle {
                 throw (new vote_1.default('VOTE_STAPLE_PERMANENCE_MISMATCH', `Only votes with permanent set to ${votesPermanence} are permissible in a bundle, however we found a vote that expires on ${vote.validityTo.toISOString()}`));
             }
         }
+        this._votesValidated = true;
+        return (votes);
     }
 }
 exports.VoteStaple = VoteStaple;
@@ -79882,7 +80372,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.14.14+gdd8e58acb0e1edfb9050da584aaa65b7e5f722a2';
+exports.version = '0.16.0+g906ddd004c65d7e5d33559183bed9119e681c5ae';
 exports["default"] = exports.version;
 
 

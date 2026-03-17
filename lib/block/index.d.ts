@@ -2,7 +2,7 @@ import type { GenericAccount, MultisigAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
 import { BufferStorage } from '../utils/buffer';
 import * as ASN1 from '../utils/asn1';
-import type { ToJSONSerializable, ToJSONSerializableOptions } from '../utils/conversion';
+import { type ToJSONSerializable, type ToJSONSerializableOptions } from '../utils/conversion';
 import * as Operations from './operations';
 export declare enum BlockPurpose {
     GENERIC = 0,
@@ -63,6 +63,9 @@ export interface BlockV1JSON {
     purpose?: BlockPurpose.GENERIC;
 }
 export type BlockV1JSONIncomplete = Partial<BlockV1JSON>;
+type BlockV1JSONOptionalSigned = Omit<BlockV1JSON, 'signature'> & {
+    signature?: BlockV1JSON['signature'];
+};
 /**
  * Output of block suitable to JSON serialization
  */
@@ -83,10 +86,20 @@ export interface BlockV2JSON {
     signatures: (string | BlockSignature)[];
 }
 export type BlockV2JSONIncomplete = Partial<BlockV2JSON>;
+type BlockV2JSONOptionalSigned = Omit<BlockV2JSON, 'signatures'> & {
+    signatures?: BlockV2JSON['signatures'];
+};
 export type BlockJSONOutput = ReturnType<Block['toJSON']>;
 export type BlockJSONOutputSerialized = ToJSONSerializable<BlockJSONOutput>;
 export type BlockJSONOutputIncomplete = Partial<BlockJSONOutputSerialized>;
 export type BlockJSON = (Omit<BlockV1JSON, 'version'> | Omit<BlockV2JSON, 'version'>) & {
+    version: number;
+};
+export type BlockJSONOptionalSigned = ((Omit<BlockV1JSON, 'version' | 'signature'> & {
+    signature?: BlockV1JSON['signature'];
+}) | (Omit<BlockV2JSON, 'version' | 'signatures'> & {
+    signatures?: BlockV2JSON['signatures'];
+})) & {
     version: number;
 };
 export type BlockJSONIncomplete = Partial<BlockJSON>;
@@ -127,7 +140,7 @@ interface BlockV2Canonical extends Omit<BlockV2UnsignedCanonical, 'signatures'> 
 type OmitLastArrayValue<T> = Required<T> extends [...infer Head, any] ? Head : never;
 type BlockV1ASN1WithoutSignature = ASN1.ValidateASN1.SchemaMap<OmitLastArrayValue<typeof BlockV1ASN1Schema>>;
 type BlockV2ASN1WithoutSignature = ASN1.ValidateASN1.SchemaMap<OmitLastArrayValue<typeof BlockV2ASN1Schema.contains>>;
-type MultisigSignerFieldJSON = [MultisigAddress | string, (MultisigSignerField | Account | string)[]];
+type MultisigSignerFieldJSON = [MultisigAddress | string, (MultisigSignerFieldJSON | Account | string)[]];
 type BlockSignerFieldJSON = Account | string | MultisigSignerFieldJSON;
 type BlockASN1SchemaWithoutSignature = BlockV1ASN1WithoutSignature | {
     type: 'context';
@@ -135,16 +148,14 @@ type BlockASN1SchemaWithoutSignature = BlockV1ASN1WithoutSignature | {
     value: 1;
     contains: BlockV2ASN1WithoutSignature;
 };
-type MultisigSignerField = [MultisigAddress, (MultisigSignerField | Account)[]];
 type BlockSignerField = Account | [MultisigAddress, BlockSignerField[]];
 type BlockSignatureField = [BlockSignature, ...BlockSignature[]];
 /**
  * Block:  An item which contains a number of operations (transactions) which
  * originated from an account at a particular instant
  */
-export declare class Block implements Omit<BlockV2Canonical, 'version'> {
+declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> implements Omit<BlockV2Canonical, 'version' | 'signatures'> {
     #private;
-    static isInstance: (obj: any, strict?: boolean) => obj is Block;
     static readonly Hash: typeof BlockHash;
     static readonly OperationType: typeof Operations.OperationType;
     static readonly Operation: {
@@ -172,35 +183,176 @@ export declare class Block implements Omit<BlockV2Canonical, 'version'> {
     readonly network: NetworkID;
     readonly subnet: SubnetID | undefined;
     readonly signer: BlockSignerField;
-    readonly signatures: BlockSignatureField;
-    get principal(): Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1> | MultisigAddress;
+    readonly signatures: HasSignature extends true ? BlockSignatureField : null;
+    get principal(): MultisigAddress | Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+    protected static getSortedRequiredSigners(input: BlockSignerField): Account[];
     readonly $opening: boolean;
-    static fromUnsignedJSON(input: BlockV1UnsignedCanonical | BlockV2UnsignedCanonical): Promise<Block>;
-    static isValidJSON<Version extends 1 | 2>(block: unknown, version?: Version): block is ({
+    protected static isValidJSONSignedOrUnsigned<AssertSignatureField extends boolean, Version extends 1 | 2>(assertSignatureIncluded: AssertSignatureField, block: unknown, version?: Version): block is AssertSignatureField extends true ? ({
         1: BlockV1JSON;
         2: BlockV2JSON;
+    }[Version]) : ({
+        1: BlockV1JSONOptionalSigned;
+        2: BlockV2JSONOptionalSigned;
     }[Version]);
-    constructor(input: Buffer | ArrayBuffer | BlockJSON | BlockJSONOutput | BlockJSONOutputSerialized | Block | string);
+    constructor(input: Buffer | ArrayBuffer | BlockJSON | BlockJSONOptionalSigned | BlockJSONOutput | BlockJSONOutputSerialized | UnsignedBlock | Block | string, hasSignature: HasSignature);
     static getAccountOpeningHash(account: GenericAccount): BlockHash;
-    toBytes(includeSignatures?: boolean, useCached?: boolean): ArrayBuffer;
+    toBytes(includeSignatures?: HasSignature): ArrayBuffer;
     protected static getV1ASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical): BlockV1ASN1WithoutSignature;
     protected static getV2ASN1ContainerWithoutSignature(input: BlockV2UnsignedCanonical | BlockV2Canonical): BlockV2ASN1WithoutSignature;
-    protected static getASN1ContainerWithoutSignature(input: BlockV1UnsignedCanonical | BlockV1Canonical | BlockV2UnsignedCanonical | BlockV2Canonical): BlockASN1SchemaWithoutSignature;
+    protected static getASN1ContainerWithoutSignature(input: Omit<BlockV1UnsignedCanonical, 'signature'> | Omit<BlockV2UnsignedCanonical, 'signatures'>): BlockASN1SchemaWithoutSignature;
     toJSON(options?: ToJSONSerializableOptions): {
-        $binary?: string;
-        signature?: string;
-        signatures?: string[];
+        $binary?: string | undefined;
+        signature?: string | undefined;
+        signatures?: string[] | undefined;
         version: 1 | 2;
         idempotent: string | undefined;
-        date: Date;
-        previous: BlockHash;
-        account: GenericAccount;
+        date: string;
+        previous: BlockHashString;
+        account: import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
         purpose: BlockPurpose;
-        signer: Account | [MultisigAddress, any[]];
-        network: bigint;
-        subnet: bigint | undefined;
-        operations: Operations.ExportedJSONOperation[];
-        $hash: BlockHash;
+        signer: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [never, never[]])[]])[]])[]])[]];
+        network: string;
+        subnet: string | undefined;
+        operations: ({
+            type: Operations.OperationType.SEND;
+            to: string;
+            amount: string;
+            token: import("../account").TokenPublicKeyString;
+            external?: string | undefined;
+        } | {
+            type: Operations.OperationType.SET_REP;
+            to: string;
+        } | {
+            type: Operations.OperationType.SET_INFO;
+            name: string;
+            description: string;
+            metadata: string;
+            defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
+        } | {
+            type: Operations.OperationType.MODIFY_PERMISSIONS;
+            principal: string;
+            method: AdjustMethod;
+            permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
+            target?: string | undefined;
+        } | {
+            type: Operations.OperationType.CREATE_IDENTIFIER;
+            identifier: string;
+            createArguments?: {
+                type: AccountKeyAlgorithm.MULTISIG;
+                signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
+                quorum: string;
+            } | {
+                type: AccountKeyAlgorithm.MULTISIG;
+                signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
+                quorum: string;
+            } | undefined;
+        } | {
+            type: Operations.OperationType.TOKEN_ADMIN_SUPPLY;
+            amount: string;
+            method: AdjustMethod.ADD | AdjustMethod.SUBTRACT;
+        } | {
+            type: Operations.OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
+            token: import("../account").TokenPublicKeyString;
+            amount: string;
+            method: AdjustMethod;
+        } | {
+            type: Operations.OperationType.RECEIVE;
+            amount: string;
+            token: import("../account").TokenPublicKeyString;
+            from: string;
+            forward?: string | undefined;
+            exact?: boolean | undefined;
+        } | {
+            type: Operations.OperationType.MANAGE_CERTIFICATE;
+            certificateOrHash: string | (string & {
+                readonly __certificateHash: never;
+            }) | {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
+                baseExtensions: {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    keyUsage?: {
+                        digitalSignature?: boolean | undefined;
+                        nonRepudiation?: boolean | undefined;
+                        keyEncipherment?: boolean | undefined;
+                        dataEncipherment?: boolean | undefined;
+                        keyAgreement?: boolean | undefined;
+                        keyCertSign?: boolean | undefined;
+                        cRLSign?: boolean | undefined;
+                        encipherOnly?: boolean | undefined;
+                        decipherOnly?: boolean | undefined;
+                    } | undefined;
+                    subjectKeyIdentifier?: string | undefined;
+                    authorityKeyIdentifier?: {
+                        type: "context";
+                        value: 0;
+                        contains: string;
+                    } | undefined;
+                } | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            } | {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
+                baseExtensions: {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    keyUsage?: {
+                        digitalSignature?: boolean | undefined;
+                        nonRepudiation?: boolean | undefined;
+                        keyEncipherment?: boolean | undefined;
+                        dataEncipherment?: boolean | undefined;
+                        keyAgreement?: boolean | undefined;
+                        keyCertSign?: boolean | undefined;
+                        cRLSign?: boolean | undefined;
+                        encipherOnly?: boolean | undefined;
+                        decipherOnly?: boolean | undefined;
+                    } | undefined;
+                    subjectKeyIdentifier?: string | undefined;
+                    authorityKeyIdentifier?: {
+                        type: "context";
+                        value: 0;
+                        contains: string;
+                    } | undefined;
+                } | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            };
+            intermediateCertificates?: string | {
+                certificates: string[];
+            } | null | undefined;
+            method: Exclude<AdjustMethod, AdjustMethod.SET>;
+        })[];
+        $hash: BlockHashString;
         $opening: boolean;
     };
     /**
@@ -212,6 +364,26 @@ export declare class Block implements Omit<BlockV2Canonical, 'version'> {
      *           signature (which isn't signed)
      */
     get hash(): BlockHash;
+}
+export declare class UnsignedBlock extends PossiblyUnsignedBlock<false> implements Omit<BlockV2Canonical, 'version' | 'signatures'> {
+    static isInstance: (obj: any, strict?: boolean) => obj is UnsignedBlock;
+    constructor(input: ConstructorParameters<typeof PossiblyUnsignedBlock>[0]);
+    static isValidJSON<Version extends 1 | 2>(block: unknown, version?: Version): block is ({
+        1: Omit<BlockV1JSON, 'signature'>;
+        2: Omit<BlockV2JSON, 'signatures'>;
+    }[Version]);
+    static fromUnsignedJSON(input: BlockV1UnsignedCanonical | BlockV2UnsignedCanonical): Promise<UnsignedBlock>;
+    seal(): Promise<Block>;
+}
+export declare class Block extends PossiblyUnsignedBlock<true> implements Omit<BlockV2Canonical, 'version'> {
+    static isInstance: (obj: any, strict?: boolean) => obj is Block;
+    constructor(input: ConstructorParameters<typeof PossiblyUnsignedBlock>[0]);
+    static isValidJSON<Version extends 1 | 2>(block: unknown, version?: Version): block is ({
+        1: BlockV1JSON;
+        2: BlockV2JSON;
+    }[Version]);
+    static fromUnsignedJSON(input: Omit<BlockV1UnsignedCanonical, 'signature'> | Omit<BlockV2UnsignedCanonical, 'signatures'>): Promise<Block>;
+    getUnsignedBlock(): UnsignedBlock;
 }
 export declare class BlockBuilder {
     #private;
@@ -235,34 +407,157 @@ export declare class BlockBuilder {
     protected get currentWIP(): BlockJSONIncomplete;
     protected get currentBlockSealed(): Block;
     toJSON(opts?: ToJSONSerializableOptions): {
-        $binary?: string;
-        signature?: string;
-        signatures?: string[];
-        version: 1 | 2;
-        idempotent: string | undefined;
-        date: Date;
-        previous: BlockHash;
-        account: GenericAccount;
-        purpose: BlockPurpose;
-        signer: Account | [MultisigAddress, any[]];
-        network: bigint;
-        subnet: bigint | undefined;
-        operations: Operations.ExportedJSONOperation[];
-        $hash: BlockHash;
-        $opening: boolean;
-    } | {
         version: number | undefined;
         idempotent: string | undefined;
-        date: Date | undefined;
-        previous: BlockHash | undefined;
-        account: GenericAccount | undefined;
-        signer: BlockSignerFieldJSON | undefined;
-        network: bigint | undefined;
-        subnet: bigint | undefined;
-        operations: Operations.BlockOperations[] | undefined;
+        date: string | undefined;
+        previous: BlockHashString | undefined;
+        account: import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | undefined;
+        signer: string | [string, (string | [string, (string | [string, (string | [string, (string | [string, never[]])[]])[]])[]])[]] | undefined;
+        network: string | undefined;
+        subnet: string | undefined;
+        operations: ({
+            type: Operations.OperationType.SEND;
+            to: string;
+            amount: string;
+            token: import("../account").TokenPublicKeyString;
+            external?: string | undefined;
+        } | {
+            type: Operations.OperationType.SET_REP;
+            to: string;
+        } | {
+            type: Operations.OperationType.SET_INFO;
+            name: string;
+            description: string;
+            metadata: string;
+            defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
+        } | {
+            type: Operations.OperationType.MODIFY_PERMISSIONS;
+            principal: string;
+            method: AdjustMethod;
+            permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
+            target?: string | undefined;
+        } | {
+            type: Operations.OperationType.CREATE_IDENTIFIER;
+            identifier: string;
+            createArguments?: {
+                type: AccountKeyAlgorithm.MULTISIG;
+                signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
+                quorum: string;
+            } | {
+                type: AccountKeyAlgorithm.MULTISIG;
+                signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
+                quorum: string;
+            } | undefined;
+        } | {
+            type: Operations.OperationType.TOKEN_ADMIN_SUPPLY;
+            amount: string;
+            method: AdjustMethod.ADD | AdjustMethod.SUBTRACT;
+        } | {
+            type: Operations.OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
+            token: import("../account").TokenPublicKeyString;
+            amount: string;
+            method: AdjustMethod;
+        } | {
+            type: Operations.OperationType.RECEIVE;
+            amount: string;
+            token: import("../account").TokenPublicKeyString;
+            from: string;
+            forward?: string | undefined;
+            exact?: boolean | undefined;
+        } | {
+            type: Operations.OperationType.MANAGE_CERTIFICATE;
+            certificateOrHash: string | (string & {
+                readonly __certificateHash: never;
+            }) | {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
+                baseExtensions: {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    keyUsage?: {
+                        digitalSignature?: boolean | undefined;
+                        nonRepudiation?: boolean | undefined;
+                        keyEncipherment?: boolean | undefined;
+                        dataEncipherment?: boolean | undefined;
+                        keyAgreement?: boolean | undefined;
+                        keyCertSign?: boolean | undefined;
+                        cRLSign?: boolean | undefined;
+                        encipherOnly?: boolean | undefined;
+                        decipherOnly?: boolean | undefined;
+                    } | undefined;
+                    subjectKeyIdentifier?: string | undefined;
+                    authorityKeyIdentifier?: {
+                        type: "context";
+                        value: 0;
+                        contains: string;
+                    } | undefined;
+                } | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            } | {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
+                baseExtensions: {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    keyUsage?: {
+                        digitalSignature?: boolean | undefined;
+                        nonRepudiation?: boolean | undefined;
+                        keyEncipherment?: boolean | undefined;
+                        dataEncipherment?: boolean | undefined;
+                        keyAgreement?: boolean | undefined;
+                        keyCertSign?: boolean | undefined;
+                        cRLSign?: boolean | undefined;
+                        encipherOnly?: boolean | undefined;
+                        decipherOnly?: boolean | undefined;
+                    } | undefined;
+                    subjectKeyIdentifier?: string | undefined;
+                    authorityKeyIdentifier?: {
+                        type: "context";
+                        value: 0;
+                        contains: string;
+                    } | undefined;
+                } | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            };
+            intermediateCertificates?: string | {
+                certificates: string[];
+            } | null | undefined;
+            method: Exclude<AdjustMethod, AdjustMethod.SET>;
+        })[] | undefined;
         purpose: BlockPurpose;
         $opening: boolean | undefined;
     };
+    getUnsignedBlock(): Promise<UnsignedBlock>;
     seal(): Promise<Block>;
     unseal(): BlockJSONIncomplete;
     get sealed(): boolean;

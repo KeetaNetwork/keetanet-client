@@ -19,6 +19,9 @@ export type LogEntryFilled = Omit<LogEntry, 'options'> & {
 export interface LogTarget {
     readonly logLevel: LogTargetLevel;
     readonly filter: RegExp | null;
+    readonly context?: {
+        [key: string]: string;
+    };
     emitLogs(logs: LogEntry[]): Promise<void>;
 }
 export interface Logger {

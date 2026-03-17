@@ -2,11 +2,12 @@ import type { GenericAccount, IdentifierKeyAlgorithm } from '../lib/account';
 import { Account, AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
-import { type BlockJSONOperations } from '../lib/block/operations';
+import type { IdentifierCreateArguments, BlockJSONOperations } from '../lib/block/operations';
 import type { AccountInfo } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import type { UserClient, Client } from '.';
 import { Permissions } from '../lib/permissions';
+import type { ToJSONSerializable } from '../lib/utils/conversion';
 import { Certificate, CertificateBundle } from '../lib/utils/certificate';
 import type { VoteStaple } from '../lib/vote';
 type GetPrevFunction = (acct: GenericAccount | string) => Promise<BlockHash | string | null | undefined>;
@@ -53,6 +54,7 @@ type PerAccount<T> = {
 interface IdentifierCreateRequest {
     type: IdentifierKeyAlgorithm;
     toResolve?: PendingAccount;
+    createArguments?: IdentifierCreateArguments;
 }
 type AccountOrPending<Type extends AccountKeyAlgorithm = AccountKeyAlgorithm> = Account<Type> | PendingAccount<Type>;
 type TokenOrPending = AccountOrPending<AccountKeyAlgorithm.TOKEN>;
@@ -108,6 +110,7 @@ export interface PendingOperationsJSON {
     }[];
     createIdentifiers?: {
         type: IdentifierKeyAlgorithm;
+        createArguments?: ToJSONSerializable<IdentifierCreateArguments>;
     }[];
     tokenSupply?: string;
     adminModifyBalance?: {
@@ -159,7 +162,7 @@ export declare class PendingAccount<AccountType extends AccountKeyAlgorithm = Ac
     static GetValue<T extends AccountKeyAlgorithm>(data: AccountOrPending<T>): Account<T>;
     set account(account: Account<AccountType>);
     get account(): Account<AccountType>;
-    toJSON(): Account<AccountType>;
+    toJSON(): import("../lib/account").PublicKeyStringMapping[AccountType];
 }
 type AllPending = [AccountSignerOptions, PendingOperations][];
 export declare class UserClientBuilder {
@@ -186,7 +189,30 @@ export declare class UserClientBuilder {
     modifyTokenBalance(token: TokenOrPending, amount: bigint, isSet?: boolean, options?: BuilderBlockOptions): void;
     setInfo(info: AccountInfo, options?: BuilderBlockOptions): void;
     setRep(to: Account, options?: BuilderBlockOptions): void;
-    generateIdentifier<Algo extends IdentifierKeyAlgorithm>(type: Algo, options?: BuilderBlockOptions): PendingAccount<Algo>;
+    /**
+     * Create a new identifier for the given arguments and add to the pending operations
+     *
+     * @param toCreate The arguments used to create the identifier (ex: multisig configuration)
+     * @param options The options to use for the request
+     * @return The identifier that was generated
+     */
+    generateIdentifier<CreateArguments extends IdentifierCreateArguments>(toCreate: CreateArguments, options?: BuilderBlockOptions): PendingAccount<CreateArguments['type']>;
+    /**
+     * Create a new identifier with the given type and add to the pending operations
+     *
+     * @param type The type of identifier to generate
+     * @param options The options to use for the request
+     * @return The identifier that was generated
+     */
+    generateIdentifier<CreateKeyType extends Exclude<IdentifierKeyAlgorithm, IdentifierCreateArguments['type']>>(type: CreateKeyType, options?: BuilderBlockOptions): PendingAccount<CreateKeyType>;
+    /**
+     * Create a new identifier and add to the pending operations
+     *
+     * @param toCreate The type of identifier or the arguments to create an identifier
+     * @param options The options to use for the request
+     * @return The identifier that was generated
+     */
+    generateIdentifier(toCreate: Exclude<IdentifierKeyAlgorithm, IdentifierCreateArguments['type']> | IdentifierCreateArguments, options?: BuilderBlockOptions): PendingAccount<IdentifierKeyAlgorithm>;
     get blocks(): Block[];
     get rendered(): boolean;
 }

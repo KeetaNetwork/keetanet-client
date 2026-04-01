@@ -1,10 +1,10 @@
 import type { VoteStaple } from '../vote';
 import type Vote from '../vote';
 import type { GenericAccount, TokenAddress } from '../account';
-import Account from '../account';
+import Account, { AccountKeyAlgorithm } from '../account';
 import { Block, BlockHash } from '../block';
 import type { LedgerConfig, LedgerSelector, LedgerStorage, LedgerStorageAPI } from '.';
-import type { AccountInfo, ACLRow, ACLEntry, ACLUpdate } from './types';
+import type { AccountInfo, ACLRow, ACLEntry, ACLUpdate, AccountInfoForType } from './types';
 import type Node from '../node';
 import type Stats from '../stats';
 import type { BaseSet, ExternalSet } from '../permissions';
@@ -129,7 +129,7 @@ export declare abstract class LedgerStorageBase {
     preAdjust(input: VoteStaple, mayDefer?: boolean, transaction?: any): Promise<{
         [hash: string]: bigint;
     }>;
-    _formatAccountInfoFromRow(account: GenericAccount, row?: AccountInfoUnparsedRow | undefined): AccountInfo;
+    _formatAccountInfoFromRow<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T>, row: AccountInfoUnparsedRow | undefined): AccountInfoForType<T>;
     _validateAccountInfoKeys(account: GenericAccount, info: Partial<AccountInfo>): void;
     /**
      * @param moment - The date to use as the base for the timestamp.

@@ -113123,6 +113123,10 @@ function client_assertNever(value) {
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   throw new Error(`Unexpected value: ${value}`);
 }
+
+/**
+ * Asserts that the provided type is never.
+ */
 ;// ./src/lib/utils/asn1.ts
 /* provided dependency */ var client_asn1_process = __webpack_require__(5606);
 /* provided dependency */ var client_asn1_Buffer = __webpack_require__(8287)["Buffer"];
@@ -115271,6 +115275,9 @@ function client_convertSingleValue(value) {
   return checkPrefix(out, prefix, opts);
 }
 function client_toJSONSerializable(data, opts) {
+  if (data === undefined) {
+    throw new Error('undefined is not JSON serializable');
+  }
   return JSON.parse(JSON.stringify(client_convertSingleValue(data, opts)));
 }
 function client_conversion_objectToBuffer(data) {
@@ -118054,7 +118061,11 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     if (getAccountInfoPromises[accountPubKey] === undefined) {
       getAccountInfoPromises[accountPubKey] = storageProvider.getAccountInfo(transaction, account);
     }
-    return await getAccountInfoPromises[accountPubKey];
+
+    // We know this is correct as we are accessing the object via the account's public key
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const resolved = await getAccountInfoPromises[accountPubKey];
+    return resolved;
   };
   const getPermissionPromises = {};
   const getPermissions = async (account, entityList) => {
@@ -118552,7 +118563,8 @@ class client_LedgerStorageBase {
   _formatAccountInfoFromRow(account) {
     var _row$name, _row$description, _row$metadata;
     let row = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const ret = {
+    const shared = {
+      account: account,
       name: (_row$name = row.name) !== null && _row$name !== void 0 ? _row$name : '',
       description: (_row$description = row.description) !== null && _row$description !== void 0 ? _row$description : '',
       metadata: (_row$metadata = row.metadata) !== null && _row$metadata !== void 0 ? _row$metadata : ''
@@ -118567,16 +118579,46 @@ class client_LedgerStorageBase {
       if (!Permissions.ExternalSet.isInstance(externalSet)) {
         externalSet = BigInt(externalSet);
       }
-      ret.defaultPermission = new Permissions(baseSet, externalSet);
+      const identifierShared = {
+        ...shared,
+        defaultPermission: new Permissions(baseSet, externalSet)
+      };
+      if (account.isToken()) {
+        var _row$supply;
+        return {
+          ...identifierShared,
+          account: account,
+          supply: BigInt((_row$supply = row.supply) !== null && _row$supply !== void 0 ? _row$supply : 0)
+        };
+      } else if (account.isMultisig()) {
+        return {
+          ...identifierShared,
+          account: account,
+          multisigQuorum: row.multisigQuorum ? BigInt(row.multisigQuorum) : null
+        };
+      } else if (account.isNetwork()) {
+        return {
+          ...identifierShared,
+          account
+        };
+      } else if (account.isStorage()) {
+        return {
+          ...identifierShared,
+          account
+        };
+      } else {
+        throw new Error('Unsupported identifier account type for AccountInfo');
+      }
+    } else if (account.isAccount()) {
+      // We know that this type is correct, the only way to avoid this assertion is to have an if statement for every single account type which would be unwieldy
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      return {
+        ...shared,
+        account: account
+      };
+    } else {
+      throw new Error('Unsupported account type for AccountInfo');
     }
-    if (account.isToken()) {
-      var _row$supply;
-      ret.supply = BigInt((_row$supply = row.supply) !== null && _row$supply !== void 0 ? _row$supply : 0);
-    }
-    if (account.isMultisig() && row.multisigQuorum !== undefined) {
-      ret.multisigQuorum = BigInt(row.multisigQuorum);
-    }
-    return ret;
   }
   _validateAccountInfoKeys(account, info) {
     const validKeys = ['name', 'description', 'metadata'];
@@ -118591,6 +118633,7 @@ class client_LedgerStorageBase {
     }
     const keys = Object.keys(info);
     const foundBannedKey = keys.find(function (key) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       return validKeys.includes(key) === false;
     });
     if (foundBannedKey !== undefined) {
@@ -118731,6 +118774,30 @@ function client_operationTypeToNumber(str) {
   }
   return type;
 }
+function client_makeEncodeDecodePermission(emptyValue) {
+  return {
+    encode: data => {
+      if (!data) {
+        return emptyValue;
+      }
+      const encoded = client_permissions_Permissions.FromAcceptedTypes(data);
+      return [encoded.base.bigint, encoded.external.bigint];
+    },
+    decode: data => {
+      if (!data) {
+        return emptyValue;
+      }
+      if (!Array.isArray(data) || data.length !== 2) {
+        throw new Error('Invalid permissions data');
+      }
+      if (typeof data[0] !== 'bigint' || typeof data[1] !== 'bigint') {
+        throw new Error('Invalid permissions data types');
+      }
+      return new client_permissions_Permissions(data[0], data[1]);
+    }
+  };
+}
+
 /**
  * Schema for each operation as well as names of each field within the block operations
  */
@@ -118797,7 +118864,8 @@ const client_BlockOperationASN1SchemaBase = {
     name: 'defaultPermission',
     schema: {
       optional: [client_ValidateASN1.IsInteger, client_ValidateASN1.IsInteger]
-    }
+    },
+    ...client_makeEncodeDecodePermission(undefined)
   }],
   'MODIFY_PERMISSIONS': [{
     name: 'principal',
@@ -118809,7 +118877,8 @@ const client_BlockOperationASN1SchemaBase = {
     name: 'permissions',
     schema: {
       choice: [client_ValidateASN1.IsNull, [client_ValidateASN1.IsInteger, client_ValidateASN1.IsInteger]]
-    }
+    },
+    ...client_makeEncodeDecodePermission(null)
   }, {
     name: 'target',
     schema: {
@@ -118831,6 +118900,56 @@ const client_BlockOperationASN1SchemaBase = {
             sequenceOf: client_ValidateASN1.IsOctetString
           }, client_ValidateASN1.IsInteger]
         }]
+      }
+    },
+    encode: data => {
+      if (!data) {
+        return null;
+      }
+      if (data.type === client_AccountKeyAlgorithm.MULTISIG) {
+        return {
+          type: 'context',
+          kind: 'explicit',
+          value: data.type,
+          contains: [data.signers.map(function (signer) {
+            return signer.publicKeyAndType;
+          }), data.quorum]
+        };
+      } else {
+        throw new Error(`Unrecognized createArguments type for CREATE_IDENTIFIER operation`);
+      }
+    },
+    decode: data => {
+      if (!data) {
+        return undefined;
+      }
+      if (!client_ASN1CheckUtilities.isASN1ContextTag(data, 'explicit')) {
+        throw new Error('Invalid createArgs type for CREATE_IDENTIFIER operation');
+      }
+      if (data.value === client_AccountKeyAlgorithm.MULTISIG) {
+        if (!Array.isArray(data.contains) || data.contains.length !== 2) {
+          throw new Error('Invalid createArgs container');
+        }
+        if (!Array.isArray(data.contains[0]) || typeof data.contains[1] !== 'bigint') {
+          throw new Error('Invalid createArgs container');
+        }
+        return {
+          type: data.value,
+          signers: data.contains[0].map(function (value) {
+            if (!client_operations_Buffer.isBuffer(value)) {
+              throw new Error(`Invalid signer value, expected Buffer, got ${typeof value}`);
+            }
+            const account = client_lib_account.fromPublicKeyAndType(value);
+            if (account.isAccount() || account.isMultisig()) {
+              return account;
+            } else {
+              throw new Error('Signer for multisig must be an account or another multisig');
+            }
+          }),
+          quorum: BigInt(data.contains[1])
+        };
+      } else {
+        throw new Error('unrecognized type for multisig create arguments');
       }
     }
   }],
@@ -118856,7 +118975,26 @@ const client_BlockOperationASN1SchemaBase = {
     schema: client_ValidateASN1.IsInteger
   }, {
     name: 'certificateOrHash',
-    schema: client_ValidateASN1.IsOctetString
+    schema: client_ValidateASN1.IsOctetString,
+    encode: data => {
+      if (src_client_Certificate.isCertificate(data)) {
+        return client_operations_Buffer.from(data.toDER());
+      } else if (src_client_CertificateHash.isInstance(data)) {
+        return data.getBuffer();
+      } else {
+        throw new Error('Invalid certificate or hash data type');
+      }
+    },
+    decode: data => {
+      if (!client_isBuffer(data)) {
+        throw new Error('Invalid certificate or hash data type');
+      }
+      if (data.length === 32) {
+        return new src_client_CertificateHash(data.toString('hex'));
+      } else {
+        return new src_client_Certificate(data);
+      }
+    }
   }, {
     name: 'intermediateCertificates',
     schema: {
@@ -118865,6 +119003,28 @@ const client_BlockOperationASN1SchemaBase = {
           sequenceOf: client_ValidateASN1.IsOctetString
         }]
       }
+    },
+    decode: data => {
+      if (!data) {
+        return null;
+      }
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid intermediate certificates data');
+      }
+      return new src_client_CertificateBundle(data.map(function (certificate) {
+        if (!client_isBuffer(certificate)) {
+          throw new Error('Invalid intermediate certificate data type');
+        }
+        return new src_client_Certificate(certificate);
+      }));
+    },
+    encode: data => {
+      if (!data) {
+        return null;
+      }
+      return data.getCertificates().map(function (certificate) {
+        return client_operations_Buffer.from(certificate.toDER());
+      });
     }
   }]
 };
@@ -119859,35 +120019,26 @@ function client_ExportBlockOperations(operations) {
   for (const entry of operations) {
     const operationContainer = [];
     const typeStr = client_operationTypeToString(entry.type);
-    const operationSchema = client_BlockOperationASN1SchemaBase[typeStr];
-    if (!typeStr || !operationSchema) {
+    const operationSchemas = client_BlockOperationASN1SchemaBase[typeStr];
+    if (!typeStr || !operationSchemas) {
       throw new Error(`Unable to serialize operation with type ${entry.type} ${client_toJSONSerializable(entry)}`);
     }
 
     // We want to be able to read any key on the operation, so we need to cast it to any
     const unTypedEntry = entry;
-    for (const {
-      name: key,
-      schema
-    } of operationSchema) {
+    for (const operationSchema of operationSchemas) {
+      const {
+        name: key,
+        schema
+      } = operationSchema;
       let valueToWrite = unTypedEntry[key];
       if (valueToWrite === undefined) {
         if (typeof schema === 'object' && schema && !('optional' in schema)) {
           throw new Error(`Key ${key} for operation ${typeStr} is not optional but undefined value provided`);
         }
         continue;
-      } else if (typeStr === 'CREATE_IDENTIFIER' && key === 'createArguments') {
-        // We are checking this in other places, and if this argument changes there will be many other things that break beforehand
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        const typedValue = valueToWrite;
-        valueToWrite = {
-          type: 'context',
-          kind: 'explicit',
-          value: valueToWrite.type,
-          contains: [typedValue.signers.map(function (signer) {
-            return signer.publicKeyAndType;
-          }), typedValue.quorum]
-        };
+      } else if ('encode' in operationSchema) {
+        valueToWrite = operationSchema.encode(valueToWrite);
       } else if (typeof valueToWrite === 'string') {
         valueToWrite = {
           type: 'string',
@@ -119896,16 +120047,10 @@ function client_ExportBlockOperations(operations) {
         };
       } else if (client_lib_account.isInstance(valueToWrite)) {
         valueToWrite = valueToWrite.publicKeyAndType;
-      } else if (client_permissions_Permissions.isInstance(valueToWrite)) {
-        valueToWrite = [valueToWrite.base.bigint, valueToWrite.external.bigint];
       } else if (src_client_Certificate.isCertificate(valueToWrite)) {
         valueToWrite = client_operations_Buffer.from(valueToWrite.toDER());
       } else if (src_client_CertificateHash.isInstance(valueToWrite)) {
         valueToWrite = valueToWrite.getBuffer();
-      } else if (src_client_CertificateBundle.isInstance(valueToWrite)) {
-        valueToWrite = valueToWrite.getCertificates().map(function (certificate) {
-          return client_operations_Buffer.from(certificate.toDER());
-        });
       }
       operationContainer.push(valueToWrite);
     }
@@ -119933,72 +120078,29 @@ function client_ImportOperationsASN1(input, network) {
       throw new Error(`Found entry which is not a Sequence ${typeof entry}`);
     }
     const typeStr = client_operationTypeToString(type);
-    const operationSchema = client_BlockOperationASN1SchemaBase[typeStr];
-    if (!operationSchema) {
+    const operationSchemas = client_BlockOperationASN1SchemaBase[typeStr];
+    if (!operationSchemas) {
       throw new Error(`Found valid operation ${typeStr} with invalid keys`);
     }
     operation.type = type;
     let keyIndex = -1;
-    for (const {
-      name: key
-    } of operationSchema) {
+    for (const operationSchema of operationSchemas) {
+      const key = operationSchema.name;
       keyIndex++;
       const keyValueIn = entry[keyIndex];
       let keyValueOut = undefined;
       if (keyValueIn === undefined) {
         break;
+      } else if ('decode' in operationSchema) {
+        keyValueOut = operationSchema.decode(keyValueIn);
       } else if (['bigint', 'string', 'boolean'].includes(typeof keyValueIn)) {
         keyValueOut = keyValueIn;
       } else if (typeof keyValueIn === 'number') {
         keyValueOut = client_ASN1IntegerToBigInt(keyValueIn);
       } else if (keyValueIn === null) {
         keyValueOut = null;
-      } else if (Array.isArray(keyValueIn) && key.toLowerCase().includes('permission')) {
-        // We are parsing a Permission
-        const [base, external] = keyValueIn;
-        const newKeyValue = new client_permissions_Permissions(base, external);
-        newKeyValue.validate(network);
-        keyValueOut = newKeyValue;
-      } else if (key === 'createArguments' && typeStr === 'CREATE_IDENTIFIER') {
-        if (!client_ASN1CheckUtilities.isASN1ContextTag(keyValueIn, 'explicit')) {
-          throw new Error('Invalid createArgs type for CREATE_IDENTIFIER operation');
-        }
-        if (keyValueIn.value !== client_AccountKeyAlgorithm.MULTISIG) {
-          throw new Error('unrecognized type for multisig create arguments');
-        }
-        if (!Array.isArray(keyValueIn.contains) || keyValueIn.contains.length !== 2) {
-          throw new Error('Invalid createArgs container');
-        }
-        if (!Array.isArray(keyValueIn.contains[0])) {
-          throw new Error('Invalid createArgs container');
-        }
-        keyValueOut = {
-          type: keyValueIn.value,
-          signers: keyValueIn.contains[0].map(function (value) {
-            if (!client_operations_Buffer.isBuffer(value)) {
-              throw new Error(`Invalid signer value, expected Buffer, got ${typeof value}`);
-            }
-            return client_lib_account.fromPublicKeyAndType(value);
-          }),
-          quorum: keyValueIn.contains[1]
-        };
-      } else if (Array.isArray(keyValueIn) && key === 'intermediateCertificates') {
-        keyValueOut = new src_client_CertificateBundle(keyValueIn.map(function (certificate) {
-          return new src_client_Certificate(certificate);
-        }));
       } else if (client_isBuffer(keyValueIn)) {
-        if (type === client_OperationType.MANAGE_CERTIFICATE && key === 'certificateOrHash') {
-          const method = client_toAdjustMethod(operation['method']);
-          if (method === client_AdjustMethod.SUBTRACT) {
-            keyValueOut = new src_client_CertificateHash(keyValueIn);
-          } else if (method === client_AdjustMethod.ADD) {
-            keyValueOut = new src_client_Certificate(keyValueIn);
-          } else {
-            throw new Error(`Unrecognized method for MANAGE_CERTIFICATE operation: ${method}`);
-          }
-        } else {
-          keyValueOut = client_lib_account.fromPublicKeyAndType(keyValueIn);
-        }
+        keyValueOut = client_lib_account.fromPublicKeyAndType(keyValueIn);
       } else if (typeof keyValueIn === 'object' && keyValueIn !== null) {
         if ('type' in keyValueIn && 'kind' in keyValueIn && 'value' in keyValueIn) {
           if (keyValueIn.type === 'string' && keyValueIn.kind === 'utf8') {
@@ -120943,7 +121045,7 @@ function client_validateRecalculatedBytes() {
   if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
     const existingBytesHash = client_block_Buffer.from(client_hash_Hash(existingBytesBuffer)).toString('hex').toUpperCase();
     const recalculatedBytesHash = client_block_Buffer.from(client_hash_Hash(recalculatedBytesBuffer)).toString('hex').toUpperCase();
-    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash})`);
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash}) for block with hash ${this.hash.toString()}`);
   }
 }
 function client_validateOperationsPurpose() {
@@ -123662,7 +123764,7 @@ const client_VoteErrorCodes = [
 // Errors related to VoteStaple
 'STAPLE_INVALID_CONSTRUCTION', 'STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_COUNT', 'STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_MISSING', 'STAPLE_ALL_VOTES_MUST_HAVE_SAME_BLOCKS_ORDER', 'STAPLE_DUPLICATE_VOTE_ISSUER', 'STAPLE_PERMANENCE_MISMATCH',
 // Errors related to VoteBuilder
-'BUILDER_INVALID_CONSTRUCTION', 'BUILDER_INVALID_BLOCK_TYPE', 'BUILDER_INVALID_SERIAL', 'BUILDER_INVALID_VALID_TO_FROM',
+'BUILDER_INVALID_CONSTRUCTION', 'BUILDER_INVALID_BLOCK_TYPE', 'BUILDER_INVALID_SERIAL', 'BUILDER_INVALID_VALID_TO_FROM', 'BUILDER_INVALID_FEE',
 /**
  * Malformed ASN.1 Errors
  */
@@ -123676,7 +123778,7 @@ const client_VoteErrorCodes = [
 // Errors from the blockHashesFromVote function
 'MALFORMED_HASHES_FROM_VOTE_INVALID_INPUT', 'MALFORMED_HASHES_FROM_VOTE_INVALID_TYPE', 'MALFORMED_HASHES_FROM_VOTE_INVALID_CONTEXT_SPECIFIC', 'MALFORMED_HASHES_FROM_VOTE_DATA_NEEDS_OID', 'MALFORMED_HASHES_FROM_VOTE_DATA_HASH_DATA_MUST_BE_SEQUENCE', 'MALFORMED_HASHES_FROM_VOTE_DATA_NOT_TWO_ITEMS', 'MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_FUNC', 'MALFORMED_HASHES_FROM_VOTE_DATA_UNSUPPORTED_HASH_TYPE', 'MALFORMED_HASHES_FROM_VOTE_DATA_SECOND_MUST_BE_SEQUENCE',
 // Errors from the feesFromVote function
-'MALFORMED_FEES_AMOUNT', 'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', 'MALFORMED_FEES_IN_PERMANENT_VOTE', 'MALFORMED_FEES_PAY_TO_INVALID', 'MALFORMED_FEES_TOKEN_NOT_TOKEN',
+'MALFORMED_FEES_AMOUNT', 'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', 'MALFORMED_FEES_IN_PERMANENT_VOTE', 'MALFORMED_FEES_INVALID_QUOTE_VALUE', 'MALFORMED_FEES_MULTIPLE_FEE_EMPTY', 'MALFORMED_FEES_PAY_TO_INVALID', 'MALFORMED_FEES_TOKEN_NOT_TOKEN',
 // Fee Quote Errors
 'FEE_IS_QUOTE', 'FEE_QUOTE_MISSING_FEES', 'FEE_NOT_QUOTE', 'MALFORMED_FEES_KIND_MISSING', 'MALFORMED_FEES_QUOTE_INVALID'];
 const client_FullVoteErrorCodes = client_VoteErrorCodes.map(code => `${client_VoteErrorType}_${code}`);
@@ -123836,7 +123938,7 @@ function client_addPermissionRequirement(state, requirement) {
   }
   if (state.accounts[entityPubKey] !== undefined) {
     const entityInfo = state.accounts[entityPubKey].fields.info;
-    if (entityInfo !== undefined) {
+    if (entityInfo !== undefined && 'defaultPermission' in entityInfo) {
       const defaultPermission = entityInfo.defaultPermission;
       if (defaultPermission !== undefined) {
         if (requirement.permissions === null || defaultPermission.has(requirement.permissions)) {
@@ -123915,17 +124017,25 @@ function client_modifyBalanceInState(balanceState) {
 }
 function client_updateAccountInfoInState(state, account, info) {
   const accountPubKey = account.publicKeyString.get();
-  const toUpdate = {
+  let toUpdate = {
     name: info.name,
     description: info.description,
     metadata: info.metadata
   };
   if (account.isIdentifier()) {
-    if (info.defaultPermission !== undefined) {
-      toUpdate.defaultPermission = info.defaultPermission;
+    if ('defaultPermission' in info && info.defaultPermission !== undefined) {
+      toUpdate = {
+        ...toUpdate,
+        defaultPermission: info.defaultPermission
+      };
     }
-    if (account.isMultisig() && info.multisigQuorum !== undefined) {
-      toUpdate.multisigQuorum = info.multisigQuorum;
+    if (account.isMultisig()) {
+      if ('multisigQuorum' in info && info.multisigQuorum !== undefined) {
+        toUpdate = {
+          ...toUpdate,
+          multisigQuorum: info.multisigQuorum
+        };
+      }
     }
   } else {
     state.possibleNewAccounts.add(account);
@@ -124594,24 +124704,49 @@ class src_client_VoteHash extends src_client_BufferStorage {
 }
 client_VoteHash = src_client_VoteHash;
 client_lib_vote_defineProperty(src_client_VoteHash, "isInstance", client_checkableGenerator(client_VoteHash));
+const client_singleFeeEntrySchema = [client_ValidateASN1.IsBoolean, client_ValidateASN1.IsInteger, {
+  optional: {
+    type: 'context',
+    value: 0,
+    kind: 'implicit',
+    contains: client_ValidateASN1.IsOctetString
+  }
+}, {
+  optional: {
+    type: 'context',
+    value: 1,
+    kind: 'implicit',
+    contains: client_ValidateASN1.IsOctetString
+  }
+}];
+const client_multipleFeeEntrySchema = {
+  type: 'context',
+  value: 0,
+  kind: 'explicit',
+  contains: {
+    sequenceOf: client_singleFeeEntrySchema
+  }
+};
 const client_feeExtensionSchema = {
   type: 'context',
   value: 0,
   kind: 'explicit',
-  contains: [client_ValidateASN1.IsBoolean, client_ValidateASN1.IsInteger, {
-    optional: {
-      type: 'context',
-      value: 0,
-      kind: 'implicit',
-      contains: client_ValidateASN1.IsOctetString
-    }
-  }, {
-    optional: {
-      type: 'context',
-      value: 1,
-      kind: 'implicit',
-      contains: client_ValidateASN1.IsOctetString
-    }
+  contains: {
+    choice: [client_singleFeeEntrySchema, client_multipleFeeEntrySchema]
+  }
+};
+
+/**
+ * Exported to use in tests but not needed externally
+ * @internal
+ */
+
+const client_hashDataSchema = {
+  type: 'context',
+  value: 0,
+  kind: 'explicit',
+  contains: [client_ValidateASN1.IsOID, {
+    sequenceOf: client_ValidateASN1.IsOctetString
   }]
 };
 /**
@@ -124693,8 +124828,38 @@ function client_blockHashesFromVote(input) {
   }
   return output;
 }
+function client_parseSingleFeeEntry(feeData) {
+  const fee = {
+    amount: feeData[1]
+  };
+  if (fee.amount < 0n) {
+    throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_AMOUNT', 'internal error: fee amount cannot be negative');
+  }
+  const payToAsn1 = feeData[2];
+  if (payToAsn1 !== undefined) {
+    const payTo = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(payToAsn1.contains));
+    if (payTo.isStorage()) {
+      fee.payTo = payTo;
+    } else {
+      try {
+        fee.payTo = payTo.assertAccount();
+      } catch {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address');
+      }
+    }
+  }
+  const tokenAsn1 = feeData[3];
+  if (tokenAsn1 !== undefined) {
+    const token = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(tokenAsn1.contains));
+    if (!token.isToken()) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token');
+    }
+    fee.token = token;
+  }
+  return fee;
+}
 function client_feeFromVote(input) {
-  const feeInformationAnyJS = client_ASN1toJS(input.buffer);
+  const feeInformationAnyJS = client_ASN1toJS(client_bufferToArrayBuffer(input));
   const feeSchemaChecker = new client_ValidateASN1(client_feeExtensionSchema);
   const feeInformation = function () {
     try {
@@ -124708,35 +124873,47 @@ function client_feeFromVote(input) {
     }
   }();
   const feeData = feeInformation.contains;
-  const quote = feeData[0];
-  const retval = {
-    quote: quote,
-    fee: {
-      amount: feeData[1]
+
+  /**
+   * Detect format: check if single fee entry (array of attributes) or multiple fee format (context object)
+   * We've already validated the object against the schema so we know it's one or the other
+   */
+  if (Array.isArray(feeData)) {
+    const quote = feeData[0];
+    const fee = client_parseSingleFeeEntry(feeData);
+    return {
+      quote: quote,
+      fee: fee
+    };
+  } else {
+    // New array format - explicit sequence of fee entries
+    const multiFeeData = feeData.contains;
+    if (multiFeeData.length === 0) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_MULTIPLE_FEE_EMPTY', 'internal error: multiple fee entries must not be an empty array');
     }
-  };
-  const payToAsn1 = feeData[2];
-  if (payToAsn1 !== undefined) {
-    const payTo = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(payToAsn1.contains));
-    if (payTo.isStorage()) {
-      retval.fee.payTo = payTo;
-    } else {
-      try {
-        retval.fee.payTo = payTo.assertAccount();
-      } catch {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address');
+    const feeList = [];
+    let quote;
+    for (const entry of multiFeeData) {
+      // Schema already validated, but need to narrow the type
+      if (!Array.isArray(entry)) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', 'internal error: each fee entry must be a Sequence');
       }
+      const entryQuote = entry[0];
+      if (quote === undefined) {
+        quote = entryQuote;
+      } else if (quote !== entryQuote) {
+        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_INVALID_QUOTE_VALUE', 'internal error: all fee entries must have the same quote value');
+      }
+      feeList.push(client_parseSingleFeeEntry(entry));
     }
-  }
-  const tokenAsn1 = feeData[3];
-  if (tokenAsn1 !== undefined) {
-    const token = client_lib_account.fromPublicKeyAndType(client_vote_Buffer.from(tokenAsn1.contains));
-    if (!token.isToken()) {
-      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token');
+    if (quote === undefined) {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_INVALID_QUOTE_VALUE', 'internal error: quote value should not be undefined');
     }
-    retval.fee.token = token;
+    return {
+      quote: quote,
+      fee: feeList
+    };
   }
-  return retval;
 }
 
 /**
@@ -124900,14 +125077,22 @@ class src_client_VoteLikeBase {
       if (fee === undefined) {
         return false;
       }
-      if (fee['amount'] === undefined) {
+      // Handle both single fee and list of fee choices
+      const feeList = Array.isArray(fee) ? fee : [fee];
+      // Reject empty fee arrays to avoid downstream encoding/decoding issues
+      if (feeList.length === 0) {
         return false;
       }
-      if ('payTo' in fee && fee['payTo'] === undefined) {
-        return false;
-      }
-      if ('token' in fee && fee['token'] === undefined) {
-        return false;
+      for (const feeEntry of feeList) {
+        if (feeEntry['amount'] === undefined) {
+          return false;
+        }
+        if ('payTo' in feeEntry && feeEntry['payTo'] === undefined) {
+          return false;
+        }
+        if ('token' in feeEntry && feeEntry['token'] === undefined) {
+          return false;
+        }
       }
     }
     if ('quote' in voteJSON) {
@@ -124920,7 +125105,7 @@ class src_client_VoteLikeBase {
   static fromJSON(voteJSON) {
     var _voteJSON$quote;
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    if (!src_client_VoteLikeBase.isValidJSON(voteJSON)) {
+    if (!this.isValidJSON(voteJSON)) {
       throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION_JSON', 'Cannot construct vote, it is not a valid vote JSON object');
     }
     const issuer = client_lib_account.toAccount(voteJSON.issuer);
@@ -124995,8 +125180,8 @@ class src_client_VoteLikeBase {
       vote = client_bufferToArrayBuffer(vote);
     }
     if (!client_util.types.isArrayBuffer(vote)) {
-      if (src_client_VoteLikeBase.isValidJSON(vote)) {
-        vote = src_client_VoteLikeBase.fromJSON(vote).toBytes();
+      if (this.getClass().isValidJSON(vote)) {
+        vote = this.getClass().fromJSON(vote).toBytes();
       } else {
         throw new src_client_KeetaNetVoteError('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in VoteLikeBase');
       }
@@ -125115,14 +125300,14 @@ class src_client_VoteLikeBase {
      * Votes must not be expired
      */
     const expirationCheckMomentISO = new Date(expirationCheckMoment).toISOString();
-    if (expirationCheckMoment < this.validityFrom.valueOf() - src_client_VoteLikeBase.allowedSlop) {
+    if (expirationCheckMoment < this.validityFrom.valueOf() - this.getClass().allowedSlop) {
       throw new src_client_KeetaNetVoteError('VOTE_MOMENT_BEFORE_VALIDITY_FROM', `Vote was issued in the future (issued on ${validFrom.toISOString()}; moment: ${expirationCheckMomentISO})`);
     }
 
     /**
      * If the vote is forever viable, it is a permanent vote
      */
-    if (this.validityTo.valueOf() > expirationCheckMoment + src_client_VoteLikeBase.permanentVoteThreshold) {
+    if (this.validityTo.valueOf() > expirationCheckMoment + this.getClass().permanentVoteThreshold) {
       this.$permanent = true;
     }
 
@@ -125397,7 +125582,7 @@ class src_client_VoteLikeBase {
     const now = this.expirationCheckMoment();
     const from = this.validityFrom.valueOf();
     const to = this.validityTo.valueOf();
-    if (now + src_client_VoteLikeBase.allowedSlop < from || now - src_client_VoteLikeBase.allowedSlop > to) {
+    if (now + this.getClass().allowedSlop < from || now - this.getClass().allowedSlop > to) {
       return true;
     }
     return false;
@@ -126053,10 +126238,12 @@ client_lib_vote_defineProperty(src_client_VoteStaple, "isInstance", client_check
 var client_account = /*#__PURE__*/new WeakMap();
 var client_blocks2 = /*#__PURE__*/new WeakMap();
 var client_fee = /*#__PURE__*/new WeakMap();
+var client_BaseVoteBuilder_brand = /*#__PURE__*/new WeakSet();
 class src_client_BaseVoteBuilder {
   constructor(account) {
     let blocks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
     let options = arguments.length > 2 ? arguments[2] : undefined;
+    client_vote_classPrivateMethodInitSpec(this, client_BaseVoteBuilder_brand);
     client_vote_classPrivateFieldInitSpec(this, client_account, void 0);
     client_vote_classPrivateFieldInitSpec(this, client_blocks2, void 0);
     client_vote_classPrivateFieldInitSpec(this, client_fee, undefined);
@@ -126089,26 +126276,21 @@ class src_client_BaseVoteBuilder {
     this.addBlocks([block]);
   }
   addFee(feeInput) {
-    const fee = {
-      amount: BigInt(feeInput.amount)
-    };
-    const payTo = client_lib_account.toAccount(feeInput.payTo);
-    if (payTo !== undefined) {
-      if (payTo.isStorage()) {
-        fee.payTo = payTo;
-      } else {
-        fee.payTo = payTo.assertAccount();
+    if (Array.isArray(feeInput)) {
+      if (feeInput.length === 0) {
+        throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_FEE', 'Fee array cannot be empty');
       }
-    }
-    const token = client_lib_account.toAccount(feeInput.token);
-    if (token !== undefined) {
-      if (token.isToken()) {
-        fee.token = token;
-      } else {
-        throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN');
+      // List of fee choices format (array)
+      const feeList = [];
+      for (const feeEntry of feeInput) {
+        feeList.push(client_vote_assertClassBrand(client_BaseVoteBuilder_brand, this, client_formatSingleFeeEntry).call(this, feeEntry));
       }
+      client_vote_classPrivateFieldSet(client_fee, this, feeList);
+    } else {
+      // Single fee
+      const fee = client_vote_assertClassBrand(client_BaseVoteBuilder_brand, this, client_formatSingleFeeEntry).call(this, feeInput);
+      client_vote_classPrivateFieldSet(client_fee, this, fee);
     }
-    client_vote_classPrivateFieldSet(client_fee, this, fee);
   }
   generateVoteData(serial, validTo, validFrom) {
     /**
@@ -126154,30 +126336,22 @@ class src_client_BaseVoteBuilder {
     }];
     let feeExtension = undefined;
     if (client_vote_classPrivateFieldGet(client_fee, this) !== undefined) {
-      var _classPrivateFieldGet3, _classPrivateFieldGet4;
-      /** Amount for this vote */
-      const feeData = [this.quote, client_vote_classPrivateFieldGet(client_fee, this).amount];
-
-      /** Account to pay the fee too */
-      const payToPublicKey = (_classPrivateFieldGet3 = client_vote_classPrivateFieldGet(client_fee, this).payTo) === null || _classPrivateFieldGet3 === void 0 ? void 0 : _classPrivateFieldGet3.publicKeyAndType;
-      if (payToPublicKey !== undefined) {
-        feeData.push({
+      let feeDataContent;
+      if (Array.isArray(client_vote_classPrivateFieldGet(client_fee, this))) {
+        // List of fee choices format (array)
+        const feeDataArray = [];
+        for (const fee of client_vote_classPrivateFieldGet(client_fee, this)) {
+          feeDataArray.push(client_vote_assertClassBrand(client_BaseVoteBuilder_brand, this, client_formatSingleFeeEntryData).call(this, fee));
+        }
+        feeDataContent = {
           type: 'context',
           value: 0,
-          kind: 'implicit',
-          contains: payToPublicKey
-        });
-      }
-
-      /** Token in which to pay the fee */
-      const tokenPublicKey = (_classPrivateFieldGet4 = client_vote_classPrivateFieldGet(client_fee, this).token) === null || _classPrivateFieldGet4 === void 0 ? void 0 : _classPrivateFieldGet4.publicKeyAndType;
-      if (tokenPublicKey !== undefined) {
-        feeData.push({
-          type: 'context',
-          value: 1,
-          kind: 'implicit',
-          contains: tokenPublicKey
-        });
+          kind: 'explicit',
+          contains: feeDataArray
+        };
+      } else {
+        // Single fee format
+        feeDataContent = client_vote_assertClassBrand(client_BaseVoteBuilder_brand, this, client_formatSingleFeeEntryData).call(this, client_vote_classPrivateFieldGet(client_fee, this));
       }
       feeExtension = [{
         type: 'oid',
@@ -126188,7 +126362,7 @@ class src_client_BaseVoteBuilder {
         type: 'context',
         value: 0,
         kind: 'explicit',
-        contains: feeData
+        contains: feeDataContent
       }).toBER(false))];
     }
 
@@ -126348,6 +126522,53 @@ class src_client_BaseVoteBuilder {
   }
 }
 client_BaseVoteBuilder = src_client_BaseVoteBuilder;
+function client_formatSingleFeeEntry(feeInput) {
+  const fee = {
+    amount: BigInt(feeInput.amount)
+  };
+  const payTo = client_lib_account.toAccount(feeInput.payTo);
+  if (payTo !== undefined) {
+    if (payTo.isStorage()) {
+      fee.payTo = payTo;
+    } else {
+      fee.payTo = payTo.assertAccount();
+    }
+  }
+  const token = client_lib_account.toAccount(feeInput.token);
+  if (token !== undefined) {
+    if (token.isToken()) {
+      fee.token = token;
+    } else {
+      throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN');
+    }
+  }
+  return fee;
+}
+function client_formatSingleFeeEntryData(feeInput) {
+  var _feeInput$payTo, _feeInput$token;
+  /** Account to pay the fee too */
+  let payToData = undefined;
+  if (((_feeInput$payTo = feeInput.payTo) === null || _feeInput$payTo === void 0 ? void 0 : _feeInput$payTo.publicKeyAndType) !== undefined) {
+    payToData = {
+      type: 'context',
+      value: 0,
+      kind: 'implicit',
+      contains: feeInput.payTo.publicKeyAndType
+    };
+  }
+
+  /** Token in which to pay the fee */
+  let tokenData = undefined;
+  if (((_feeInput$token = feeInput.token) === null || _feeInput$token === void 0 ? void 0 : _feeInput$token.publicKeyAndType) !== undefined) {
+    tokenData = {
+      type: 'context',
+      value: 1,
+      kind: 'implicit',
+      contains: feeInput.token.publicKeyAndType
+    };
+  }
+  return [this.quote, feeInput.amount, payToData, tokenData];
+}
 client_lib_vote_defineProperty(src_client_BaseVoteBuilder, "isInstance", client_checkableGenerator(client_BaseVoteBuilder));
 class src_client_VoteBuilder extends src_client_BaseVoteBuilder {
   async seal(serial, validTo, validFrom) {
@@ -126385,8 +126606,63 @@ src_client_Vote.Quote = src_client_VoteQuote;
 const src_client_Testing = {
   findRDN: client_findRDN,
   blockHashesFromVote: client_blockHashesFromVote,
-  feeFromVote: client_feeFromVote
+  feeFromVote: client_feeFromVote,
+  hashDataSchema: client_hashDataSchema,
+  feeExtensionSchema: client_feeExtensionSchema
 };
+;// ./src/lib/ledger/types.ts
+/**
+ * Account info entry
+ */
+
+// For some reason, if we do not have these types for each key pair type, TypeScript does not properly discriminate the union when we use Extract
+// Ex: KeyPairAccountInfo extends BaseAccountInfo<KeyPairKeyAlgorithm> {} does not work, we have to declare each individually
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
+// This is a type-level check to ensure that we have defined AccountInfoForType for all AccountKeyAlgorithm types, so that the type guard function works properly
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+function client_isIdentifierAccountInfo(info) {
+  return info.account.isIdentifier();
+}
+function client_isKeyPairAccountInfo(info) {
+  return info.account.isAccount();
+}
+function client_isAccountInfoOfType(info, type) {
+  return info.account.isKeyType(type);
+}
+
+/**
+ * Permissions types
+ */
+
+/**
+ * An entry for the ACL
+ * @expandType ACLRow
+ */
+
+/**
+ * Update an ACL for an account
+ * @expandType ACLEntry
+ */
+
+/**
+ * All balances for each token on an account
+ */
+
+/**
+ * Ledger statistics
+ */
 ;// ./src/lib/ledger/cache.ts
 /* provided dependency */ var client_cache_Buffer = __webpack_require__(8287)["Buffer"];
 function client_cache_classPrivateFieldInitSpec(e, t, a) { client_cache_checkPrivateRedeclaration(e, t), t.set(e, a); }
@@ -127697,6 +127973,7 @@ function client_lib_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) r
 
 
 
+
 /**
  * Kind of ledger
  */
@@ -127976,31 +128253,45 @@ class client_LedgerAtomicInterface {
           if (!hasFeeBlock) {
             throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it');
           }
+          // Each vote requires exactly one fee payment, regardless of array size
           if (requiredFees.size !== (possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length)) {
             throw new client_ledger_KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees');
           }
         }
 
-        // Verify that all required fees have been included in the fee block
-        for (const [issuer, fee] of requiredFees) {
-          const foundFee = possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.find(operation => {
+        // Verify that at least one required fee option has been satisfied for each vote
+        for (const [issuer, feeOrFees] of requiredFees) {
+          // Handle both single fee and array of fees
+          const fees = Array.isArray(feeOrFees) ? feeOrFees : [feeOrFees];
+
+          // Check if at least one fee option is satisfied
+          let foundMatchingFee = false;
+          for (const fee of fees) {
             var _fee$payTo, _fee$token;
             const expectedPayTo = (_fee$payTo = fee.payTo) !== null && _fee$payTo !== void 0 ? _fee$payTo : issuer;
             const expectedToken = (_fee$token = fee.token) !== null && _fee$token !== void 0 ? _fee$token : client_ledger_classPrivateFieldGet(client_ledger, this).baseToken;
-            if (operation.type === client_OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
-              if (operation.amount !== fee.amount) {
-                throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`);
+            const foundFee = possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.find(operation => {
+              if (operation.type === client_OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
+                if (operation.amount === fee.amount && operation.token.comparePublicKey(expectedToken)) {
+                  return true;
+                }
               }
-              if (!operation.token.comparePublicKey(expectedToken)) {
-                throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`);
-              }
-              return true;
+              return false;
+            });
+            if (foundFee !== undefined) {
+              foundMatchingFee = true;
+              break; // Found a matching fee, no need to check others
             }
-            return false;
-          });
-          if (foundFee === undefined) {
-            var _fee$payTo$publicKeyS, _fee$payTo2;
-            throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${(_fee$payTo$publicKeyS = (_fee$payTo2 = fee.payTo) === null || _fee$payTo2 === void 0 ? void 0 : _fee$payTo2.publicKeyString.get()) !== null && _fee$payTo$publicKeyS !== void 0 ? _fee$payTo$publicKeyS : issuer.publicKeyString.get()}`);
+          }
+          if (!foundMatchingFee) {
+            // Build helpful error message showing what fees were expected
+            const feeOptions = fees.map(fee => {
+              var _fee$payTo2, _fee$token2;
+              const payTo = (_fee$payTo2 = fee.payTo) !== null && _fee$payTo2 !== void 0 ? _fee$payTo2 : issuer;
+              const token = (_fee$token2 = fee.token) !== null && _fee$token2 !== void 0 ? _fee$token2 : client_ledger_classPrivateFieldGet(client_ledger, this).baseToken;
+              return `${fee.amount} ${token.publicKeyString.get()} to ${payTo.publicKeyString.get()}`;
+            }).join(' OR ');
+            throw new client_ledger_KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${issuer.publicKeyString.get()}. Expected one of: ${feeOptions}`);
           }
         }
       } else if (outcome === 'temporary') {
@@ -128612,14 +128903,14 @@ async function client_checkSingleAccountPermissions(account, requirements, accou
   const entityAccounts = new client_lib_account.Set(unfilteredEntity).toArray();
   const gotPermissions = await this.listACLsByPrincipal(account, entityAccounts);
   for (const requirement of requirements) {
-    var _accountInfos$reqEnti;
     const reqEntityKey = requirement.entity.publicKeyString.get();
     const foundACLRow = client_findPermissionMatch(requirement, gotPermissions);
+    const foundAccountInfo = accountInfos[reqEntityKey];
     let foundPermission;
     if (foundACLRow !== null && foundACLRow !== void 0 && foundACLRow.permissions) {
       foundPermission = foundACLRow === null || foundACLRow === void 0 ? void 0 : foundACLRow.permissions;
-    } else if ((_accountInfos$reqEnti = accountInfos[reqEntityKey]) !== null && _accountInfos$reqEnti !== void 0 && _accountInfos$reqEnti.defaultPermission) {
-      foundPermission = accountInfos[reqEntityKey].defaultPermission;
+    } else if (foundAccountInfo && client_isIdentifierAccountInfo(foundAccountInfo) && foundAccountInfo.defaultPermission) {
+      foundPermission = foundAccountInfo.defaultPermission;
     } else {
       foundPermission = new client_permissions_Permissions();
     }
@@ -128688,7 +128979,7 @@ async function client_checkPermissionRequirements(effects) {
   for (const [multisig, foundSingerLength] of foundMultisigSignerLengths) {
     const multisigPubKey = multisig.publicKeyString.get();
     const foundInfo = foundAccountInfo[multisigPubKey];
-    if (!(foundInfo !== null && foundInfo !== void 0 && foundInfo.multisigQuorum)) {
+    if (!('multisigQuorum' in foundInfo) || !(foundInfo !== null && foundInfo !== void 0 && foundInfo.multisigQuorum)) {
       throw new Error(`Multisig quorum not found for ${multisigPubKey}`);
     }
     if (foundInfo.multisigQuorum > foundSingerLength) {
@@ -129318,97 +129609,94 @@ class src_client_Ledger {
       return await transaction.getAccountRep(...args);
     });
   }
-  async getAccountInfo() {
-    for (var _len15 = arguments.length, args = new Array(_len15), _key15 = 0; _key15 < _len15; _key15++) {
-      args[_key15] = arguments[_key15];
-    }
+  async getAccountInfo(account) {
     return await this.runReadOnly('db-getAccountInfo', async function (transaction) {
-      return await transaction.getAccountInfo(...args);
+      return await transaction.getAccountInfo(account);
     });
   }
   async getBlock() {
-    for (var _len16 = arguments.length, args = new Array(_len16), _key16 = 0; _key16 < _len16; _key16++) {
-      args[_key16] = arguments[_key16];
+    for (var _len15 = arguments.length, args = new Array(_len15), _key15 = 0; _key15 < _len15; _key15++) {
+      args[_key15] = arguments[_key15];
     }
     return await this.runReadOnly('db-getBlock', async function (transaction) {
       return await transaction.getBlock(...args);
     });
   }
   async getAccountsBlockHeightInfo() {
-    for (var _len17 = arguments.length, args = new Array(_len17), _key17 = 0; _key17 < _len17; _key17++) {
-      args[_key17] = arguments[_key17];
+    for (var _len16 = arguments.length, args = new Array(_len16), _key16 = 0; _key16 < _len16; _key16++) {
+      args[_key16] = arguments[_key16];
     }
     return await this.runReadOnly('db-getAccountsBlockHeightInfo', async function (transaction) {
       return await transaction.getAccountsBlockHeightInfo(...args);
     });
   }
   async getVoteStaple() {
-    for (var _len18 = arguments.length, args = new Array(_len18), _key18 = 0; _key18 < _len18; _key18++) {
-      args[_key18] = arguments[_key18];
+    for (var _len17 = arguments.length, args = new Array(_len17), _key17 = 0; _key17 < _len17; _key17++) {
+      args[_key17] = arguments[_key17];
     }
     return await this.runReadOnly('db-getVoteStaple', async function (transaction) {
       return await transaction.getVoteStaple(...args);
     });
   }
   async getVoteStaples() {
-    for (var _len19 = arguments.length, args = new Array(_len19), _key19 = 0; _key19 < _len19; _key19++) {
-      args[_key19] = arguments[_key19];
+    for (var _len18 = arguments.length, args = new Array(_len18), _key18 = 0; _key18 < _len18; _key18++) {
+      args[_key18] = arguments[_key18];
     }
     return await this.runReadOnly('db-getVoteStaples', async function (transaction) {
       return await transaction.getVoteStaples(...args);
     });
   }
   async getHistory() {
-    for (var _len20 = arguments.length, args = new Array(_len20), _key20 = 0; _key20 < _len20; _key20++) {
-      args[_key20] = arguments[_key20];
+    for (var _len19 = arguments.length, args = new Array(_len19), _key19 = 0; _key19 < _len19; _key19++) {
+      args[_key19] = arguments[_key19];
     }
     return await this.runReadOnly('db-getHistory', async function (transaction) {
       return await transaction.getHistory(...args);
     });
   }
   async getStaplesFromBlockHashes() {
-    for (var _len21 = arguments.length, args = new Array(_len21), _key21 = 0; _key21 < _len21; _key21++) {
-      args[_key21] = arguments[_key21];
+    for (var _len20 = arguments.length, args = new Array(_len20), _key20 = 0; _key20 < _len20; _key20++) {
+      args[_key20] = arguments[_key20];
     }
     return await this.runReadOnly('db-getStaplesFromBlockHashes', async function (transaction) {
       return await transaction.getStaplesFromBlockHashes(...args);
     });
   }
   async getVoteStaplesAfter() {
-    for (var _len22 = arguments.length, args = new Array(_len22), _key22 = 0; _key22 < _len22; _key22++) {
-      args[_key22] = arguments[_key22];
+    for (var _len21 = arguments.length, args = new Array(_len21), _key21 = 0; _key21 < _len21; _key21++) {
+      args[_key21] = arguments[_key21];
     }
     return await this.runReadOnly('db-getVoteStaplesAfter', async function (transaction) {
       return await transaction.getVoteStaplesAfter(...args);
     });
   }
   async gc() {
-    for (var _len23 = arguments.length, args = new Array(_len23), _key23 = 0; _key23 < _len23; _key23++) {
-      args[_key23] = arguments[_key23];
+    for (var _len22 = arguments.length, args = new Array(_len22), _key22 = 0; _key22 < _len22; _key22++) {
+      args[_key22] = arguments[_key22];
     }
     return await this.run('db-gc', async function (transaction) {
       return await transaction.gc(...args);
     });
   }
   async getFee() {
-    for (var _len24 = arguments.length, args = new Array(_len24), _key24 = 0; _key24 < _len24; _key24++) {
-      args[_key24] = arguments[_key24];
+    for (var _len23 = arguments.length, args = new Array(_len23), _key23 = 0; _key23 < _len23; _key23++) {
+      args[_key23] = arguments[_key23];
     }
     return await this.runReadOnly('db-getFee', async function (transaction) {
       return await transaction.getFee(...args);
     });
   }
   async getIdempotentBlockHash() {
-    for (var _len25 = arguments.length, args = new Array(_len25), _key25 = 0; _key25 < _len25; _key25++) {
-      args[_key25] = arguments[_key25];
+    for (var _len24 = arguments.length, args = new Array(_len24), _key24 = 0; _key24 < _len24; _key24++) {
+      args[_key24] = arguments[_key24];
     }
     return await this.runReadOnly('db-getIdempotentBlockHash', async function (transaction) {
       return await transaction.getIdempotentBlockHash(...args);
     });
   }
   async getBlockFromIdempotent() {
-    for (var _len26 = arguments.length, args = new Array(_len26), _key26 = 0; _key26 < _len26; _key26++) {
-      args[_key26] = arguments[_key26];
+    for (var _len25 = arguments.length, args = new Array(_len25), _key25 = 0; _key25 < _len25; _key25++) {
+      args[_key25] = arguments[_key25];
     }
     return await this.runReadOnly('db-getBlockFromIdempotent', async function (transaction) {
       return await transaction.getBlockFromIdempotent(...args);
@@ -129440,7 +129728,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.16.0+g906ddd004c65d7e5d33559183bed9119e681c5ae';
+const client_version = '0.16.1+g8d5abd1c27152ecca68f2594f9191c1c77a334a4';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -132246,6 +132534,9 @@ class src_client_UserClientBuilder {
             const [base, external] = operations.info.defaultPermission.map(function (intString) {
               return BigInt(intString);
             });
+
+            // This is correct as we are constructing this from data that was only set if it was valid
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             newInfo.defaultPermission = new client_permissions_Permissions(base, external);
           }
           pendingOperations.info = newInfo;
@@ -132535,12 +132826,33 @@ class src_client_UserClientBuilder {
     const operations = [];
     for (const vote of staple.votes) {
       if (vote.fee !== undefined) {
-        var _vote$fee$payTo, _vote$fee$token;
+        var _selectedFee$payTo, _selectedFee$token;
+        // Handle both single fee and array of fees
+        // Select one fee: prefer one with undefined token (baseToken) or matching baseToken
+        const fees = Array.isArray(vote.fee) ? vote.fee : [vote.fee];
+
+        // If there are no fees, skip this vote
+        if (fees.length === 0) {
+          continue;
+        }
+
+        // Find fee with undefined token or matching baseToken
+        let selectedFee = fees.find(fee => {
+          if (fee.token === undefined || fee.token.comparePublicKey(baseToken)) {
+            return true;
+          }
+          return false;
+        });
+
+        // If no matching fee, use the first one
+        if (!selectedFee) {
+          selectedFee = fees[0];
+        }
         operations.push({
           type: client_OperationType.SEND,
-          amount: vote.fee.amount,
-          to: (_vote$fee$payTo = vote.fee.payTo) !== null && _vote$fee$payTo !== void 0 ? _vote$fee$payTo : vote.issuer,
-          token: (_vote$fee$token = vote.fee.token) !== null && _vote$fee$token !== void 0 ? _vote$fee$token : baseToken
+          amount: selectedFee.amount,
+          to: (_selectedFee$payTo = selectedFee.payTo) !== null && _selectedFee$payTo !== void 0 ? _selectedFee$payTo : vote.issuer,
+          token: (_selectedFee$token = selectedFee.token) !== null && _selectedFee$token !== void 0 ? _selectedFee$token : baseToken
         });
       }
     }
@@ -132683,12 +132995,16 @@ class src_client_UserClientBuilder {
       }
       operations.push(...receiveOperations);
       if (pending.info) {
+        let defaultPermission;
+        if ('defaultPermission' in pending.info) {
+          defaultPermission = pending.info.defaultPermission;
+        }
         operations.push({
           type: src_client_Block.OperationType.SET_INFO,
           name: pending.info.name,
           description: pending.info.description,
           metadata: pending.info.metadata,
-          defaultPermission: pending.info.defaultPermission
+          defaultPermission: defaultPermission
         });
       }
       if (pending.setRep) {
@@ -133596,9 +133912,10 @@ class src_client_Client {
       }
     });
     const parsed = response.access.map(entry => {
+      const entity = client_src_lib.Account.fromPublicKeyString(entry.entity);
       return {
-        entity: client_src_lib.Account.fromPublicKeyString(entry.entity),
-        info: client_client_assertClassBrand(client_Client_brand, this, client_formatAccountInfo).call(this, entry.info),
+        entity: entity,
+        info: client_client_assertClassBrand(client_Client_brand, this, client_formatAccountInfo).call(this, entry.info, entity),
         balances: client_client_assertClassBrand(client_Client_brand, this, client_formatAllBalances).call(this, entry.balances),
         principals: client_client_assertClassBrand(client_Client_brand, this, client_parsePermissionEntries).call(this, entry.principals)
       };
@@ -134987,22 +135304,34 @@ function client_parseResponsePermissions(permissions) {
   const [base, external] = permissions.map(val => BigInt(val));
   return new client_src_lib.Permissions(base, external);
 }
-function client_formatAccountInfo(raw) {
-  const info = {
+function client_formatAccountInfo(raw, account) {
+  let ret = {
     name: raw.name,
     description: raw.description,
     metadata: raw.metadata
   };
-  if (raw.supply !== undefined) {
-    info.supply = BigInt(raw.supply);
+  if (account.isIdentifier()) {
+    ret = {
+      ...ret,
+      defaultPermission: raw.defaultPermission !== undefined ? client_client_assertClassBrand(client_Client_brand, this, client_parseResponsePermissions).call(this, raw.defaultPermission) : undefined
+    };
+    if (account.isMultisig()) {
+      if (raw.multisigQuorum !== undefined) {
+        ret = {
+          ...ret,
+          multisigQuorum: raw.multisigQuorum !== null ? BigInt(raw.multisigQuorum) : null
+        };
+      }
+    } else if (account.isToken()) {
+      if (raw.supply !== undefined) {
+        ret = {
+          ...ret,
+          supply: BigInt(raw.supply)
+        };
+      }
+    }
   }
-  if (raw.defaultPermission !== undefined) {
-    info.defaultPermission = client_client_assertClassBrand(client_Client_brand, this, client_parseResponsePermissions).call(this, raw.defaultPermission);
-  }
-  if (raw.multisigQuorum !== undefined) {
-    info.multisigQuorum = BigInt(raw.multisigQuorum);
-  }
-  return info;
+  return ret;
 }
 function client_parseAccountInfo(account, accountInfo) {
   account = client_lib_account.toAccount(account);
@@ -135021,11 +135350,11 @@ function client_parseAccountInfo(account, accountInfo) {
     currentRepresentative = client_src_lib.Account.fromPublicKeyString(accountInfo.representative).assertAccount();
   }
   return {
-    account: client_src_lib.Account.fromPublicKeyString(accountInfo.account),
+    account: client_src_lib.Account.fromPublicKeyString(accountInfo.account).assertKeyType(account.keyType),
     currentHeadBlock: currentHeadBlock,
     currentHeadBlockHeight: accountInfo.currentHeadBlockHeight,
     representative: currentRepresentative,
-    info: client_client_assertClassBrand(client_Client_brand, this, client_formatAccountInfo).call(this, accountInfo.info),
+    info: client_client_assertClassBrand(client_Client_brand, this, client_formatAccountInfo).call(this, accountInfo.info, account),
     balances: client_client_assertClassBrand(client_Client_brand, this, client_formatAllBalances).call(this, accountInfo.balances)
   };
 }

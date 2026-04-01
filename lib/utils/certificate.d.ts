@@ -462,24 +462,12 @@ export declare class Certificate {
      * Get a JSON representation of the certificate
      */
     toJSON(options?: ToJSONSerializableOptions, includeChain?: boolean): {
-        $binary?: string | undefined;
-        $chain?: undefined;
         serial: string;
         notBefore: string;
         notAfter: string;
         subject: string;
         issuer: string;
         subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
-        baseExtensions: {
-            basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
-            keyUsage?: KeyUsage | undefined;
-            subjectKeyIdentifier?: string | undefined;
-            authorityKeyIdentifier?: {
-                type: "context";
-                value: 0;
-                contains: string;
-            } | undefined;
-        } | undefined;
         subjectDN: {
             name: string;
             value: string;
@@ -489,6 +477,19 @@ export declare class Certificate {
             value: string;
         }[];
         $hash: CertificateHashString;
+    } & {
+        $binary?: string | undefined;
+        $chain?: undefined;
+        baseExtensions?: ({} & {
+            basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
+            keyUsage?: KeyUsage | undefined;
+            subjectKeyIdentifier?: string | undefined;
+            authorityKeyIdentifier?: ({
+                type: "context";
+                value: 0;
+                contains: string;
+            } & {}) | undefined;
+        }) | undefined;
     };
 }
 export {};

@@ -1,6 +1,7 @@
+import type { AccountKeyAlgorithm } from '../account';
 import Account from '../account';
 import Block from '../block';
-import type { AccountInfo } from '../ledger/types';
+import type { AccountInfoForType } from '../ledger/types';
 import { Permissions } from '../permissions';
 import type { VoteStaple } from '../vote';
 export interface BaseTokenInfo {
@@ -9,7 +10,7 @@ export interface BaseTokenInfo {
     decimalPlaces: number;
     defaultPermission?: Permissions;
 }
-export type BaseNetworkInfo = Partial<Pick<AccountInfo, 'name' | 'description' | 'metadata' | 'defaultPermission'>>;
+export type BaseNetworkInfo = Partial<Pick<AccountInfoForType<AccountKeyAlgorithm.NETWORK>, 'name' | 'description' | 'metadata' | 'defaultPermission'>>;
 interface BaseGenerationConfig {
     network: bigint;
     initialTrustedAccount: Account;

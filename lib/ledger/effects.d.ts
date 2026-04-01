@@ -3,9 +3,10 @@ import Account from '../account';
 import type { AdjustMethod } from '../block';
 import { Block } from '../block';
 import type * as Operations from '../block/operations';
-import type { UserEditableAccountInfo, ACLEntry, ACLUpdate } from '../ledger/types';
+import type { ACLEntry, ACLUpdate, AccountInfo } from '../ledger/types';
 import type { Certificate, CertificateBundle } from '../utils/certificate';
 import { CertificateHash } from '../utils/certificate';
+import type { DistributiveOmit } from '../utils/helper';
 interface NumericValueEntry {
     value: bigint;
 }
@@ -49,6 +50,7 @@ interface CreateIdentifierRequest {
 type DelegationUpdate = {
     delegateTo: Account;
 };
+type UserEditableAccountInfo = DistributiveOmit<AccountInfo, 'supply' | 'account'>;
 interface ComputedBlocksEffectFields {
     balance?: ComputedBlocksEffectTokenChangesField;
     supply?: NumericValueEntry[];

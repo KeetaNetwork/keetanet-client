@@ -1,12 +1,12 @@
 {
 	"name": "@keetanetwork/keetanet-client",
-	"version": "0.16.0",
+	"version": "0.16.1",
 	"lockfileVersion": 3,
 	"requires": true,
 	"packages": {
 		"": {
 			"name": "@keetanetwork/keetanet-client",
-			"version": "0.16.0",
+			"version": "0.16.1",
 			"license": "see LICENSE",
 			"dependencies": {
 				"secp256k1": "5.0.1"
@@ -20,7 +20,7 @@
 			},
 			"optionalDependencies": {
 				"@google-cloud/logging": "11.2.0",
-				"@keetanetwork/asn1-napi-rs": "1.2.0"
+				"@keetanetwork/asn1-napi-rs": "1.2.2"
 			}
 		},
 		"node_modules/@google-cloud/common": {
@@ -164,8 +164,8 @@
 			}
 		},
 		"node_modules/@keetanetwork/asn1-napi-rs": {
-			"version": "1.2.0",
-			"integrity": "sha512-gg6IhT8aL4nO/VSPfX6uQXDdBNyB3USRO+RM/Letaz1e6F9kLHJcR7/PrOCXEgcVRK9QtZASw4M2jBE2/6hsgA==",
+			"version": "1.2.2",
+			"integrity": "sha512-kwxPBWHJv/VYKYpElhwWTbAlxAxFIQzyJmDxOEApKtqf2r4Lpiuq2RXd2lDkojGPLYVZfXrGTalm4e0b4DaYzA==",
 			"license": "SEE LICENSE IN LICENSE",
 			"optional": true,
 			"engines": {

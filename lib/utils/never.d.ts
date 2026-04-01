@@ -5,3 +5,7 @@
  * are handled.
  */
 export declare function assertNever(value: never): never;
+/**
+ * Asserts that the provided type is never.
+ */
+export type AssertNever<T extends never> = T;

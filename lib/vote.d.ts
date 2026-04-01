@@ -27,7 +27,7 @@ export interface VoteJSON {
     validityFrom: string | Date;
     validityTo: string | Date;
     signature: string | ArrayBuffer;
-    fee?: FeeAmountAndTokenJSON;
+    fee?: FeeAmountAndTokenJSON | FeeAmountAndTokenJSON[];
     quote?: boolean;
 }
 type VoteJSONOutput = ToJSONSerializable<ReturnType<Vote['toJSON']>>;
@@ -64,22 +64,6 @@ type CertificatePublicKeyInfo = [CertificateOID[], {
     type: 'bitstring';
     value: Buffer;
 }];
-export type CertificateExtensionFeeEntry = [
-    quote: boolean,
-    amount: bigint,
-    payTo?: {
-        type: 'context';
-        value: 0;
-        kind: 'implicit';
-        contains: Buffer;
-    },
-    token?: {
-        type: 'context';
-        value: 1;
-        kind: 'implicit';
-        contains: Buffer;
-    }
-];
 type CertificateExtensionData = [
     CertificateOID,
     boolean,
@@ -186,9 +170,9 @@ type VoteStapleOptions = {
  */
 type VoteBuilderOptions = {
     /**
-     * Fee amount to add to the vote
+     * Fee amount to add to the vote (single fee or array of fee choices)
      */
-    fee?: FeeAmountAndToken;
+    fee?: FeeAmountAndToken | FeeAmountAndToken[];
 };
 declare class VoteLikeBase {
     #private;
@@ -198,7 +182,7 @@ declare class VoteLikeBase {
     readonly validityFrom: Date;
     readonly validityTo: Date;
     readonly signature: ArrayBuffer;
-    readonly fee: FeeAmountAndToken | undefined;
+    readonly fee: FeeAmountAndToken | FeeAmountAndToken[] | undefined;
     readonly quote: boolean | undefined;
     protected static expectedQuoteValue: boolean;
     readonly $trusted: boolean;
@@ -221,13 +205,6 @@ declare class VoteLikeBase {
     get blocksHash(): VoteBlockHash;
     toString(): string;
     toJSON(options?: ToJSONSerializableOptions): {
-        $binary?: string | undefined;
-        fee?: {
-            amount: string;
-            payTo?: string | undefined;
-            token?: string | undefined;
-        } | undefined;
-        quote?: boolean | undefined;
         issuer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
         serial: string;
         blocks: (string & {
@@ -240,6 +217,20 @@ declare class VoteLikeBase {
         $permanent: boolean;
         $uid: string;
         $id: string;
+    } & {
+        $binary?: string | undefined;
+        fee?: ({
+            amount: string;
+        } & {
+            payTo?: string | undefined;
+            token?: string | undefined;
+        }) | ({
+            amount: string;
+        } & {
+            payTo?: string | undefined;
+            token?: string | undefined;
+        })[] | undefined;
+        quote?: boolean | undefined;
     };
     protected expirationCheckMoment(): number;
     get expired(): boolean;
@@ -345,14 +336,7 @@ export declare class VoteBlockBundle {
     timestamp(preferRep?: Account): Date;
     toJSON(options?: ToJSONSerializableOptions): {
         $binary?: string;
-        votes: {
-            $binary?: string | undefined;
-            fee?: {
-                amount: string;
-                payTo?: string | undefined;
-                token?: string | undefined;
-            } | undefined;
-            quote?: boolean | undefined;
+        votes: ({
             issuer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
             serial: string;
             blocks: (string & {
@@ -365,13 +349,23 @@ export declare class VoteBlockBundle {
             $permanent: boolean;
             $uid: string;
             $id: string;
-        }[];
-        blocks: {
+        } & {
             $binary?: string | undefined;
-            signature?: string | undefined;
-            signatures?: string[] | undefined;
+            fee?: ({
+                amount: string;
+            } & {
+                payTo?: string | undefined;
+                token?: string | undefined;
+            }) | ({
+                amount: string;
+            } & {
+                payTo?: string | undefined;
+                token?: string | undefined;
+            })[] | undefined;
+            quote?: boolean | undefined;
+        })[];
+        blocks: ({
             version: 1 | 2;
-            idempotent: string | undefined;
             date: string;
             previous: string & {
                 readonly __blockhash: never;
@@ -380,71 +374,87 @@ export declare class VoteBlockBundle {
             purpose: import("./block").BlockPurpose;
             signer: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [import("./account").MultisigPublicKeyString, (import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString | [never, never[]])[]])[]])[]])[]];
             network: string;
-            subnet: string | undefined;
-            operations: ({
+            operations: (({
                 type: import("./block/operations").OperationType.SEND;
                 to: string;
                 amount: string;
                 token: import("./account").TokenPublicKeyString;
+            } & {
                 external?: string | undefined;
-            } | {
+            }) | ({
                 type: import("./block/operations").OperationType.SET_REP;
                 to: string;
-            } | {
+            } & {}) | ({
                 type: import("./block/operations").OperationType.SET_INFO;
                 name: string;
                 description: string;
                 metadata: string;
+            } & {
                 defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | undefined;
-            } | {
+            }) | ({
                 type: import("./block/operations").OperationType.MODIFY_PERMISSIONS;
                 principal: string;
                 method: import("./block").AdjustMethod;
                 permissions: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | null;
+            } & {
                 target?: string | undefined;
-            } | {
+            }) | ({
                 type: import("./block/operations").OperationType.CREATE_IDENTIFIER;
                 identifier: string;
-                createArguments?: {
+            } & {
+                createArguments?: ({
                     type: AccountKeyAlgorithm.MULTISIG;
                     signers: (import("./account").MultisigPublicKeyString | import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString)[];
                     quorum: string;
-                } | {
+                } & {}) | ({
                     type: AccountKeyAlgorithm.MULTISIG;
                     signers: (import("./account").MultisigPublicKeyString | import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString)[];
                     quorum: string;
-                } | undefined;
-            } | {
+                } & {}) | undefined;
+            }) | ({
                 type: import("./block/operations").OperationType.TOKEN_ADMIN_SUPPLY;
                 amount: string;
                 method: import("./block").AdjustMethod.ADD | import("./block").AdjustMethod.SUBTRACT;
-            } | {
+            } & {}) | ({
                 type: import("./block/operations").OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
                 token: import("./account").TokenPublicKeyString;
                 amount: string;
                 method: import("./block").AdjustMethod;
-            } | {
+            } & {}) | ({
                 type: import("./block/operations").OperationType.RECEIVE;
                 amount: string;
                 token: import("./account").TokenPublicKeyString;
                 from: string;
+            } & {
                 forward?: string | undefined;
                 exact?: boolean | undefined;
-            } | {
+            }) | ({
                 type: import("./block/operations").OperationType.MANAGE_CERTIFICATE;
                 certificateOrHash: string | (string & {
                     readonly __certificateHash: never;
-                }) | {
-                    $binary?: string | undefined;
-                    $chain?: undefined;
+                }) | ({
                     serial: string;
                     notBefore: string;
                     notAfter: string;
                     subject: string;
                     issuer: string;
                     subjectPublicKey: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
-                    baseExtensions: {
-                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    subjectDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    issuerDN: {
+                        name: string;
+                        value: string;
+                    }[];
+                    $hash: string & {
+                        readonly __certificateHash: never;
+                    };
+                } & {
+                    $binary?: string | undefined;
+                    $chain?: undefined;
+                    baseExtensions?: ({} & {
+                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                         keyUsage?: {
                             digitalSignature?: boolean | undefined;
                             nonRepudiation?: boolean | undefined;
@@ -457,12 +467,19 @@ export declare class VoteBlockBundle {
                             decipherOnly?: boolean | undefined;
                         } | undefined;
                         subjectKeyIdentifier?: string | undefined;
-                        authorityKeyIdentifier?: {
+                        authorityKeyIdentifier?: ({
                             type: "context";
                             value: 0;
                             contains: string;
-                        } | undefined;
-                    } | undefined;
+                        } & {}) | undefined;
+                    }) | undefined;
+                }) | ({
+                    serial: string;
+                    notBefore: string;
+                    notAfter: string;
+                    subject: string;
+                    issuer: string;
+                    subjectPublicKey: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
                     subjectDN: {
                         name: string;
                         value: string;
@@ -474,17 +491,11 @@ export declare class VoteBlockBundle {
                     $hash: string & {
                         readonly __certificateHash: never;
                     };
-                } | {
+                } & {
                     $binary?: string | undefined;
                     $chain?: undefined;
-                    serial: string;
-                    notBefore: string;
-                    notAfter: string;
-                    subject: string;
-                    issuer: string;
-                    subjectPublicKey: import("./account").Secp256K1PublicKeyString | import("./account").Secp256R1PublicKeyString | import("./account").ED25519PublicKeyString;
-                    baseExtensions: {
-                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                    baseExtensions?: ({} & {
+                        basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                         keyUsage?: {
                             digitalSignature?: boolean | undefined;
                             nonRepudiation?: boolean | undefined;
@@ -497,34 +508,30 @@ export declare class VoteBlockBundle {
                             decipherOnly?: boolean | undefined;
                         } | undefined;
                         subjectKeyIdentifier?: string | undefined;
-                        authorityKeyIdentifier?: {
+                        authorityKeyIdentifier?: ({
                             type: "context";
                             value: 0;
                             contains: string;
-                        } | undefined;
-                    } | undefined;
-                    subjectDN: {
-                        name: string;
-                        value: string;
-                    }[];
-                    issuerDN: {
-                        name: string;
-                        value: string;
-                    }[];
-                    $hash: string & {
-                        readonly __certificateHash: never;
-                    };
-                };
+                        } & {}) | undefined;
+                    }) | undefined;
+                });
+                method: Exclude<import("./block").AdjustMethod, import("./block").AdjustMethod.SET>;
+            } & {
                 intermediateCertificates?: string | {
                     certificates: string[];
                 } | null | undefined;
-                method: Exclude<import("./block").AdjustMethod, import("./block").AdjustMethod.SET>;
-            })[];
+            }))[];
             $hash: string & {
                 readonly __blockhash: never;
             };
             $opening: boolean;
-        }[];
+        } & {
+            $binary?: string | undefined;
+            signature?: string | undefined;
+            signatures?: string[] | undefined;
+            idempotent?: string | undefined;
+            subnet?: string | undefined;
+        })[];
     };
     get votes(): Vote[];
     get blocks(): Block[];
@@ -542,7 +549,7 @@ export declare class BaseVoteBuilder {
     constructor(account: Account, blocks?: (Block | BlockHash)[], options?: VoteBuilderOptions);
     addBlocks(blocks: (Block | BlockHash | string)[]): void;
     addBlock(block: Block | BlockHash | string): void;
-    addFee(feeInput: FeeAmountAndTokenJSON): void;
+    addFee(feeInput: FeeAmountAndTokenJSON | FeeAmountAndTokenJSON[]): void;
     generateVoteData(serial: bigint, validTo: Date, validFrom: Date): {
         voteData: ArrayBuffer;
         tbsCertificate: CertificateSchema;

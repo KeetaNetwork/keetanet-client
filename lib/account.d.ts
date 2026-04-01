@@ -83,6 +83,7 @@ type AccountKeyAlgorithmHexReverse = {
 type AccountKeyAlgorithmHexToType<T extends PublicKeyAndTypeStringHex> = T extends `0x${infer AlgorithmHex1}${infer AlgorithmHex2}${string}` ? `0x${AlgorithmHex1}${AlgorithmHex2}` extends keyof AccountKeyAlgorithmHexReverse ? AccountKeyAlgorithmHexReverse[`0x${AlgorithmHex1}${AlgorithmHex2}`] : never : never;
 declare const identifierKeyTypes: readonly [AccountKeyAlgorithm.NETWORK, AccountKeyAlgorithm.TOKEN, AccountKeyAlgorithm.STORAGE, AccountKeyAlgorithm.MULTISIG];
 export type IdentifierKeyAlgorithm = typeof identifierKeyTypes[any];
+export type KeyPairKeyAlgorithm = Exclude<AccountKeyAlgorithm, IdentifierKeyAlgorithm>;
 /**
  * Things we can use to construct a key from
  */
@@ -378,7 +379,7 @@ declare class IdentifierKeyPair extends KeyInterface {
  *
  * @template T - The type of the key algorithm used for this account.
  */
-export declare class Account<T extends AccountKeyAlgorithm = Exclude<AccountKeyAlgorithm, IdentifierKeyAlgorithm>> {
+export declare class Account<T extends AccountKeyAlgorithm = KeyPairKeyAlgorithm> {
     #private;
     static AccountKeyAlgorithm: typeof AccountKeyAlgorithm;
     static ExternalKeyPair: typeof ExternalKeyPair;

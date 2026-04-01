@@ -1,12 +1,12 @@
 import { VoteStaple, Vote, VoteBlockHashMap } from '../vote';
 import { Block, BlockHash } from '../block';
 import type { FeeAmountAndToken, VoteBlockHash, VoteQuote } from '../vote';
-import type { GenericAccount, IdentifierAddress, NetworkAddress, StorageAddress, TokenAddress } from '../account';
+import type { AccountKeyAlgorithm, GenericAccount, IdentifierAddress, NetworkAddress, StorageAddress, TokenAddress } from '../account';
 import Account from '../account';
 import type Node from '../node';
 import type { BloomFilter } from '../utils/bloom';
 import type { ComputedEffectOfBlocks } from './effects';
-import type { ACLRow, AccountInfo, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
+import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import LedgerRequestCache from './cache';
 import type { Logger } from '../log';
 import type { CertificateHash } from '../utils/certificate';
@@ -37,7 +37,7 @@ export interface LedgerConfig {
     /**
      * Provided function to compute fees for a given set of Blocks and computed effects
      */
-    computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => FeeAmountAndToken | null;
+    computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => FeeAmountAndToken | FeeAmountAndToken[] | null;
     /**
      * Storage mechanism
      */
@@ -189,7 +189,7 @@ export interface LedgerStorageAPI {
      * If token account, return supply
      * If non user account, returns default permissions
      */
-    getAccountInfo: (transaction: any, account: GenericAccount | string) => Promise<AccountInfo>;
+    getAccountInfo: <T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: any, account: Account<T> | string) => Promise<AccountInfoForType<T>>;
     /**
      * List all owners of an account
      */
@@ -351,7 +351,7 @@ declare class LedgerAtomicInterface {
     }>;
     getHeadBlock(account: GenericAccount, from: LedgerSelector): Promise<Block | null>;
     getAccountRep(account: Account | string): Promise<Account | null>;
-    getAccountInfo(account: GenericAccount | string): Promise<AccountInfo>;
+    getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T> | string): Promise<AccountInfoForType<T>>;
     getBlock(blockhash: BlockHash, from?: LedgerSelector): Promise<Block | null>;
     getAccountsBlockHeightInfo(toFetch: {
         account: GenericAccount;
@@ -368,7 +368,7 @@ declare class LedgerAtomicInterface {
     getStaplesFromBlockHashes(hashes: BlockHash[]): Promise<VoteStaple[]>;
     getVoteStaplesAfter(moment: Date, limit?: number, options?: GetVotesAfterOptions): Promise<VoteStaple[]>;
     gc(timeLimitMS?: number): Promise<boolean>;
-    getFee(blocks: Block[], effectsInput?: ComputedEffectOfBlocks): Promise<FeeAmountAndToken | null>;
+    getFee(blocks: Block[], effectsInput?: ComputedEffectOfBlocks): Promise<FeeAmountAndToken | FeeAmountAndToken[] | null>;
     getIdempotentBlockHash(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
     getBlockFromIdempotent(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<Block | null>;
     _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
@@ -414,7 +414,7 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getHeadBlocks(...args: Parameters<LedgerAtomicInterface['getHeadBlocks']>): ReturnType<LedgerAtomicInterface['getHeadBlocks']>;
     getHeadBlock(...args: Parameters<LedgerAtomicInterface['getHeadBlock']>): ReturnType<LedgerAtomicInterface['getHeadBlock']>;
     getAccountRep(...args: Parameters<LedgerAtomicInterface['getAccountRep']>): ReturnType<LedgerAtomicInterface['getAccountRep']>;
-    getAccountInfo(...args: Parameters<LedgerAtomicInterface['getAccountInfo']>): ReturnType<LedgerAtomicInterface['getAccountInfo']>;
+    getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T> | string): Promise<AccountInfoForType<T>>;
     getBlock(...args: Parameters<LedgerAtomicInterface['getBlock']>): ReturnType<LedgerAtomicInterface['getBlock']>;
     getAccountsBlockHeightInfo(...args: Parameters<LedgerAtomicInterface['getAccountsBlockHeightInfo']>): ReturnType<LedgerAtomicInterface['getAccountsBlockHeightInfo']>;
     getVoteStaple(...args: Parameters<LedgerAtomicInterface['getVoteStaple']>): ReturnType<LedgerAtomicInterface['getVoteStaple']>;

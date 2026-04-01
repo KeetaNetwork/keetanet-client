@@ -5,7 +5,7 @@ import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account
 import Account, { AccountKeyAlgorithm } from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
-import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
+import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import { LedgerStorageBase } from './common';
 import type { PoolClient as PostgresPoolClient } from 'pg';
 import { Pool as PostgresPool } from 'pg';
@@ -43,7 +43,7 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     listOwners(transaction: PostgresTransaction, entity: IdentifierAddress): Promise<Account<AccountKeyAlgorithm.TOKEN>[]>;
     listACLsByEntity(transaction: PostgresTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(transaction: PostgresTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
-    getAccountInfo(transaction: PostgresTransaction, account: GenericAccount | string): Promise<AccountInfo>;
+    getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: PostgresTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     adjust(transaction: PostgresTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: PostgresTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getBlockHeight(transaction: PostgresTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;

@@ -10,16 +10,17 @@
  */
 import KeetaNet from '../lib';
 import type { GenericAccount, IdentifierKeyAlgorithm, NetworkAddress, TokenAddress } from '../lib/account';
-import Account from '../lib/account';
+import Account, { AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod } from '../lib/block';
 import Block, { BlockHash } from '../lib/block';
+import type { DistributiveOmit } from '../lib/utils/helper';
 import type { P2PSwitchStatistics } from '../lib/p2p';
 import * as Config from '../config';
 import type { BaseNetworkInfo, BaseTokenInfo } from '../lib/utils/initial';
 import type { BuilderOptions, ManageCertificateMethod, PendingAccount } from './builder';
 import { UserClientBuilder } from './builder';
 import { KeetaNetError } from '../lib/error';
-import type { AccountInfo, GetAllBalancesResponse, ACLRow, LedgerStatistics } from '../lib/ledger/types';
+import type { GetAllBalancesResponse, ACLRow, LedgerStatistics, AccountInfoForType, AccountInfoWithoutAccount } from '../lib/ledger/types';
 import type { LedgerSelector, LedgerStorage } from '../lib/ledger';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import type { IdentifierCreateArguments, BlockOperations } from '../lib/block/operations';
@@ -33,11 +34,11 @@ type VoteBlocksHash = Vote['blocksHash'];
  * @expandType AccountInfo
  * @expandType GetAllBalancesResponse
  */
-type GetAccountStateAPIResponseFormatted = {
+type GetAccountStateAPIResponseFormatted<AccountType extends AccountKeyAlgorithm = AccountKeyAlgorithm> = {
     /**
      * The account for which this information is for
      */
-    account: GenericAccount;
+    account: Account<AccountType>;
     /**
      * The current head block for the account, if there is one
      * this will be null if the account is not open
@@ -58,7 +59,7 @@ type GetAccountStateAPIResponseFormatted = {
      * Metadata for the account which can be set with the
      * {@link UserClient['setInfo']}() method
      */
-    info: AccountInfo;
+    info: DistributiveOmit<AccountInfoForType<AccountType>, 'account'>;
     /**
      * The balances for the account
      * Each token will have a balance, even if it is 0
@@ -115,7 +116,7 @@ interface PrincipalACLWithInfoParsed {
     /**
      * Metadata for the `entity`
      */
-    info: AccountInfo;
+    info: AccountInfoWithoutAccount;
     /**
      * The balances for the `entity`
      */
@@ -410,7 +411,7 @@ export declare class Client {
      * @param account The account to fetch the information for
      * @return The account information
      */
-    getAccountInfo(account: GenericAccount | string, rep?: ClientRepresentative | 'ANY'): Promise<GetAccountStateAPIResponseFormatted>;
+    getAccountInfo<AccountType extends AccountKeyAlgorithm>(account: Account<AccountType> | string, rep?: ClientRepresentative | 'ANY'): Promise<GetAccountStateAPIResponseFormatted<AccountType>>;
     /**
      * Fetch the account information for multiple accounts.  This will return
      * the account information including the current head block, representative,
@@ -672,14 +673,14 @@ export declare class Client {
             representativeCount: number;
             db: import("../lib/stats").DbStats;
             settlementTimes: import("../lib/stats").TimeStats;
-        };
+        } & {};
         switch: {
             incomingMessages: number;
             outgoingMessagesPeerSuccess: number;
             outgoingMessagesPeerFailure: number;
             outgoingMessagesPeerFiltered: number;
             outgoingMessagesPeerFailureUngreeted: number;
-        };
+        } & {};
     })[]>;
     /**
      * Update this client's view of the network representatives.
@@ -765,7 +766,7 @@ export declare class Client {
         moment: string;
         momentRange: number;
         checksum: string;
-    }>;
+    } & {}>;
     /**
      * Get the version of the node for a given representative, if no
      * representative is specified then the version of the "best"
@@ -1084,7 +1085,7 @@ export declare class UserClient {
      * @param options The options to use for the request
      * @return The vote staple that was generated and whether it was able to be published
      */
-    setInfo(info: AccountInfo, options?: UserClientOptions): Promise<{
+    setInfo(info: AccountInfoWithoutAccount, options?: UserClientOptions): Promise<{
         voteStaple: VoteStaple;
         publish: boolean;
         from: "direct";

@@ -15,7 +15,7 @@ declare const ColumnTypes: {
         readonly toComparable: (name: string) => string;
     };
     readonly ACCOUNT: {
-        readonly fromSpanner: (pubKey: string) => Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+        readonly fromSpanner: (pubKey: string) => Account<import("../account").KeyPairKeyAlgorithm>;
         readonly toSpanner: (account: Account) => import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
         readonly dbType: string;
         readonly dbSize: number;

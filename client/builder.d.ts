@@ -3,7 +3,7 @@ import { Account, AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
 import type { IdentifierCreateArguments, BlockJSONOperations } from '../lib/block/operations';
-import type { AccountInfo } from '../lib/ledger/types';
+import type { AccountInfo, AccountInfoWithoutAccount } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import type { UserClient, Client } from '.';
 import { Permissions } from '../lib/permissions';
@@ -91,7 +91,7 @@ export interface PendingOperations {
         method: AdjustMethod;
         permissions: Permissions;
     }[]>>;
-    info?: AccountInfo;
+    info?: AccountInfoWithoutAccount;
     setRep?: Account;
 }
 export interface PendingOperationsJSON {
@@ -187,7 +187,7 @@ export declare class UserClientBuilder {
     modifyCertificate(method: ManageCertificateMethod, certificate: Certificate, intermediateCertificates?: CertificateBundle | null, options?: BuilderBlockOptions): void;
     modifyTokenSupply(amount: bigint, options?: BuilderBlockOptions): void;
     modifyTokenBalance(token: TokenOrPending, amount: bigint, isSet?: boolean, options?: BuilderBlockOptions): void;
-    setInfo(info: AccountInfo, options?: BuilderBlockOptions): void;
+    setInfo(info: AccountInfoWithoutAccount, options?: BuilderBlockOptions): void;
     setRep(to: Account, options?: BuilderBlockOptions): void;
     /**
      * Create a new identifier for the given arguments and add to the pending operations

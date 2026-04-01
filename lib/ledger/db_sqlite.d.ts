@@ -6,7 +6,7 @@ import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account
 import Account, { AccountKeyAlgorithm } from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
-import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
+import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import { LedgerStorageBase } from './common';
 import * as sqlite from 'sqlite';
 import type { ComputedEffectOfBlocks } from './effects';
@@ -42,7 +42,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     listOwners(transaction: DBSqliteTransaction, entity: IdentifierAddress): Promise<Account<AccountKeyAlgorithm.TOKEN>[]>;
     listACLsByEntity(transaction: DBSqliteTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(transaction: DBSqliteTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
-    getAccountInfo(transaction: DBSqliteTransaction, account: GenericAccount | string): Promise<AccountInfo>;
+    getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: DBSqliteTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     adjust(transaction: DBSqliteTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: DBSqliteTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;
     getBlockHeight(transaction: DBSqliteTransaction, blockHash: BlockHash, account: GenericAccount): Promise<bigint | null>;

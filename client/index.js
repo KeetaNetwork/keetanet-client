@@ -57355,6 +57355,8 @@ class UserClientBuilder {
                         const [base, external] = operations.info.defaultPermission.map(function (intString) {
                             return (BigInt(intString));
                         });
+                        // This is correct as we are constructing this from data that was only set if it was valid
+                        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                         newInfo.defaultPermission = new permissions_1.Permissions(base, external);
                     }
                     pendingOperations.info = newInfo;
@@ -57588,11 +57590,29 @@ class UserClientBuilder {
         const operations = [];
         for (const vote of staple.votes) {
             if (vote.fee !== undefined) {
+                // Handle both single fee and array of fees
+                // Select one fee: prefer one with undefined token (baseToken) or matching baseToken
+                const fees = Array.isArray(vote.fee) ? vote.fee : [vote.fee];
+                // If there are no fees, skip this vote
+                if (fees.length === 0) {
+                    continue;
+                }
+                // Find fee with undefined token or matching baseToken
+                let selectedFee = fees.find((fee) => {
+                    if (fee.token === undefined || fee.token.comparePublicKey(baseToken)) {
+                        return (true);
+                    }
+                    return (false);
+                });
+                // If no matching fee, use the first one
+                if (!selectedFee) {
+                    selectedFee = fees[0];
+                }
                 operations.push({
                     type: operations_1.OperationType.SEND,
-                    amount: vote.fee.amount,
-                    to: vote.fee.payTo ?? vote.issuer,
-                    token: vote.fee.token ?? baseToken
+                    amount: selectedFee.amount,
+                    to: selectedFee.payTo ?? vote.issuer,
+                    token: selectedFee.token ?? baseToken
                 });
             }
         }
@@ -57709,12 +57729,16 @@ class UserClientBuilder {
             }
             operations.push(...receiveOperations);
             if (pending.info) {
+                let defaultPermission;
+                if ('defaultPermission' in pending.info) {
+                    defaultPermission = pending.info.defaultPermission;
+                }
                 operations.push({
                     type: block_1.Block.OperationType.SET_INFO,
                     name: pending.info.name,
                     description: pending.info.description,
                     metadata: pending.info.metadata,
-                    defaultPermission: pending.info.defaultPermission
+                    defaultPermission: defaultPermission
                 });
             }
             if (pending.setRep) {
@@ -58528,9 +58552,10 @@ class Client {
             }
         });
         const parsed = response.access.map((entry) => {
+            const entity = lib_1.default.Account.fromPublicKeyString(entry.entity);
             return ({
-                entity: lib_1.default.Account.fromPublicKeyString(entry.entity),
-                info: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAccountInfo).call(this, entry.info),
+                entity: entity,
+                info: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAccountInfo).call(this, entry.info, entity),
                 balances: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAllBalances).call(this, entry.balances),
                 principals: __classPrivateFieldGet(this, _Client_instances, "m", _Client_parsePermissionEntries).call(this, entry.principals)
             });
@@ -59811,22 +59836,35 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
 }, _Client_parseResponsePermissions = function _Client_parseResponsePermissions(permissions) {
     const [base, external] = permissions.map(val => BigInt(val));
     return (new lib_1.default.Permissions(base, external));
-}, _Client_formatAccountInfo = function _Client_formatAccountInfo(raw) {
-    const info = {
+}, _Client_formatAccountInfo = function _Client_formatAccountInfo(raw, account) {
+    let ret = {
         name: raw.name,
         description: raw.description,
         metadata: raw.metadata
     };
-    if (raw.supply !== undefined) {
-        info.supply = BigInt(raw.supply);
+    if (account.isIdentifier()) {
+        ret = {
+            ...ret,
+            defaultPermission: raw.defaultPermission !== undefined ? __classPrivateFieldGet(this, _Client_instances, "m", _Client_parseResponsePermissions).call(this, raw.defaultPermission) : undefined
+        };
+        if (account.isMultisig()) {
+            if (raw.multisigQuorum !== undefined) {
+                ret = {
+                    ...ret,
+                    multisigQuorum: raw.multisigQuorum !== null ? BigInt(raw.multisigQuorum) : null
+                };
+            }
+        }
+        else if (account.isToken()) {
+            if (raw.supply !== undefined) {
+                ret = {
+                    ...ret,
+                    supply: BigInt(raw.supply)
+                };
+            }
+        }
     }
-    if (raw.defaultPermission !== undefined) {
-        info.defaultPermission = __classPrivateFieldGet(this, _Client_instances, "m", _Client_parseResponsePermissions).call(this, raw.defaultPermission);
-    }
-    if (raw.multisigQuorum !== undefined) {
-        info.multisigQuorum = BigInt(raw.multisigQuorum);
-    }
-    return (info);
+    return (ret);
 }, _Client_parseAccountInfo = function _Client_parseAccountInfo(account, accountInfo) {
     account = account_1.default.toAccount(account);
     if (!account.comparePublicKey(accountInfo.account)) {
@@ -59844,11 +59882,11 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
         currentRepresentative = lib_1.default.Account.fromPublicKeyString(accountInfo.representative).assertAccount();
     }
     return ({
-        account: lib_1.default.Account.fromPublicKeyString(accountInfo.account),
+        account: lib_1.default.Account.fromPublicKeyString(accountInfo.account).assertKeyType(account.keyType),
         currentHeadBlock: currentHeadBlock,
         currentHeadBlockHeight: accountInfo.currentHeadBlockHeight,
         representative: currentRepresentative,
-        info: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAccountInfo).call(this, accountInfo.info),
+        info: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAccountInfo).call(this, accountInfo.info, account),
         balances: __classPrivateFieldGet(this, _Client_instances, "m", _Client_formatAllBalances).call(this, accountInfo.balances)
     });
 }, _Client_parsePermissionEntries = function _Client_parsePermissionEntries(entries) {
@@ -63753,7 +63791,7 @@ _a = PossiblyUnsignedBlock, _PossiblyUnsignedBlock_valueBytes = new WeakMap(), _
     if (!recalculatedBytesBuffer.equals(existingBytesBuffer)) {
         const existingBytesHash = Buffer.from((0, hash_1.Hash)(existingBytesBuffer)).toString('hex').toUpperCase();
         const recalculatedBytesHash = Buffer.from((0, hash_1.Hash)(recalculatedBytesBuffer)).toString('hex').toUpperCase();
-        throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash})`));
+        throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Block signed bytes (${existingBytesHash}) do not match calculated bytes (${recalculatedBytesHash}) for block with hash ${this.hash.toString()}`));
     }
 }, _PossiblyUnsignedBlock_validateOperationsPurpose = function _PossiblyUnsignedBlock_validateOperationsPurpose() {
     /**
@@ -64440,6 +64478,29 @@ function operationTypeToNumber(str) {
     }
     return (type);
 }
+function makeEncodeDecodePermission(emptyValue) {
+    return {
+        encode: (data) => {
+            if (!data) {
+                return (emptyValue);
+            }
+            const encoded = permissions_1.Permissions.FromAcceptedTypes(data);
+            return ([encoded.base.bigint, encoded.external.bigint]);
+        },
+        decode: (data) => {
+            if (!data) {
+                return (emptyValue);
+            }
+            if (!Array.isArray(data) || data.length !== 2) {
+                throw (new Error('Invalid permissions data'));
+            }
+            if (typeof data[0] !== 'bigint' || typeof data[1] !== 'bigint') {
+                throw (new Error('Invalid permissions data types'));
+            }
+            return (new permissions_1.Permissions(data[0], data[1]));
+        }
+    };
+}
 /**
  * Schema for each operation as well as names of each field within the block operations
  */
@@ -64464,17 +64525,25 @@ const BlockOperationASN1SchemaBase = {
         { name: 'name', schema: { type: 'string', kind: 'utf8' } },
         { name: 'description', schema: { type: 'string', kind: 'utf8' } },
         { name: 'metadata', schema: { type: 'string', kind: 'utf8' } },
-        { name: 'defaultPermission', schema: { optional: [asn1_1.ValidateASN1.IsInteger, asn1_1.ValidateASN1.IsInteger] } }
+        {
+            name: 'defaultPermission',
+            schema: { optional: [asn1_1.ValidateASN1.IsInteger, asn1_1.ValidateASN1.IsInteger] },
+            ...(makeEncodeDecodePermission(undefined))
+        }
     ],
     'MODIFY_PERMISSIONS': [
         { name: 'principal', schema: asn1_1.ValidateASN1.IsOctetString },
         { name: 'method', schema: asn1_1.ValidateASN1.IsInteger },
-        { name: 'permissions', schema: {
+        {
+            name: 'permissions',
+            schema: {
                 choice: [
                     asn1_1.ValidateASN1.IsNull,
                     [asn1_1.ValidateASN1.IsInteger, asn1_1.ValidateASN1.IsInteger]
                 ]
-            } },
+            },
+            ...(makeEncodeDecodePermission(null))
+        },
         { name: 'target', schema: { optional: asn1_1.ValidateASN1.IsOctetString } }
     ],
     'CREATE_IDENTIFIER': [
@@ -64495,6 +64564,62 @@ const BlockOperationASN1SchemaBase = {
                         }
                     ]
                 }
+            },
+            encode: (data) => {
+                if (!data) {
+                    return (null);
+                }
+                if (data.type === account_1.AccountKeyAlgorithm.MULTISIG) {
+                    return ({
+                        type: 'context',
+                        kind: 'explicit',
+                        value: data.type,
+                        contains: [
+                            data.signers.map(function (signer) {
+                                return (signer.publicKeyAndType);
+                            }),
+                            data.quorum
+                        ]
+                    });
+                }
+                else {
+                    throw (new Error(`Unrecognized createArguments type for CREATE_IDENTIFIER operation`));
+                }
+            },
+            decode: (data) => {
+                if (!data) {
+                    return (undefined);
+                }
+                if (!asn1_1.ASN1CheckUtilities.isASN1ContextTag(data, 'explicit')) {
+                    throw (new Error('Invalid createArgs type for CREATE_IDENTIFIER operation'));
+                }
+                if (data.value === account_1.AccountKeyAlgorithm.MULTISIG) {
+                    if (!Array.isArray(data.contains) || data.contains.length !== 2) {
+                        throw (new Error('Invalid createArgs container'));
+                    }
+                    if (!Array.isArray(data.contains[0]) || typeof data.contains[1] !== 'bigint') {
+                        throw (new Error('Invalid createArgs container'));
+                    }
+                    return ({
+                        type: data.value,
+                        signers: data.contains[0].map(function (value) {
+                            if (!Buffer.isBuffer(value)) {
+                                throw (new Error(`Invalid signer value, expected Buffer, got ${typeof value}`));
+                            }
+                            const account = account_1.default.fromPublicKeyAndType(value);
+                            if (account.isAccount() || account.isMultisig()) {
+                                return (account);
+                            }
+                            else {
+                                throw (new Error('Signer for multisig must be an account or another multisig'));
+                            }
+                        }),
+                        quorum: BigInt(data.contains[1])
+                    });
+                }
+                else {
+                    throw (new Error('unrecognized type for multisig create arguments'));
+                }
             }
         }
     ],
@@ -64509,10 +64634,60 @@ const BlockOperationASN1SchemaBase = {
     ],
     'MANAGE_CERTIFICATE': [
         { name: 'method', schema: asn1_1.ValidateASN1.IsInteger },
-        { name: 'certificateOrHash', schema: asn1_1.ValidateASN1.IsOctetString },
-        { name: 'intermediateCertificates', schema: {
+        {
+            name: 'certificateOrHash',
+            schema: asn1_1.ValidateASN1.IsOctetString,
+            encode: (data) => {
+                if (certificate_1.Certificate.isCertificate(data)) {
+                    return (Buffer.from(data.toDER()));
+                }
+                else if (certificate_1.CertificateHash.isInstance(data)) {
+                    return (data.getBuffer());
+                }
+                else {
+                    throw (new Error('Invalid certificate or hash data type'));
+                }
+            },
+            decode: (data) => {
+                if (!(0, helper_1.isBuffer)(data)) {
+                    throw (new Error('Invalid certificate or hash data type'));
+                }
+                if (data.length === 32) {
+                    return (new certificate_1.CertificateHash(data.toString('hex')));
+                }
+                else {
+                    return (new certificate_1.Certificate(data));
+                }
+            }
+        },
+        {
+            name: 'intermediateCertificates',
+            schema: {
                 optional: { choice: [asn1_1.ValidateASN1.IsNull, { sequenceOf: asn1_1.ValidateASN1.IsOctetString }] }
-            } }
+            },
+            decode: (data) => {
+                if (!data) {
+                    return (null);
+                }
+                if (!Array.isArray(data)) {
+                    throw (new Error('Invalid intermediate certificates data'));
+                }
+                return (new certificate_1.CertificateBundle(data.map(function (certificate) {
+                    if (!(0, helper_1.isBuffer)(certificate)) {
+                        throw (new Error('Invalid intermediate certificate data type'));
+                    }
+                    return (new certificate_1.Certificate(certificate));
+                })));
+            },
+            encode: (data) => {
+                if (!data) {
+                    return (null);
+                }
+                return (data.getCertificates().map(function (certificate) {
+                    return (Buffer.from(certificate.toDER()));
+                }));
+            }
+        }
     ]
 };
 /**
@@ -65399,13 +65574,14 @@ function ExportBlockOperations(operations) {
     for (const entry of operations) {
         const operationContainer = [];
         const typeStr = operationTypeToString(entry.type);
-        const operationSchema = BlockOperationASN1SchemaBase[typeStr];
-        if (!typeStr || !operationSchema) {
+        const operationSchemas = BlockOperationASN1SchemaBase[typeStr];
+        if (!typeStr || !operationSchemas) {
             throw (new Error(`Unable to serialize operation with type ${entry.type} ${(0, conversion_1.toJSONSerializable)(entry)}`));
         }
         // We want to be able to read any key on the operation, so we need to cast it to any
         const unTypedEntry = entry;
-        for (const { name: key, schema } of operationSchema) {
+        for (const operationSchema of operationSchemas) {
+            const { name: key, schema } = operationSchema;
             let valueToWrite = unTypedEntry[key];
             if (valueToWrite === undefined) {
                 if (typeof schema === 'object' && schema && !('optional' in schema)) {
@@ -65413,21 +65589,8 @@ function ExportBlockOperations(operations) {
                 }
                 continue;
             }
-            else if (typeStr === 'CREATE_IDENTIFIER' && key === 'createArguments') {
-                // We are checking this in other places, and if this argument changes there will be many other things that break beforehand
-                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-                const typedValue = valueToWrite;
-                valueToWrite = {
-                    type: 'context',
-                    kind: 'explicit',
-                    value: valueToWrite.type,
-                    contains: [
-                        typedValue.signers.map(function (signer) {
-                            return (signer.publicKeyAndType);
-                        }),
-                        typedValue.quorum
-                    ]
-                };
+            else if ('encode' in operationSchema) {
+                valueToWrite = operationSchema.encode(valueToWrite);
             }
             else if (typeof valueToWrite === 'string') {
                 valueToWrite = { type: 'string', kind: 'utf8', value: valueToWrite };
@@ -65435,19 +65598,11 @@ function ExportBlockOperations(operations) {
             else if (account_1.default.isInstance(valueToWrite)) {
                 valueToWrite = valueToWrite.publicKeyAndType;
             }
-            else if (permissions_1.Permissions.isInstance(valueToWrite)) {
-                valueToWrite = [valueToWrite.base.bigint, valueToWrite.external.bigint];
-            }
             else if (certificate_1.Certificate.isCertificate(valueToWrite)) {
                 valueToWrite = Buffer.from(valueToWrite.toDER());
             }
             else if (certificate_1.CertificateHash.isInstance(valueToWrite)) {
                 valueToWrite = valueToWrite.getBuffer();
-            }
-            else if (certificate_1.CertificateBundle.isInstance(valueToWrite)) {
-                valueToWrite = valueToWrite.getCertificates().map(function (certificate) {
-                    return (Buffer.from(certificate.toDER()));
-                });
             }
             operationContainer.push(valueToWrite);
         }
@@ -65474,18 +65629,22 @@ function ImportOperationsASN1(input, network) {
             throw (new Error(`Found entry which is not a Sequence ${typeof entry}`));
         }
         const typeStr = operationTypeToString(type);
-        const operationSchema = BlockOperationASN1SchemaBase[typeStr];
-        if (!operationSchema) {
+        const operationSchemas = BlockOperationASN1SchemaBase[typeStr];
+        if (!operationSchemas) {
             throw (new Error(`Found valid operation ${typeStr} with invalid keys`));
         }
         operation.type = type;
         let keyIndex = -1;
-        for (const { name: key } of operationSchema) {
+        for (const operationSchema of operationSchemas) {
+            const key = operationSchema.name;
             keyIndex++;
             const keyValueIn = entry[keyIndex];
             let keyValueOut = undefined;
             if (keyValueIn === undefined) {
                 break;
+            }
+            else if ('decode' in operationSchema) {
+                keyValueOut = operationSchema.decode(keyValueIn);
             }
             else if (['bigint', 'string', 'boolean'].includes(typeof keyValueIn)) {
                 keyValueOut = keyValueIn;
@@ -65496,58 +65655,8 @@ function ImportOperationsASN1(input, network) {
             else if (keyValueIn === null) {
                 keyValueOut = null;
             }
-            else if (Array.isArray(keyValueIn) && key.toLowerCase().includes('permission')) {
-                // We are parsing a Permission
-                const [base, external] = keyValueIn;
-                const newKeyValue = new permissions_1.Permissions(base, external);
-                newKeyValue.validate(network);
-                keyValueOut = newKeyValue;
-            }
-            else if (key === 'createArguments' && typeStr === 'CREATE_IDENTIFIER') {
-                if (!asn1_1.ASN1CheckUtilities.isASN1ContextTag(keyValueIn, 'explicit')) {
-                    throw (new Error('Invalid createArgs type for CREATE_IDENTIFIER operation'));
-                }
-                if (keyValueIn.value !== account_1.AccountKeyAlgorithm.MULTISIG) {
-                    throw (new Error('unrecognized type for multisig create arguments'));
-                }
-                if (!Array.isArray(keyValueIn.contains) || keyValueIn.contains.length !== 2) {
-                    throw (new Error('Invalid createArgs container'));
-                }
-                if (!Array.isArray(keyValueIn.contains[0])) {
-                    throw (new Error('Invalid createArgs container'));
-                }
-                keyValueOut = {
-                    type: keyValueIn.value,
-                    signers: keyValueIn.contains[0].map(function (value) {
-                        if (!Buffer.isBuffer(value)) {
-                            throw (new Error(`Invalid signer value, expected Buffer, got ${typeof value}`));
-                        }
-                        return (account_1.default.fromPublicKeyAndType(value));
-                    }),
-                    quorum: keyValueIn.contains[1]
-                };
-            }
-            else if (Array.isArray(keyValueIn) && key === 'intermediateCertificates') {
-                keyValueOut = new certificate_1.CertificateBundle(keyValueIn.map(function (certificate) {
-                    return (new certificate_1.Certificate(certificate));
-                }));
-            }
             else if ((0, helper_1.isBuffer)(keyValueIn)) {
-                if (type === OperationType.MANAGE_CERTIFICATE && key === 'certificateOrHash') {
-                    const method = (0, _1.toAdjustMethod)(operation['method']);
-                    if (method === _1.AdjustMethod.SUBTRACT) {
-                        keyValueOut = new certificate_1.CertificateHash(keyValueIn);
-                    }
-                    else if (method === _1.AdjustMethod.ADD) {
-                        keyValueOut = new certificate_1.Certificate(keyValueIn);
-                    }
-                    else {
-                        throw (new Error(`Unrecognized method for MANAGE_CERTIFICATE operation: ${method}`));
-                    }
-                }
-                else {
-                    keyValueOut = account_1.default.fromPublicKeyAndType(keyValueIn);
-                }
+                keyValueOut = account_1.default.fromPublicKeyAndType(keyValueIn);
             }
             else if (typeof keyValueIn === 'object' && keyValueIn !== null) {
                 if (('type' in keyValueIn) && ('kind' in keyValueIn) && ('value' in keyValueIn)) {
@@ -66220,6 +66329,7 @@ exports.VoteErrorCodes = [
     'BUILDER_INVALID_BLOCK_TYPE',
     'BUILDER_INVALID_SERIAL',
     'BUILDER_INVALID_VALID_TO_FROM',
+    'BUILDER_INVALID_FEE',
     /**
      * Malformed ASN.1 Errors
      */
@@ -66274,6 +66384,8 @@ exports.VoteErrorCodes = [
     'MALFORMED_FEES_AMOUNT',
     'MALFORMED_FEES_FROM_VOTE_INVALID_INPUT',
     'MALFORMED_FEES_IN_PERMANENT_VOTE',
+    'MALFORMED_FEES_INVALID_QUOTE_VALUE',
+    'MALFORMED_FEES_MULTIPLE_FEE_EMPTY',
     'MALFORMED_FEES_PAY_TO_INVALID',
     'MALFORMED_FEES_TOKEN_NOT_TOKEN',
     // Fee Quote Errors
@@ -66747,7 +66859,10 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
         if (getAccountInfoPromises[accountPubKey] === undefined) {
             getAccountInfoPromises[accountPubKey] = storageProvider.getAccountInfo(transaction, account);
         }
-        return (await getAccountInfoPromises[accountPubKey]);
+        // We know this is correct as we are accessing the object via the account's public key
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const resolved = await getAccountInfoPromises[accountPubKey];
+        return (resolved);
     };
     const getPermissionPromises = {};
     const getPermissions = async (account, entityList) => {
@@ -67180,7 +67295,8 @@ class LedgerStorageBase {
         return blockHeights;
     }
     _formatAccountInfoFromRow(account, row = {}) {
-        const ret = {
+        const shared = {
+            account: account,
             name: row.name ?? '',
             description: row.description ?? '',
             metadata: row.metadata ?? ''
@@ -67194,15 +67310,42 @@ class LedgerStorageBase {
             if (!permissions_1.Permissions.ExternalSet.isInstance(externalSet)) {
                 externalSet = BigInt(externalSet);
             }
-            ret.defaultPermission = new permissions_1.Permissions(baseSet, externalSet);
+            const identifierShared = {
+                ...shared,
+                defaultPermission: new permissions_1.Permissions(baseSet, externalSet)
+            };
+            if (account.isToken()) {
+                return ({
+                    ...identifierShared,
+                    account: account,
+                    supply: BigInt(row.supply ?? 0)
+                });
+            }
+            else if (account.isMultisig()) {
+                return ({
+                    ...identifierShared,
+                    account: account,
+                    multisigQuorum: row.multisigQuorum ? BigInt(row.multisigQuorum) : null
+                });
+            }
+            else if (account.isNetwork()) {
+                return ({ ...identifierShared, account });
+            }
+            else if (account.isStorage()) {
+                return ({ ...identifierShared, account });
+            }
+            else {
+                throw (new Error('Unsupported identifier account type for AccountInfo'));
+            }
         }
-        if (account.isToken()) {
-            ret.supply = BigInt(row.supply ?? 0);
+        else if (account.isAccount()) {
+            // We know that this type is correct, the only way to avoid this assertion is to have an if statement for every single account type which would be unwieldy
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            return ({ ...shared, account: account });
         }
-        if (account.isMultisig() && row.multisigQuorum !== undefined) {
-            ret.multisigQuorum = BigInt(row.multisigQuorum);
+        else {
+            throw (new Error('Unsupported account type for AccountInfo'));
         }
-        return (ret);
     }
     _validateAccountInfoKeys(account, info) {
         const validKeys = ['name', 'description', 'metadata'];
@@ -67217,6 +67360,7 @@ class LedgerStorageBase {
         }
         const keys = Object.keys(info);
         const foundBannedKey = keys.find(function (key) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             return (validKeys.includes(key) === false);
         });
         if (foundBannedKey !== undefined) {
@@ -67446,7 +67590,7 @@ function addPermissionRequirement(state, requirement) {
     }
     if (state.accounts[entityPubKey] !== undefined) {
         const entityInfo = state.accounts[entityPubKey].fields.info;
-        if (entityInfo !== undefined) {
+        if (entityInfo !== undefined && 'defaultPermission' in entityInfo) {
             const defaultPermission = entityInfo.defaultPermission;
             if (defaultPermission !== undefined) {
                 if (requirement.permissions === null || defaultPermission.has(requirement.permissions)) {
@@ -67517,17 +67661,25 @@ function modifyBalanceInState(balanceState) {
 }
 function updateAccountInfoInState(state, account, info) {
     const accountPubKey = account.publicKeyString.get();
-    const toUpdate = {
+    let toUpdate = {
         name: info.name,
         description: info.description,
         metadata: info.metadata
     };
     if (account.isIdentifier()) {
-        if (info.defaultPermission !== undefined) {
-            toUpdate.defaultPermission = info.defaultPermission;
+        if ('defaultPermission' in info && info.defaultPermission !== undefined) {
+            toUpdate = {
+                ...toUpdate,
+                defaultPermission: info.defaultPermission
+            };
         }
-        if (account.isMultisig() && info.multisigQuorum !== undefined) {
-            toUpdate.multisigQuorum = info.multisigQuorum;
+        if (account.isMultisig()) {
+            if ('multisigQuorum' in info && info.multisigQuorum !== undefined) {
+                toUpdate = {
+                    ...toUpdate,
+                    multisigQuorum: info.multisigQuorum
+                };
+            }
         }
     }
     else {
@@ -68216,6 +68368,7 @@ const never_1 = __webpack_require__(8692);
 const ledger_1 = __webpack_require__(452);
 const permissions_1 = __webpack_require__(5860);
 const effects_1 = __webpack_require__(7346);
+const types_1 = __webpack_require__(5773);
 const conversion_1 = __webpack_require__(2360);
 const cache_1 = __importDefault(__webpack_require__(5834));
 const timing_1 = __webpack_require__(2895);
@@ -68449,28 +68602,41 @@ class LedgerAtomicInterface {
                     if (!hasFeeBlock) {
                         throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
                     }
+                    // Each vote requires exactly one fee payment, regardless of array size
                     if (requiredFees.size !== possibleFeeBlock?.operations.length) {
                         throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
                     }
                 }
-                // Verify that all required fees have been included in the fee block
-                for (const [issuer, fee] of requiredFees) {
-                    const foundFee = possibleFeeBlock?.operations.find((operation) => {
+                // Verify that at least one required fee option has been satisfied for each vote
+                for (const [issuer, feeOrFees] of requiredFees) {
+                    // Handle both single fee and array of fees
+                    const fees = Array.isArray(feeOrFees) ? feeOrFees : [feeOrFees];
+                    // Check if at least one fee option is satisfied
+                    let foundMatchingFee = false;
+                    for (const fee of fees) {
                         const expectedPayTo = fee.payTo ?? issuer;
                         const expectedToken = fee.token ?? __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").baseToken;
-                        if (operation.type === operations_1.OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
-                            if (operation.amount !== fee.amount) {
-                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_AMOUNT_MISMATCH', `Fee Amount Mismatch, found: ${operation.amount} expected: ${fee.amount}`));
+                        const foundFee = possibleFeeBlock?.operations.find((operation) => {
+                            if (operation.type === operations_1.OperationType.SEND && operation.to.comparePublicKey(expectedPayTo)) {
+                                if (operation.amount === fee.amount && operation.token.comparePublicKey(expectedToken)) {
+                                    return (true);
+                                }
                             }
-                            if (!operation.token.comparePublicKey(expectedToken)) {
-                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_TOKEN_MISMATCH', `Fee Token Mismatch, found: ${operation.token.publicKeyString.get()} expected: ${expectedToken.publicKeyString.get()}`));
-                            }
-                            return (true);
+                            return (false);
+                        });
+                        if (foundFee !== undefined) {
+                            foundMatchingFee = true;
+                            break; // Found a matching fee, no need to check others
                         }
-                        return (false);
-                    });
-                    if (foundFee === undefined) {
-                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${fee.payTo?.publicKeyString.get() ?? issuer.publicKeyString.get()}`));
+                    }
+                    if (!foundMatchingFee) {
+                        // Build helpful error message showing what fees were expected
+                        const feeOptions = fees.map(fee => {
+                            const payTo = fee.payTo ?? issuer;
+                            const token = fee.token ?? __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").baseToken;
+                            return (`${fee.amount} ${token.publicKeyString.get()} to ${payTo.publicKeyString.get()}`);
+                        }).join(' OR ');
+                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_FEE_MISSING', `Missing Required Fee for ${issuer.publicKeyString.get()}. Expected one of: ${feeOptions}`));
                     }
                 }
             }
@@ -69030,12 +69196,13 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
     for (const requirement of requirements) {
         const reqEntityKey = requirement.entity.publicKeyString.get();
         const foundACLRow = (0, common_1.findPermissionMatch)(requirement, gotPermissions);
+        const foundAccountInfo = accountInfos[reqEntityKey];
         let foundPermission;
         if (foundACLRow?.permissions) {
             foundPermission = foundACLRow?.permissions;
         }
-        else if (accountInfos[reqEntityKey]?.defaultPermission) {
-            foundPermission = accountInfos[reqEntityKey].defaultPermission;
+        else if (foundAccountInfo && (0, types_1.isIdentifierAccountInfo)(foundAccountInfo) && foundAccountInfo.defaultPermission) {
+            foundPermission = foundAccountInfo.defaultPermission;
         }
         else {
             foundPermission = new permissions_1.Permissions();
@@ -69095,7 +69262,7 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
     for (const [multisig, foundSingerLength] of foundMultisigSignerLengths) {
         const multisigPubKey = multisig.publicKeyString.get();
         const foundInfo = foundAccountInfo[multisigPubKey];
-        if (!foundInfo?.multisigQuorum) {
+        if (!('multisigQuorum' in foundInfo) || !foundInfo?.multisigQuorum) {
             throw (new Error(`Multisig quorum not found for ${multisigPubKey}`));
         }
         if (foundInfo.multisigQuorum > foundSingerLength) {
@@ -69628,9 +69795,9 @@ class Ledger {
             return (await transaction.getAccountRep(...args));
         }));
     }
-    async getAccountInfo(...args) {
+    async getAccountInfo(account) {
         return (await this.runReadOnly('db-getAccountInfo', async function (transaction) {
-            return (await transaction.getAccountInfo(...args));
+            return (await transaction.getAccountInfo(account));
         }));
     }
     async getBlock(...args) {
@@ -69714,6 +69881,28 @@ _Ledger_storage = new WeakMap(), _Ledger_config = new WeakMap();
 Ledger.Kind = LedgerKind;
 Ledger.isInstance = (0, helper_1.checkableGenerator)(Ledger);
 exports["default"] = Ledger;
+
+
+/***/ }),
+
+/***/ 5773:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isIdentifierAccountInfo = isIdentifierAccountInfo;
+exports.isKeyPairAccountInfo = isKeyPairAccountInfo;
+exports.isAccountInfoOfType = isAccountInfoOfType;
+function isIdentifierAccountInfo(info) {
+    return (info.account.isIdentifier());
+}
+function isKeyPairAccountInfo(info) {
+    return (info.account.isAccount());
+}
+function isAccountInfoOfType(info, type) {
+    return (info.account.isKeyType(type));
+}
 
 
 /***/ }),
@@ -77461,6 +77650,9 @@ function convertSingleValue(value, opts = {}) {
     return (checkPrefix(out, prefix, opts));
 }
 function toJSONSerializable(data, opts) {
+    if (data === undefined) {
+        throw (new Error('undefined is not JSON serializable'));
+    }
     return (JSON.parse(JSON.stringify(convertSingleValue(data, opts))));
 }
 function objectToBuffer(data, opts = {}) {
@@ -78669,7 +78861,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_instances, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBlockBundle__blockHashes, _VoteBlockBundle__votes, _VoteBlockBundle__blocks, _VoteBlockBundle__touchedAccounts, _VoteBlockBundle_votesRaw, _VoteBlockBundle_blocksRaw, _VoteBlockBundle_options, _VoteBlockBundle__asn1Validated, _VoteBlockBundle__blocksAndVotesRaw_get, _VoteBlockBundle__blocksRaw_get, _VoteBlockBundle__votesRaw_get, _VoteBlockBundle_blockHashes_get, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee;
+var _VoteBlockHashMap_instances, _VoteBlockHashMap_valueMap, _VoteBlockHashMap_keyMap, _VoteBlockHashMap_getLookupKey, _a, _VoteLikeBase_vote, _VoteLikeBase_options, _VoteLikeBase__hash, _VoteLikeBase__blocksHash, _VoteBlockBundle_instances, _VoteBlockBundle_value, _VoteBlockBundle_valueCompressed, _VoteBlockBundle__hash, _VoteBlockBundle__blocksHash, _VoteBlockBundle__blockHashes, _VoteBlockBundle__votes, _VoteBlockBundle__blocks, _VoteBlockBundle__touchedAccounts, _VoteBlockBundle_votesRaw, _VoteBlockBundle_blocksRaw, _VoteBlockBundle_options, _VoteBlockBundle__asn1Validated, _VoteBlockBundle__blocksAndVotesRaw_get, _VoteBlockBundle__blocksRaw_get, _VoteBlockBundle__votesRaw_get, _VoteBlockBundle_blockHashes_get, _BaseVoteBuilder_instances, _BaseVoteBuilder_account, _BaseVoteBuilder_blocks, _BaseVoteBuilder_fee, _BaseVoteBuilder_formatSingleFeeEntry, _BaseVoteBuilder_formatSingleFeeEntryData;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Testing = exports.VoteQuoteBuilder = exports.VoteBuilder = exports.BaseVoteBuilder = exports.VoteStaple = exports.VoteBlockBundle = exports.VoteQuote = exports.Vote = exports.PossiblyExpiredVote = exports.VoteBlockHash = exports.VoteBlockHashMap = void 0;
 /*
@@ -78696,15 +78888,31 @@ class VoteHash extends buffer_1.BufferStorage {
     }
 }
 VoteHash.isInstance = (0, helper_1.checkableGenerator)(VoteHash);
+const singleFeeEntrySchema = [
+    asn1_1.ValidateASN1.IsBoolean,
+    asn1_1.ValidateASN1.IsInteger,
+    { optional: { type: 'context', value: 0, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } },
+    { optional: { type: 'context', value: 1, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } }
+];
+const multipleFeeEntrySchema = {
+    type: 'context',
+    value: 0,
+    kind: 'explicit',
+    contains: { sequenceOf: singleFeeEntrySchema }
+};
 const feeExtensionSchema = {
     type: 'context',
     value: 0,
     kind: 'explicit',
+    contains: { choice: [singleFeeEntrySchema, multipleFeeEntrySchema] }
+};
+const hashDataSchema = {
+    type: 'context',
+    value: 0,
+    kind: 'explicit',
     contains: [
-        asn1_1.ValidateASN1.IsBoolean,
-        asn1_1.ValidateASN1.IsInteger,
-        { optional: { type: 'context', value: 0, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } },
-        { optional: { type: 'context', value: 1, kind: 'implicit', contains: asn1_1.ValidateASN1.IsOctetString } }
+        asn1_1.ValidateASN1.IsOID,
+        { sequenceOf: asn1_1.ValidateASN1.IsOctetString }
     ]
 };
 /**
@@ -78786,8 +78994,40 @@ function blockHashesFromVote(input) {
     }
     return (output);
 }
+function parseSingleFeeEntry(feeData) {
+    const fee = {
+        amount: feeData[1]
+    };
+    if (fee.amount < 0n) {
+        throw (new vote_1.default('VOTE_MALFORMED_FEES_AMOUNT', 'internal error: fee amount cannot be negative'));
+    }
+    const payToAsn1 = feeData[2];
+    if (payToAsn1 !== undefined) {
+        const payTo = account_1.default.fromPublicKeyAndType(Buffer.from(payToAsn1.contains));
+        if (payTo.isStorage()) {
+            fee.payTo = payTo;
+        }
+        else {
+            try {
+                fee.payTo = payTo.assertAccount();
+            }
+            catch {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address'));
+            }
+        }
+    }
+    const tokenAsn1 = feeData[3];
+    if (tokenAsn1 !== undefined) {
+        const token = account_1.default.fromPublicKeyAndType(Buffer.from(tokenAsn1.contains));
+        if (!token.isToken()) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token'));
+        }
+        fee.token = token;
+    }
+    return (fee);
+}
 function feeFromVote(input) {
-    const feeInformationAnyJS = (0, asn1_1.ASN1toJS)(input.buffer);
+    const feeInformationAnyJS = (0, asn1_1.ASN1toJS)((0, helper_1.bufferToArrayBuffer)(input));
     const feeSchemaChecker = new asn1_1.ValidateASN1(feeExtensionSchema);
     const feeInformation = (function () {
         try {
@@ -78802,37 +79042,48 @@ function feeFromVote(input) {
         }
     })();
     const feeData = feeInformation.contains;
-    const quote = feeData[0];
-    const retval = {
-        quote: quote,
-        fee: {
-            amount: feeData[1]
-        }
-    };
-    const payToAsn1 = feeData[2];
-    if (payToAsn1 !== undefined) {
-        const payTo = account_1.default.fromPublicKeyAndType(Buffer.from(payToAsn1.contains));
-        if (payTo.isStorage()) {
-            retval.fee.payTo = payTo;
-        }
-        else {
-            try {
-                retval.fee.payTo = payTo.assertAccount();
-            }
-            catch {
-                throw (new vote_1.default('VOTE_MALFORMED_FEES_PAY_TO_INVALID', 'internal error: payTo is not an Account or Storage Address'));
-            }
-        }
+    /**
+     * Detect format: check if single fee entry (array of attributes) or multiple fee format (context object)
+     * We've already validated the object against the schema so we know it's one or the other
+     */
+    if (Array.isArray(feeData)) {
+        const quote = feeData[0];
+        const fee = parseSingleFeeEntry(feeData);
+        return ({
+            quote: quote,
+            fee: fee
+        });
     }
-    const tokenAsn1 = feeData[3];
-    if (tokenAsn1 !== undefined) {
-        const token = account_1.default.fromPublicKeyAndType(Buffer.from(tokenAsn1.contains));
-        if (!token.isToken()) {
-            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'internal error: fees extension token is not a valid token'));
+    else {
+        // New array format - explicit sequence of fee entries
+        const multiFeeData = feeData.contains;
+        if (multiFeeData.length === 0) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_MULTIPLE_FEE_EMPTY', 'internal error: multiple fee entries must not be an empty array'));
         }
-        retval.fee.token = token;
+        const feeList = [];
+        let quote;
+        for (const entry of multiFeeData) {
+            // Schema already validated, but need to narrow the type
+            if (!Array.isArray(entry)) {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_FROM_VOTE_INVALID_INPUT', 'internal error: each fee entry must be a Sequence'));
+            }
+            const entryQuote = entry[0];
+            if (quote === undefined) {
+                quote = entryQuote;
+            }
+            else if (quote !== entryQuote) {
+                throw (new vote_1.default('VOTE_MALFORMED_FEES_INVALID_QUOTE_VALUE', 'internal error: all fee entries must have the same quote value'));
+            }
+            feeList.push(parseSingleFeeEntry(entry));
+        }
+        if (quote === undefined) {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_INVALID_QUOTE_VALUE', 'internal error: quote value should not be undefined'));
+        }
+        return ({
+            quote: quote,
+            fee: feeList
+        });
     }
-    return (retval);
 }
 /**
  * Convert an ASN1Date to a Date
@@ -78980,14 +79231,22 @@ class VoteLikeBase {
             if (fee === undefined) {
                 return (false);
             }
-            if (fee['amount'] === undefined) {
+            // Handle both single fee and list of fee choices
+            const feeList = Array.isArray(fee) ? fee : [fee];
+            // Reject empty fee arrays to avoid downstream encoding/decoding issues
+            if (feeList.length === 0) {
                 return (false);
             }
-            if ('payTo' in fee && fee['payTo'] === undefined) {
-                return (false);
-            }
-            if ('token' in fee && fee['token'] === undefined) {
-                return (false);
+            for (const feeEntry of feeList) {
+                if (feeEntry['amount'] === undefined) {
+                    return (false);
+                }
+                if ('payTo' in feeEntry && feeEntry['payTo'] === undefined) {
+                    return (false);
+                }
+                if ('token' in feeEntry && feeEntry['token'] === undefined) {
+                    return (false);
+                }
             }
         }
         if ('quote' in voteJSON) {
@@ -78998,7 +79257,7 @@ class VoteLikeBase {
         return (true);
     }
     static fromJSON(voteJSON, options = {}) {
-        if (!VoteLikeBase.isValidJSON(voteJSON)) {
+        if (!this.isValidJSON(voteJSON)) {
             throw (new vote_1.default('VOTE_INVALID_CONSTRUCTION_JSON', 'Cannot construct vote, it is not a valid vote JSON object'));
         }
         const issuer = account_1.default.toAccount(voteJSON.issuer);
@@ -79066,8 +79325,8 @@ class VoteLikeBase {
             vote = (0, helper_1.bufferToArrayBuffer)(vote);
         }
         if (!(util_1.types.isArrayBuffer(vote))) {
-            if (VoteLikeBase.isValidJSON(vote)) {
-                vote = VoteLikeBase.fromJSON(vote).toBytes();
+            if (this.getClass().isValidJSON(vote)) {
+                vote = this.getClass().fromJSON(vote).toBytes();
             }
             else {
                 throw (new vote_1.default('VOTE_INVALID_CONSTRUCTION', 'internal error: invalid vote constructor argument in VoteLikeBase'));
@@ -79177,13 +79436,13 @@ class VoteLikeBase {
          * Votes must not be expired
          */
         const expirationCheckMomentISO = new Date(expirationCheckMoment).toISOString();
-        if (expirationCheckMoment < (this.validityFrom.valueOf() - VoteLikeBase.allowedSlop)) {
+        if (expirationCheckMoment < (this.validityFrom.valueOf() - this.getClass().allowedSlop)) {
             throw (new vote_1.default('VOTE_MOMENT_BEFORE_VALIDITY_FROM', `Vote was issued in the future (issued on ${validFrom.toISOString()}; moment: ${expirationCheckMomentISO})`));
         }
         /**
          * If the vote is forever viable, it is a permanent vote
          */
-        if (this.validityTo.valueOf() > (expirationCheckMoment + VoteLikeBase.permanentVoteThreshold)) {
+        if (this.validityTo.valueOf() > (expirationCheckMoment + this.getClass().permanentVoteThreshold)) {
             this.$permanent = true;
         }
         /**
@@ -79449,7 +79708,7 @@ class VoteLikeBase {
         const now = this.expirationCheckMoment();
         const from = this.validityFrom.valueOf();
         const to = this.validityTo.valueOf();
-        if ((now + VoteLikeBase.allowedSlop) < from || (now - VoteLikeBase.allowedSlop) > to) {
+        if ((now + this.getClass().allowedSlop) < from || (now - this.getClass().allowedSlop) > to) {
             return (true);
         }
         return (false);
@@ -80058,6 +80317,7 @@ exports.VoteStaple = VoteStaple;
 VoteStaple.isInstance = (0, helper_1.checkableGenerator)(VoteStaple);
 class BaseVoteBuilder {
     constructor(account, blocks = [], options) {
+        _BaseVoteBuilder_instances.add(this);
         _BaseVoteBuilder_account.set(this, void 0);
         _BaseVoteBuilder_blocks.set(this, void 0);
         _BaseVoteBuilder_fee.set(this, undefined);
@@ -80090,26 +80350,22 @@ class BaseVoteBuilder {
         this.addBlocks([block]);
     }
     addFee(feeInput) {
-        const fee = { amount: BigInt(feeInput.amount) };
-        const payTo = account_1.default.toAccount(feeInput.payTo);
-        if (payTo !== undefined) {
-            if (payTo.isStorage()) {
-                fee.payTo = payTo;
+        if (Array.isArray(feeInput)) {
+            if (feeInput.length === 0) {
+                throw (new vote_1.default('VOTE_BUILDER_INVALID_FEE', 'Fee array cannot be empty'));
             }
-            else {
-                fee.payTo = payTo.assertAccount();
+            // List of fee choices format (array)
+            const feeList = [];
+            for (const feeEntry of feeInput) {
+                feeList.push(__classPrivateFieldGet(this, _BaseVoteBuilder_instances, "m", _BaseVoteBuilder_formatSingleFeeEntry).call(this, feeEntry));
             }
+            __classPrivateFieldSet(this, _BaseVoteBuilder_fee, feeList, "f");
         }
-        const token = account_1.default.toAccount(feeInput.token);
-        if (token !== undefined) {
-            if (token.isToken()) {
-                fee.token = token;
-            }
-            else {
-                throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN'));
-            }
+        else {
+            // Single fee
+            const fee = __classPrivateFieldGet(this, _BaseVoteBuilder_instances, "m", _BaseVoteBuilder_formatSingleFeeEntry).call(this, feeInput);
+            __classPrivateFieldSet(this, _BaseVoteBuilder_fee, fee, "f");
         }
-        __classPrivateFieldSet(this, _BaseVoteBuilder_fee, fee, "f");
     }
     generateVoteData(serial, validTo, validFrom) {
         /**
@@ -80151,17 +80407,18 @@ class BaseVoteBuilder {
         ];
         let feeExtension = undefined;
         if (__classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f") !== undefined) {
-            /** Amount for this vote */
-            const feeData = [this.quote, __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").amount];
-            /** Account to pay the fee too */
-            const payToPublicKey = __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").payTo?.publicKeyAndType;
-            if (payToPublicKey !== undefined) {
-                feeData.push({ type: 'context', value: 0, kind: 'implicit', contains: payToPublicKey });
+            let feeDataContent;
+            if (Array.isArray(__classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f"))) {
+                // List of fee choices format (array)
+                const feeDataArray = [];
+                for (const fee of __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f")) {
+                    feeDataArray.push(__classPrivateFieldGet(this, _BaseVoteBuilder_instances, "m", _BaseVoteBuilder_formatSingleFeeEntryData).call(this, fee));
+                }
+                feeDataContent = { type: 'context', value: 0, kind: 'explicit', contains: feeDataArray };
             }
-            /** Token in which to pay the fee */
-            const tokenPublicKey = __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f").token?.publicKeyAndType;
-            if (tokenPublicKey !== undefined) {
-                feeData.push({ type: 'context', value: 1, kind: 'implicit', contains: tokenPublicKey });
+            else {
+                // Single fee format
+                feeDataContent = __classPrivateFieldGet(this, _BaseVoteBuilder_instances, "m", _BaseVoteBuilder_formatSingleFeeEntryData).call(this, __classPrivateFieldGet(this, _BaseVoteBuilder_fee, "f"));
             }
             feeExtension = [
                 { type: 'oid', oid: '1.3.6.1.4.1.62675.0.1.0' }, // replace with 'fees' - 1.3.6.1.4.1.62675.0.1.0
@@ -80170,7 +80427,7 @@ class BaseVoteBuilder {
                     type: 'context',
                     value: 0,
                     kind: 'explicit',
-                    contains: feeData
+                    contains: feeDataContent
                 }).toBER(false))
             ];
         }
@@ -80329,7 +80586,45 @@ class BaseVoteBuilder {
     }
 }
 exports.BaseVoteBuilder = BaseVoteBuilder;
-_BaseVoteBuilder_account = new WeakMap(), _BaseVoteBuilder_blocks = new WeakMap(), _BaseVoteBuilder_fee = new WeakMap();
+_BaseVoteBuilder_account = new WeakMap(), _BaseVoteBuilder_blocks = new WeakMap(), _BaseVoteBuilder_fee = new WeakMap(), _BaseVoteBuilder_instances = new WeakSet(), _BaseVoteBuilder_formatSingleFeeEntry = function _BaseVoteBuilder_formatSingleFeeEntry(feeInput) {
+    const fee = { amount: BigInt(feeInput.amount) };
+    const payTo = account_1.default.toAccount(feeInput.payTo);
+    if (payTo !== undefined) {
+        if (payTo.isStorage()) {
+            fee.payTo = payTo;
+        }
+        else {
+            fee.payTo = payTo.assertAccount();
+        }
+    }
+    const token = account_1.default.toAccount(feeInput.token);
+    if (token !== undefined) {
+        if (token.isToken()) {
+            fee.token = token;
+        }
+        else {
+            throw (new vote_1.default('VOTE_MALFORMED_FEES_TOKEN_NOT_TOKEN', 'Fee Token should be of type TOKEN'));
+        }
+    }
+    return (fee);
+}, _BaseVoteBuilder_formatSingleFeeEntryData = function _BaseVoteBuilder_formatSingleFeeEntryData(feeInput) {
+    /** Account to pay the fee too */
+    let payToData = undefined;
+    if (feeInput.payTo?.publicKeyAndType !== undefined) {
+        payToData = { type: 'context', value: 0, kind: 'implicit', contains: feeInput.payTo.publicKeyAndType };
+    }
+    /** Token in which to pay the fee */
+    let tokenData = undefined;
+    if (feeInput.token?.publicKeyAndType !== undefined) {
+        tokenData = { type: 'context', value: 1, kind: 'implicit', contains: feeInput.token.publicKeyAndType };
+    }
+    return ([
+        this.quote,
+        feeInput.amount,
+        payToData,
+        tokenData
+    ]);
+};
 BaseVoteBuilder.isInstance = (0, helper_1.checkableGenerator)(BaseVoteBuilder);
 class VoteBuilder extends BaseVoteBuilder {
     async seal(serial, validTo, validFrom, voteOptions = {}) {
@@ -80360,7 +80655,7 @@ Vote.Staple = VoteStaple;
 Vote.Quote = VoteQuote;
 exports["default"] = Vote;
 /** @internal */
-exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
+exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, feeExtensionSchema };
 
 
 /***/ }),
@@ -80372,7 +80667,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote };
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.16.0+g906ddd004c65d7e5d33559183bed9119e681c5ae';
+exports.version = '0.16.1+g8d5abd1c27152ecca68f2594f9191c1c77a334a4';
 exports["default"] = exports.version;
 
 

@@ -1,4 +1,5 @@
 import { ValidateASN1 } from '../utils/asn1';
+import type { ASN1AnyJS } from '../utils/asn1';
 import type { DeepMutable } from '../utils/helper';
 import type { GenericAccount, IdentifierAddress, IdentifierKeyAlgorithm, TokenAddress, TokenPublicKeyString } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
@@ -86,6 +87,8 @@ declare const BlockOperationASN1SchemaBase: {
             readonly kind: "utf8";
         };
     }, {
+        readonly encode: (data: Permissions | undefined) => bigint[] | undefined;
+        readonly decode: (data: ASN1AnyJS) => Permissions | undefined;
         readonly name: "defaultPermission";
         readonly schema: {
             readonly optional: readonly [typeof ValidateASN1.IsInteger, typeof ValidateASN1.IsInteger];
@@ -98,6 +101,8 @@ declare const BlockOperationASN1SchemaBase: {
         readonly name: "method";
         readonly schema: typeof ValidateASN1.IsInteger;
     }, {
+        readonly encode: (data: Permissions | null) => bigint[] | null;
+        readonly decode: (data: ASN1AnyJS) => Permissions | null;
         readonly name: "permissions";
         readonly schema: {
             readonly choice: [typeof ValidateASN1.IsNull, readonly [typeof ValidateASN1.IsInteger, typeof ValidateASN1.IsInteger]];
@@ -125,6 +130,8 @@ declare const BlockOperationASN1SchemaBase: {
                 }];
             };
         };
+        readonly encode: (data: MultiSigIdentifierCreateArguments | undefined) => ASN1AnyJS;
+        readonly decode: (data: ASN1AnyJS) => IdentifierCreateArguments | undefined;
     }];
     readonly TOKEN_ADMIN_SUPPLY: [{
         readonly name: "amount";
@@ -149,6 +156,8 @@ declare const BlockOperationASN1SchemaBase: {
     }, {
         readonly name: "certificateOrHash";
         readonly schema: typeof ValidateASN1.IsOctetString;
+        readonly encode: (data: Certificate | CertificateHash) => Buffer;
+        readonly decode: (data: ASN1AnyJS) => Certificate | CertificateHash;
     }, {
         readonly name: "intermediateCertificates";
         readonly schema: {
@@ -158,6 +167,8 @@ declare const BlockOperationASN1SchemaBase: {
                 }];
             };
         };
+        readonly decode: (data: ASN1AnyJS) => CertificateBundle | null;
+        readonly encode: (data: CertificateBundle | null | undefined) => Buffer[] | null;
     }];
 };
 type ExtractSchemaFromBase<T extends {

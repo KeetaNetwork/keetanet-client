@@ -29,7 +29,7 @@ export type NodeCreationOptions = {
 };
 export declare function setup(options?: NodeCreationOptions): Promise<{
     trustedKey: Account<AccountKeyAlgorithm.ECDSA_SECP256K1>;
-    repKeys: Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>[];
+    repKeys: Account<import("../lib/account").KeyPairKeyAlgorithm>[];
     accounts: Account<AccountKeyAlgorithm.ECDSA_SECP256K1>[];
     nodes: LocalNode[];
     trustedClients: KeetaNet.UserClient[];
@@ -40,7 +40,8 @@ export declare function setup(options?: NodeCreationOptions): Promise<{
     cleanupFunctions: (() => Promise<void>)[];
 }>;
 declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
-declare function runFeeBlockTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
+declare function runSingleFeeTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
+declare function runMultipleFeeTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runBuilderStorageTests(_ignoreNodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runMultiSigTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runRecoverAccountTest(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
@@ -62,8 +63,8 @@ export declare const clientTests: {
             count: number;
         };
     };
-    'Fee Block Tests': {
-        test: typeof runFeeBlockTests;
+    'Single Fee Tests': {
+        test: typeof runSingleFeeTests;
         options: {
             p2pTested: boolean;
             count: number;
@@ -72,6 +73,24 @@ export declare const clientTests: {
                     computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => {
                         amount: bigint;
                     };
+                };
+            }[];
+        };
+    };
+    'Multiple Fee Tests': {
+        test: typeof runMultipleFeeTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+            customNodeOptions: {
+                ledger: {
+                    computeFeeFromBlocks: (ledger: Ledger, blocks: Block[], effects: ComputedEffectOfBlocks) => ({
+                        amount: bigint;
+                        token?: undefined;
+                    } | {
+                        amount: bigint;
+                        token: Account<AccountKeyAlgorithm.TOKEN>;
+                    })[];
                 };
             }[];
         };

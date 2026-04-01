@@ -184,7 +184,7 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
     readonly subnet: SubnetID | undefined;
     readonly signer: BlockSignerField;
     readonly signatures: HasSignature extends true ? BlockSignatureField : null;
-    get principal(): MultisigAddress | Account<AccountKeyAlgorithm.ECDSA_SECP256K1 | AccountKeyAlgorithm.ED25519 | AccountKeyAlgorithm.ECDSA_SECP256R1>;
+    get principal(): MultisigAddress | Account<import("../account").KeyPairKeyAlgorithm>;
     protected static getSortedRequiredSigners(input: BlockSignerField): Account[];
     readonly $opening: boolean;
     protected static isValidJSONSignedOrUnsigned<AssertSignatureField extends boolean, Version extends 1 | 2>(assertSignatureIncluded: AssertSignatureField, block: unknown, version?: Version): block is AssertSignatureField extends true ? ({
@@ -201,82 +201,94 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
     protected static getV2ASN1ContainerWithoutSignature(input: BlockV2UnsignedCanonical | BlockV2Canonical): BlockV2ASN1WithoutSignature;
     protected static getASN1ContainerWithoutSignature(input: Omit<BlockV1UnsignedCanonical, 'signature'> | Omit<BlockV2UnsignedCanonical, 'signatures'>): BlockASN1SchemaWithoutSignature;
     toJSON(options?: ToJSONSerializableOptions): {
-        $binary?: string | undefined;
-        signature?: string | undefined;
-        signatures?: string[] | undefined;
         version: 1 | 2;
-        idempotent: string | undefined;
         date: string;
         previous: BlockHashString;
         account: import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
         purpose: BlockPurpose;
         signer: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [import("../account").MultisigPublicKeyString, (import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | [never, never[]])[]])[]])[]])[]];
         network: string;
-        subnet: string | undefined;
-        operations: ({
+        operations: (({
             type: Operations.OperationType.SEND;
             to: string;
             amount: string;
             token: import("../account").TokenPublicKeyString;
+        } & {
             external?: string | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.SET_REP;
             to: string;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.SET_INFO;
             name: string;
             description: string;
             metadata: string;
+        } & {
             defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.MODIFY_PERMISSIONS;
             principal: string;
             method: AdjustMethod;
             permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
+        } & {
             target?: string | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.CREATE_IDENTIFIER;
             identifier: string;
-            createArguments?: {
+        } & {
+            createArguments?: ({
                 type: AccountKeyAlgorithm.MULTISIG;
                 signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
                 quorum: string;
-            } | {
+            } & {}) | ({
                 type: AccountKeyAlgorithm.MULTISIG;
                 signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
                 quorum: string;
-            } | undefined;
-        } | {
+            } & {}) | undefined;
+        }) | ({
             type: Operations.OperationType.TOKEN_ADMIN_SUPPLY;
             amount: string;
             method: AdjustMethod.ADD | AdjustMethod.SUBTRACT;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
             token: import("../account").TokenPublicKeyString;
             amount: string;
             method: AdjustMethod;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.RECEIVE;
             amount: string;
             token: import("../account").TokenPublicKeyString;
             from: string;
+        } & {
             forward?: string | undefined;
             exact?: boolean | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.MANAGE_CERTIFICATE;
             certificateOrHash: string | (string & {
                 readonly __certificateHash: never;
-            }) | {
-                $binary?: string | undefined;
-                $chain?: undefined;
+            }) | ({
                 serial: string;
                 notBefore: string;
                 notAfter: string;
                 subject: string;
                 issuer: string;
                 subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
-                baseExtensions: {
-                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            } & {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                baseExtensions?: ({} & {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                     keyUsage?: {
                         digitalSignature?: boolean | undefined;
                         nonRepudiation?: boolean | undefined;
@@ -289,12 +301,19 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
                         decipherOnly?: boolean | undefined;
                     } | undefined;
                     subjectKeyIdentifier?: string | undefined;
-                    authorityKeyIdentifier?: {
+                    authorityKeyIdentifier?: ({
                         type: "context";
                         value: 0;
                         contains: string;
-                    } | undefined;
-                } | undefined;
+                    } & {}) | undefined;
+                }) | undefined;
+            }) | ({
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
                 subjectDN: {
                     name: string;
                     value: string;
@@ -306,17 +325,11 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
                 $hash: string & {
                     readonly __certificateHash: never;
                 };
-            } | {
+            } & {
                 $binary?: string | undefined;
                 $chain?: undefined;
-                serial: string;
-                notBefore: string;
-                notAfter: string;
-                subject: string;
-                issuer: string;
-                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
-                baseExtensions: {
-                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                baseExtensions?: ({} & {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                     keyUsage?: {
                         digitalSignature?: boolean | undefined;
                         nonRepudiation?: boolean | undefined;
@@ -329,31 +342,27 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
                         decipherOnly?: boolean | undefined;
                     } | undefined;
                     subjectKeyIdentifier?: string | undefined;
-                    authorityKeyIdentifier?: {
+                    authorityKeyIdentifier?: ({
                         type: "context";
                         value: 0;
                         contains: string;
-                    } | undefined;
-                } | undefined;
-                subjectDN: {
-                    name: string;
-                    value: string;
-                }[];
-                issuerDN: {
-                    name: string;
-                    value: string;
-                }[];
-                $hash: string & {
-                    readonly __certificateHash: never;
-                };
-            };
+                    } & {}) | undefined;
+                }) | undefined;
+            });
+            method: Exclude<AdjustMethod, AdjustMethod.SET>;
+        } & {
             intermediateCertificates?: string | {
                 certificates: string[];
             } | null | undefined;
-            method: Exclude<AdjustMethod, AdjustMethod.SET>;
-        })[];
+        }))[];
         $hash: BlockHashString;
         $opening: boolean;
+    } & {
+        $binary?: string | undefined;
+        signature?: string | undefined;
+        signatures?: string[] | undefined;
+        idempotent?: string | undefined;
+        subnet?: string | undefined;
     };
     /**
      * Hash of the block minus the signature
@@ -407,78 +416,97 @@ export declare class BlockBuilder {
     protected get currentWIP(): BlockJSONIncomplete;
     protected get currentBlockSealed(): Block;
     toJSON(opts?: ToJSONSerializableOptions): {
-        version: number | undefined;
-        idempotent: string | undefined;
-        date: string | undefined;
-        previous: BlockHashString | undefined;
-        account: import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | undefined;
-        signer: string | [string, (string | [string, (string | [string, (string | [string, (string | [string, never[]])[]])[]])[]])[]] | undefined;
-        network: string | undefined;
-        subnet: string | undefined;
-        operations: ({
+        purpose: BlockPurpose;
+    } & {
+        version?: number | undefined;
+        idempotent?: string | undefined;
+        date?: string | undefined;
+        previous?: BlockHashString | undefined;
+        account?: import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | undefined;
+        signer?: string | [string, (string | [string, (string | [string, (string | [string, (string | [string, never[]])[]])[]])[]])[]] | undefined;
+        network?: string | undefined;
+        subnet?: string | undefined;
+        operations?: (({
             type: Operations.OperationType.SEND;
             to: string;
             amount: string;
             token: import("../account").TokenPublicKeyString;
+        } & {
             external?: string | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.SET_REP;
             to: string;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.SET_INFO;
             name: string;
             description: string;
             metadata: string;
+        } & {
             defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.MODIFY_PERMISSIONS;
             principal: string;
             method: AdjustMethod;
             permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
+        } & {
             target?: string | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.CREATE_IDENTIFIER;
             identifier: string;
-            createArguments?: {
+        } & {
+            createArguments?: ({
                 type: AccountKeyAlgorithm.MULTISIG;
                 signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
                 quorum: string;
-            } | {
+            } & {}) | ({
                 type: AccountKeyAlgorithm.MULTISIG;
                 signers: (import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString)[];
                 quorum: string;
-            } | undefined;
-        } | {
+            } & {}) | undefined;
+        }) | ({
             type: Operations.OperationType.TOKEN_ADMIN_SUPPLY;
             amount: string;
             method: AdjustMethod.ADD | AdjustMethod.SUBTRACT;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.TOKEN_ADMIN_MODIFY_BALANCE;
             token: import("../account").TokenPublicKeyString;
             amount: string;
             method: AdjustMethod;
-        } | {
+        } & {}) | ({
             type: Operations.OperationType.RECEIVE;
             amount: string;
             token: import("../account").TokenPublicKeyString;
             from: string;
+        } & {
             forward?: string | undefined;
             exact?: boolean | undefined;
-        } | {
+        }) | ({
             type: Operations.OperationType.MANAGE_CERTIFICATE;
             certificateOrHash: string | (string & {
                 readonly __certificateHash: never;
-            }) | {
-                $binary?: string | undefined;
-                $chain?: undefined;
+            }) | ({
                 serial: string;
                 notBefore: string;
                 notAfter: string;
                 subject: string;
                 issuer: string;
                 subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
-                baseExtensions: {
-                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                subjectDN: {
+                    name: string;
+                    value: string;
+                }[];
+                issuerDN: {
+                    name: string;
+                    value: string;
+                }[];
+                $hash: string & {
+                    readonly __certificateHash: never;
+                };
+            } & {
+                $binary?: string | undefined;
+                $chain?: undefined;
+                baseExtensions?: ({} & {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                     keyUsage?: {
                         digitalSignature?: boolean | undefined;
                         nonRepudiation?: boolean | undefined;
@@ -491,12 +519,19 @@ export declare class BlockBuilder {
                         decipherOnly?: boolean | undefined;
                     } | undefined;
                     subjectKeyIdentifier?: string | undefined;
-                    authorityKeyIdentifier?: {
+                    authorityKeyIdentifier?: ({
                         type: "context";
                         value: 0;
                         contains: string;
-                    } | undefined;
-                } | undefined;
+                    } & {}) | undefined;
+                }) | undefined;
+            }) | ({
+                serial: string;
+                notBefore: string;
+                notAfter: string;
+                subject: string;
+                issuer: string;
+                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
                 subjectDN: {
                     name: string;
                     value: string;
@@ -508,17 +543,11 @@ export declare class BlockBuilder {
                 $hash: string & {
                     readonly __certificateHash: never;
                 };
-            } | {
+            } & {
                 $binary?: string | undefined;
                 $chain?: undefined;
-                serial: string;
-                notBefore: string;
-                notAfter: string;
-                subject: string;
-                issuer: string;
-                subjectPublicKey: import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString;
-                baseExtensions: {
-                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | undefined] | undefined;
+                baseExtensions?: ({} & {
+                    basicConstraints?: [ca: boolean, pathLenConstraint?: string | null | undefined] | undefined;
                     keyUsage?: {
                         digitalSignature?: boolean | undefined;
                         nonRepudiation?: boolean | undefined;
@@ -531,31 +560,20 @@ export declare class BlockBuilder {
                         decipherOnly?: boolean | undefined;
                     } | undefined;
                     subjectKeyIdentifier?: string | undefined;
-                    authorityKeyIdentifier?: {
+                    authorityKeyIdentifier?: ({
                         type: "context";
                         value: 0;
                         contains: string;
-                    } | undefined;
-                } | undefined;
-                subjectDN: {
-                    name: string;
-                    value: string;
-                }[];
-                issuerDN: {
-                    name: string;
-                    value: string;
-                }[];
-                $hash: string & {
-                    readonly __certificateHash: never;
-                };
-            };
+                    } & {}) | undefined;
+                }) | undefined;
+            });
+            method: Exclude<AdjustMethod, AdjustMethod.SET>;
+        } & {
             intermediateCertificates?: string | {
                 certificates: string[];
             } | null | undefined;
-            method: Exclude<AdjustMethod, AdjustMethod.SET>;
-        })[] | undefined;
-        purpose: BlockPurpose;
-        $opening: boolean | undefined;
+        }))[] | undefined;
+        $opening?: boolean | undefined;
     };
     getUnsignedBlock(): Promise<UnsignedBlock>;
     seal(): Promise<Block>;

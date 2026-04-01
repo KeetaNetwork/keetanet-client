@@ -3,10 +3,10 @@ import type { Block } from '../block';
 import { BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
-import Account from '../account';
+import Account, { AccountKeyAlgorithm } from '../account';
 import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
-import type { AccountInfo, ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates } from './types';
+import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import type { KVStorageProviderAPI } from '../kv';
 import { LedgerStorageBase } from './common';
 import type { Database as GoogleSpannerDatabase } from '@google-cloud/spanner';
@@ -97,7 +97,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     getHeadBlocks(transaction: SpannerTransaction, accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [publicKey: string]: Block | null;
     }>;
-    getAccountInfo(transaction: SpannerTransaction, account: GenericAccount | string): Promise<AccountInfo>;
+    getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: SpannerTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     listOwners(transaction: SpannerTransaction, entity: IdentifierAddress): Promise<GenericAccount[]>;
     listACLsByEntity(transaction: SpannerTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     listACLsByPrincipal(transaction: SpannerTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;

@@ -57597,6 +57597,10 @@ class UserClientBuilder {
                 if (fees.length === 0) {
                     continue;
                 }
+                // If fee options contains an amount of 0, skip this vote
+                if (fees.some(fee => fee.amount === 0n)) {
+                    continue;
+                }
                 // Find fee with undefined token or matching baseToken
                 let selectedFee = fees.find((fee) => {
                     if (fee.token === undefined || fee.token.comparePublicKey(baseToken)) {
@@ -58130,7 +58134,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Client_instances, _Client_reps, _Client_weightOrderedReps, _Client_intervals, _Client_updateRepsPromise, _Client_apiRaw, _Client_api, _Client_requestVoteOrQuote, _Client_requestQuotes, _Client_requestVotes, _Client_getVotes, _Client_getBuilderRenderOptions, _Client_urlSeparatedAccounts, _Client_formatAllBalances, _Client_parseResponsePermissions, _Client_formatAccountInfo, _Client_parseAccountInfo, _Client_parsePermissionEntries, _Client_mapCertificateWithBundleResult, _Client_parseRepInfo, _UserClient_instances, _UserClient_config, _UserClient_client, _UserClient_listeners, _UserClient_intervals, _UserClient_previousAccountChangeData, _UserClient_socketPromise, _UserClient_filteredWebSocket, _UserClient_changePromise, _UserClient_reconnectAttempts, _UserClient_RECONNECT_TIMEOUT, _UserClient_transientUserClients, _UserClient_getAccount, _UserClient_publishAidURL_get, _UserClient_publishWithPublishAid, _UserClient_reconnectWebSocket, _UserClient_setupFilteredWebSocket, _UserClient_emit, _UserClient_emitAccountInfoIfChanged;
+var _Client_instances, _Client_reps, _Client_weightOrderedReps, _Client_intervals, _Client_updateRepsPromise, _Client_apiRaw, _Client_api, _Client_requestVoteOrQuote, _Client_requestQuotes, _Client_requestVotes, _Client_getVotes, _Client_getBuilderRenderOptions, _Client_votesRequireFees, _Client_urlSeparatedAccounts, _Client_formatAllBalances, _Client_parseResponsePermissions, _Client_formatAccountInfo, _Client_parseAccountInfo, _Client_parsePermissionEntries, _Client_mapCertificateWithBundleResult, _Client_parseRepInfo, _UserClient_instances, _UserClient_config, _UserClient_client, _UserClient_listeners, _UserClient_intervals, _UserClient_previousAccountChangeData, _UserClient_socketPromise, _UserClient_filteredWebSocket, _UserClient_changePromise, _UserClient_reconnectAttempts, _UserClient_RECONNECT_TIMEOUT, _UserClient_transientUserClients, _UserClient_getAccount, _UserClient_publishAidURL_get, _UserClient_publishWithPublishAid, _UserClient_reconnectWebSocket, _UserClient_setupFilteredWebSocket, _UserClient_emit, _UserClient_emitAccountInfoIfChanged;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.lib = exports.UserClient = exports.Client = void 0;
 exports.blockGenerator = blockGenerator;
@@ -58374,13 +58378,7 @@ class Client {
      */
     async transmit(blocks, options) {
         const tempVotes = await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestVotes).call(this, blocks, undefined, undefined, options?.quotes);
-        let requiresFee = false;
-        for (const vote of tempVotes) {
-            if (vote.fee !== undefined) {
-                requiresFee = true;
-            }
-        }
-        if (requiresFee) {
+        if (__classPrivateFieldGet(this, _Client_instances, "m", _Client_votesRequireFees).call(this, tempVotes)) {
             if (options?.generateFeeBlock === undefined) {
                 throw (new Error('Votes require fees but generateFeeBlock was not defined'));
             }
@@ -59320,15 +59318,8 @@ class Client {
                 tempVotes = [...tempVotes, ...newTempVotes];
             }
             const missingPermReps = __classPrivateFieldGet(this, _Client_reps, "f").filter(rep => !permReps.includes(rep));
-            // If any of the temporary votes require a fee, we need to generate a fee block
-            let requiresFee = false;
-            for (const vote of tempVotes) {
-                if (vote.fee !== undefined) {
-                    requiresFee = true;
-                }
-            }
             // If we need a fee block and don't have any permanent votes, we need to generate a fee block
-            if (requiresFee && permVotes.length === 0) {
+            if (__classPrivateFieldGet(this, _Client_instances, "m", _Client_votesRequireFees).call(this, tempVotes) && permVotes.length === 0) {
                 if (options?.generateFeeBlock === undefined) {
                     throw (new Error('Votes require fees but generateFeeBlock was not defined'));
                 }
@@ -59823,6 +59814,22 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
             return (currentHeadBlock);
         }
     });
+}, _Client_votesRequireFees = function _Client_votesRequireFees(tempVotes) {
+    let requiresFees = false;
+    for (const vote of tempVotes) {
+        if (vote.fee !== undefined) {
+            const voteFee = Array.isArray(vote.fee) ? vote.fee : [vote.fee];
+            // Check if user has the option to pay zero (any fee with amount === 0)
+            // If a zero-amount option exists, fee block is optional for this vote
+            const hasZeroFeeOption = voteFee.some(fee => fee.amount === 0n);
+            // If no zero option exists (requires payment), fee block is required
+            if (!hasZeroFeeOption) {
+                requiresFees = true;
+                break;
+            }
+        }
+    }
+    return (requiresFees);
 }, _Client_urlSeparatedAccounts = function _Client_urlSeparatedAccounts(accounts) {
     const pubKeys = accounts.map(account => account_1.default.toPublicKeyString(account));
     return (pubKeys.join(','));
@@ -61369,6 +61376,7 @@ const p256_1 = __webpack_require__(5897);
 const buffer_1 = __webpack_require__(3310);
 const helper_1 = __webpack_require__(3208);
 const hash_1 = __webpack_require__(7908);
+const domain_separation_1 = __webpack_require__(9061);
 const asn1_1 = __webpack_require__(6045);
 const block_1 = __importStar(__webpack_require__(6158));
 const account_1 = __importDefault(__webpack_require__(4642));
@@ -61639,7 +61647,7 @@ class ExternalKeyPair extends KeyInterface {
         return (__classPrivateFieldGet(this, _ExternalKeyPair_functions, "f").decrypt(...parameters));
     }
     get supportsEncryption() {
-        return (true);
+        return (__classPrivateFieldGet(this, _ExternalKeyPair_functions, "f").supportsEncryption);
     }
     get keyType() {
         return (__classPrivateFieldGet(this, _ExternalKeyPair_keyType, "f"));
@@ -62645,6 +62653,9 @@ class Account {
         if (__classPrivateFieldGet(this, _Account_privateKeyPair, "f") === null) {
             throw (new Error('May not sign unless a private key is available'));
         }
+        if (options.namespace !== undefined) {
+            data = (0, domain_separation_1.applyNamespace)(options.namespace, data);
+        }
         if (!__classPrivateFieldGet(this, _Account_keyPairHandlesHashing, "f") && !options.raw) {
             data = (0, hash_1.Hash)(Buffer.from(data));
         }
@@ -62659,6 +62670,9 @@ class Account {
             forCert: false,
             ...options
         };
+        if (options.namespace !== undefined) {
+            data = (0, domain_separation_1.applyNamespace)(options.namespace, data);
+        }
         if (!__classPrivateFieldGet(this, _Account_keyPairHandlesHashing, "f") && !options.raw) {
             data = (0, hash_1.Hash)(Buffer.from(data));
         }
@@ -62791,10 +62805,11 @@ class Account {
      * Determine if an account is an identifier
      */
     isIdentifier() {
-        // We are checking here, so it is safe to assert the type
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        return (identifierKeyTypes.includes(this.keyType));
+        return (Account.isIdentifierKeyType(__classPrivateFieldGet(this, _Account_keyType, "f")));
     }
+    /**
+     * Determine if an account is a regular (non-identifier)
+     */
     isAccount() {
         return (!this.isIdentifier());
     }
@@ -62827,7 +62842,7 @@ class Account {
     }
     assertAccount() {
         if (this.isIdentifier() !== false) {
-            throw (new Error('Required Account but got Identifier'));
+            throw (new account_1.default('ACCOUNT_NOT_ACCOUNT', 'Required Account but got Identifier'));
         }
         // We need to assert this type because we are changing what the constructed type is
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -62835,7 +62850,7 @@ class Account {
     }
     assertIdentifier() {
         if (this.isIdentifier() !== true) {
-            throw (new Error(`Required Identifier but got Account, ${this.keyType}`));
+            throw (new account_1.default('ACCOUNT_NOT_IDENTIFIER', `Required Identifier but got Account, ${this.keyType}`));
         }
         // We need to assert this type because we are changing what the constructed type is
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -62852,6 +62867,18 @@ _Account_privateKeyPair = new WeakMap(), _Account_publicKeyPair = new WeakMap(),
  */
 Account.AccountKeyAlgorithm = AccountKeyAlgorithm;
 Account.ExternalKeyPair = ExternalKeyPair;
+/**
+ * Access to the underlying Key Pair classes for advanced use cases.
+ */
+Account.KeyPairs = {
+    [AccountKeyAlgorithm.ECDSA_SECP256K1]: ECDSASECP256K1KeyPair,
+    [AccountKeyAlgorithm.ECDSA_SECP256R1]: ECDSASECP256R1KeyPair,
+    [AccountKeyAlgorithm.ED25519]: ED25519KeyPair,
+    [AccountKeyAlgorithm.NETWORK]: IdentifierKeyPair,
+    [AccountKeyAlgorithm.TOKEN]: IdentifierKeyPair,
+    [AccountKeyAlgorithm.STORAGE]: IdentifierKeyPair,
+    [AccountKeyAlgorithm.MULTISIG]: IdentifierKeyPair
+};
 Account.isInstance = (0, helper_2.checkableGenerator)(Account);
 Account.Set = (0, helper_1.setGenerator)(Account, function (account) {
     const retval = account.publicKeyAndTypeString;
@@ -63952,8 +63979,9 @@ class UnsignedBlock extends PossiblyUnsignedBlock {
     async seal() {
         const signers = UnsignedBlock.getSortedRequiredSigners(this.signer);
         const hash = this.hash;
+        const ancillaryData = this.toBytes(false);
         const signatures = await Promise.all(signers.map(async function (signer) {
-            const signature = await signer.sign(hash.getBuffer());
+            const signature = await signer.sign(hash.getBuffer(), { ancillaryData });
             return (signature.getBuffer());
         }));
         const shared = {
@@ -64993,8 +65021,8 @@ class BlockOperationSET_REP extends BlockOperation {
     }
     validate(context) {
         const { block } = context;
-        if (block.account.isIdentifier()) {
-            throw (new block_1.default('BLOCK_NO_IDENTIFIER_OP', 'Identifier accounts cannot use SET_REP'));
+        if (!(0, common_1.canDelegate)(block.account.keyType)) {
+            throw (new block_1.default('BLOCK_NO_IDENTIFIER_OP', `${account_1.AccountKeyAlgorithm[block.account.keyType]} accounts cannot use SET_REP`));
         }
         if (this.to.isIdentifier()) {
             throw (new block_1.default('BLOCK_NO_IDENTIFIER_OP', 'Cannot delegate to an identifier'));
@@ -65698,12 +65726,16 @@ exports.AccountErrorCodes = [
     'INVALID_CONSTRUCTION',
     'NO_IDENTIFIER_SIGN',
     'NO_IDENTIFIER_VERIFY',
+    'NOT_ACCOUNT',
+    'NOT_IDENTIFIER',
     'INVALID_IDENTIFIER_CONSTRUCTION',
     'SEED_INDEX_UNDEFINED',
     'SEED_INDEX_NEGATIVE',
     'SEED_INDEX_NOT_INT',
     'SEED_INDEX_TOO_LARGE',
-    'ENCRYPTION_NOT_SUPPORTED'
+    'ENCRYPTION_NOT_SUPPORTED',
+    'NAMESPACE_EMPTY',
+    'NAMESPACE_TOO_LONG'
 ];
 exports.FullAccountErrorCodes = exports.AccountErrorCodes.map(code => `${AccountErrorType}_${code}`);
 class KeetaNetAccountError extends base_1.KeetaNetErrorBase {
@@ -66452,6 +66484,7 @@ const error_1 = __webpack_require__(5390);
 const ASN1 = __importStar(__webpack_require__(6045));
 const Bloom = __importStar(__webpack_require__(7313));
 const Buffer = __importStar(__webpack_require__(3310));
+const DomainSeparation = __importStar(__webpack_require__(9061));
 const Hash = __importStar(__webpack_require__(7908));
 const Helper = __importStar(__webpack_require__(3208));
 const Initial = __importStar(__webpack_require__(3750));
@@ -66476,11 +66509,12 @@ exports["default"] = {
         ASN1,
         Bloom,
         Buffer,
+        Certificate,
+        Conversion,
+        DomainSeparation,
         Hash,
         Helper,
-        Initial,
-        Conversion,
-        Certificate
+        Initial
     }
 };
 
@@ -66755,6 +66789,7 @@ exports.validateSupply = validateSupply;
 exports.validateNumericValue = validateNumericValue;
 exports.validateBlockSignerCount = validateBlockSignerCount;
 exports.validateBlockSignerDepth = validateBlockSignerDepth;
+exports.canDelegate = canDelegate;
 exports.computeLedgerEffect = computeLedgerEffect;
 exports.addTimeStatistic = addTimeStatistic;
 exports.assertLedgerStorage = assertLedgerStorage;
@@ -66815,6 +66850,29 @@ function validateBlockSignerDepth(depth, network) {
     if (depth > maxValue) {
         throw (new block_2.default('BLOCK_INVALID_MULTISIG_SIGNER_DEPTH', `signer depth does not fit proper format -- GOT: '${depth}' MaxValue: ${maxValue}`));
     }
+}
+/**
+ * Determines if an account type can delegate voting weight via SET_REP.
+ *
+ * Regular accounts (ECDSA_SECP256K1, ED25519, ECDSA_SECP256R1) can always delegate.
+ * Among identifier accounts, only STORAGE accounts can delegate.
+ * TOKEN, NETWORK, and MULTISIG identifier accounts cannot delegate.
+ *
+ * @param keyType - The account key algorithm type to check
+ * @returns true if the account type can use SET_REP to delegate, false otherwise
+ *
+ */
+function canDelegate(keyType) {
+    // Regular accounts (non-identifiers) can always delegate
+    if (!account_1.default.isIdentifierKeyType(keyType)) {
+        return (true);
+    }
+    // Among identifiers, only STORAGE can delegate
+    if (keyType === account_1.AccountKeyAlgorithm.STORAGE) {
+        return (true);
+    }
+    // Other identifier accounts cannot delegate
+    return (false);
 }
 /**
  * Compute effects on the ledger from block effects
@@ -66897,7 +66955,7 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
         const delegationField = effects[accountPubKey]?.fields.delegation;
         const isDelegating = delegationField !== undefined;
         let requestedRep = false;
-        if (isDelegating && computeWeights && getFinalNumericValues && account.isAccount()) {
+        if (isDelegating && computeWeights && getFinalNumericValues && canDelegate(account.keyType)) {
             requestedRep = true;
             prefetchPromises.push(getRep(account, getFinalNumericValues));
             prefetchPromises.push(getWeight(delegationField.delegateTo));
@@ -66925,7 +66983,7 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
                 if ((possibleNegative && checkRangeConstraints) || set || getFinalNumericValues || (isDelegating && computeWeights)) {
                     prefetchPromises.push(getPreviousBalance(account, token));
                 }
-                if (computeWeights && isBaseToken && account.isAccount() && !requestedRep) {
+                if (computeWeights && isBaseToken && canDelegate(account.keyType) && !requestedRep) {
                     requestedRep = true;
                     prefetchPromises.push(getRep(account, getFinalNumericValues));
                 }
@@ -67061,7 +67119,7 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
         }
         const delegationField = effects[accountPubKey]?.fields.delegation;
         const isDelegating = delegationField !== undefined;
-        if (isDelegating && account.isAccount() && computeWeights) {
+        if (isDelegating && canDelegate(account.keyType) && computeWeights) {
             const currentDelegation = await getRep(account, getFinalNumericValues);
             const previousBalance = await getPreviousBalance(account, baseToken);
             await modifyWeight(delegationField.delegateTo, previousBalance);
@@ -67115,7 +67173,7 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
                     receivable[otherAccountPubKey][tokenPubKey] += balanceChange;
                 }
                 const isBaseToken = baseToken.comparePublicKey(tokenAcct);
-                if (isBaseToken && account.isAccount() && computeWeights) {
+                if (isBaseToken && canDelegate(account.keyType) && computeWeights) {
                     if (isDelegating) {
                         await modifyWeight(delegationField.delegateTo, balanceChange);
                     }
@@ -68528,6 +68586,14 @@ class LedgerAtomicInterface {
             if (!quote.issuer.comparePublicKey(ledgerPubKey)) {
                 throw (new ledger_1.KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key'));
             }
+            if (quote.blocks.length !== blocks.length) {
+                throw (new ledger_1.KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match blocks length'));
+            }
+            for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+                if (!blocks[blockIndex].hash.compareHexString(quote.blocks[blockIndex])) {
+                    throw (new ledger_1.KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match blocks content'));
+                }
+            }
         }
         /**
          * Verify some attributes about the other votes if they are provided
@@ -68552,6 +68618,7 @@ class LedgerAtomicInterface {
                 }
             }
             const requiredFees = new Map();
+            const optionalFees = new Map();
             for (const checkVote of otherVotes) {
                 if (checkVote.quote === true) {
                     throw (new ledger_1.KeetaNetLedgerError('LEDGER_VOTE_WITH_QUOTE', 'Cannot request votes with quote as supporting votes'));
@@ -68565,7 +68632,18 @@ class LedgerAtomicInterface {
                 seenVoteIssuers.add(checkVote.issuer);
                 seenVoteUIDs.add(checkVote.$id);
                 if (checkVote.fee !== undefined) {
-                    requiredFees.set(checkVote.issuer, checkVote.fee);
+                    const checkVoteFee = Array.isArray(checkVote.fee) ? checkVote.fee : [checkVote.fee];
+                    // Check if user has the option to pay zero (any fee with amount === 0)
+                    // If a zero-amount option exists, fee block is optional; otherwise required
+                    const hasZeroFeeOption = checkVoteFee.some(fee => fee.amount === 0n);
+                    if (hasZeroFeeOption) {
+                        // At least one fee option is zero amount - fee block is optional, but if included should match one of the provided options
+                        optionalFees.set(checkVote.issuer, checkVote.fee);
+                    }
+                    else if (checkVoteFee.length > 0) {
+                        // All fee options require payment (no zero option) - fee block MUST be present and operation should match at least one fee option
+                        requiredFees.set(checkVote.issuer, checkVote.fee);
+                    }
                 }
                 /*
                  * Handle errors specific to requesting a permanent vote
@@ -68592,23 +68670,43 @@ class LedgerAtomicInterface {
                     foundOurVote = true;
                 }
             }
+            let finalRequiredFees = requiredFees;
             /*
              * We only care about fees if we are issuing a permanent vote,
              * if we are issuing a temporary vote the fees will be checked
              * when the permanent vote is requested
              */
             if (outcome === 'permanent') {
-                if (requiredFees.size > 0) {
-                    if (!hasFeeBlock) {
-                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
+                if (requiredFees.size > 0 || optionalFees.size > 0) {
+                    // If fees are required then a fee block should have been provided
+                    if (requiredFees.size > 0) {
+                        if (!hasFeeBlock) {
+                            throw (new ledger_1.KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it'));
+                        }
                     }
-                    // Each vote requires exactly one fee payment, regardless of array size
-                    if (requiredFees.size !== possibleFeeBlock?.operations.length) {
-                        throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
+                    // We can only validate operations match if we have a fee block
+                    if (hasFeeBlock) {
+                        // Each vote requires exactly one fee payment, regardless of array size
+                        // Optional fees may or may not be included in the operations but if they are they should match
+                        if (optionalFees.size > 0) {
+                            if (possibleFeeBlock?.operations.length !== requiredFees.size &&
+                                possibleFeeBlock?.operations.length !== (requiredFees.size + optionalFees.size)) {
+                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees or required and optional fees'));
+                            }
+                            // If user provided optional fees then we should validate they match
+                            if (possibleFeeBlock?.operations.length === (requiredFees.size + optionalFees.size)) {
+                                finalRequiredFees = new Map([...requiredFees, ...optionalFees]);
+                            }
+                        }
+                        else {
+                            if (requiredFees.size !== possibleFeeBlock?.operations.length) {
+                                throw (new ledger_1.KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees'));
+                            }
+                        }
                     }
                 }
                 // Verify that at least one required fee option has been satisfied for each vote
-                for (const [issuer, feeOrFees] of requiredFees) {
+                for (const [issuer, feeOrFees] of finalRequiredFees) {
                     // Handle both single fee and array of fees
                     const fees = Array.isArray(feeOrFees) ? feeOrFees : [feeOrFees];
                     // Check if at least one fee option is satisfied
@@ -68913,6 +69011,10 @@ class LedgerAtomicInterface {
         return (retval);
     }
     async getAccountRep(account) {
+        const acct = account_1.default.toAccount(account);
+        if (!(0, common_1.canDelegate)(acct.keyType)) {
+            return (null);
+        }
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         const retval = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").getAccountRep(transaction, account);
         return (retval);
@@ -69543,7 +69645,12 @@ async function _LedgerAtomicInterface_validateLedgerOutcome(blocks) {
      */
     if (requireBlockTimestampCheck) {
         const fee = quote?.fee ?? await this.getFee(blocks, effects);
-        if (fee !== null) {
+        // We add an explicit fee of 0 if one is not provided.
+        // Since the quote identifier is in the fee data and needs to be parsed correctly.
+        if (fee === null || (Array.isArray(fee) && fee.length === 0)) {
+            builder.addFee({ amount: 0n });
+        }
+        else {
             builder.addFee(fee);
         }
     }
@@ -77670,6 +77777,76 @@ function parseHexBigIntString(input) {
 
 /***/ }),
 
+/***/ 9061:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.namespacePrefixSchema = exports.MaxNamespaceLength = exports.KeetaNamespaceVersion = void 0;
+exports.applyNamespace = applyNamespace;
+const account_1 = __importDefault(__webpack_require__(4642));
+const asn1_1 = __webpack_require__(6045);
+/**
+ * Version for Keeta's domain separation namespace schema, encoded as the
+ * `INTEGER` field of `namespacePrefixSchema`.
+ */
+exports.KeetaNamespaceVersion = 0;
+/**
+ * Maximum domain separation namespace length in bytes (for strings,
+ * this is the UTF-8 byte length, not the character count).
+ */
+exports.MaxNamespaceLength = 255;
+/**
+ * Schema for the namespace prefix:
+ *
+ * ```asn1
+ * NamespacePrefix ::= SEQUENCE {
+ *     version   INTEGER,
+ *     namespace OCTET STRING,
+ *     data      OCTET STRING
+ * }
+ * ```
+ */
+exports.namespacePrefixSchema = [
+    asn1_1.ValidateASN1.IsInteger,
+    asn1_1.ValidateASN1.IsOctetString,
+    asn1_1.ValidateASN1.IsOctetString
+];
+/**
+ * Apply the `NamespacePrefix` domain separator to `data`.
+ *
+ * String namespaces are UTF-8 encoded; ArrayBuffer namespaces are used
+ * verbatim. Namespace length MUST be 1-`MaxNamespaceLength` bytes after
+ * encoding.
+ */
+function applyNamespace(namespace, data) {
+    let namespaceBytes;
+    if (typeof namespace === 'string') {
+        namespaceBytes = new TextEncoder().encode(namespace);
+    }
+    else {
+        namespaceBytes = new Uint8Array(namespace);
+    }
+    if (namespaceBytes.length === 0) {
+        throw (new account_1.default('ACCOUNT_NAMESPACE_EMPTY', 'Domain separation namespace must not be empty'));
+    }
+    if (namespaceBytes.length > exports.MaxNamespaceLength) {
+        throw (new account_1.default('ACCOUNT_NAMESPACE_TOO_LONG', `Domain separation namespace must be 1-${exports.MaxNamespaceLength} bytes, got: ${namespaceBytes.length}`));
+    }
+    return ((0, asn1_1.JStoASN1)([
+        exports.KeetaNamespaceVersion,
+        Buffer.from(namespaceBytes),
+        Buffer.from(data)
+    ]).toBER(false));
+}
+
+
+/***/ }),
+
 /***/ 9240:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -78156,6 +78333,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _AsyncDisposableStackPolyfill_instances, _AsyncDisposableStackPolyfill_toDispose, _AsyncDisposableStackPolyfill_validateNotDisposed, _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.util = exports.crypto = exports.AsyncDisposableStack = void 0;
+exports.getTypedObjectEntries = getTypedObjectEntries;
 exports.validateBase64ToBuffer = validateBase64ToBuffer;
 exports.bufferToArrayBuffer = bufferToArrayBuffer;
 exports.bufferToBigInt = bufferToBigInt;
@@ -78178,6 +78356,11 @@ const crypto_1 = __importDefault(__webpack_require__(6982));
 const util_1 = __webpack_require__(9023);
 const hash_1 = __webpack_require__(7908);
 const uuid = __importStar(__webpack_require__(5827));
+// Helper to get properly typed entries from an object
+function getTypedObjectEntries(obj) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return Object.entries(obj);
+}
 const randomBytes = crypto_1.default.randomBytes.bind(crypto_1.default);
 const randomUUID = crypto_1.default.randomUUID ? crypto_1.default.randomUUID.bind(crypto_1.default) : function () {
     return (uuid.v4());
@@ -80587,6 +80770,12 @@ class BaseVoteBuilder {
 }
 exports.BaseVoteBuilder = BaseVoteBuilder;
 _BaseVoteBuilder_account = new WeakMap(), _BaseVoteBuilder_blocks = new WeakMap(), _BaseVoteBuilder_fee = new WeakMap(), _BaseVoteBuilder_instances = new WeakSet(), _BaseVoteBuilder_formatSingleFeeEntry = function _BaseVoteBuilder_formatSingleFeeEntry(feeInput) {
+    if (feeInput.amount === undefined) {
+        throw (new vote_1.default('VOTE_BUILDER_INVALID_FEE', 'Fee amount is required'));
+    }
+    if (BigInt(feeInput.amount) < 0n) {
+        throw (new vote_1.default('VOTE_BUILDER_INVALID_FEE', 'Fee amount cannot be negative'));
+    }
     const fee = { amount: BigInt(feeInput.amount) };
     const payTo = account_1.default.toAccount(feeInput.payTo);
     if (payTo !== undefined) {
@@ -80667,7 +80856,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.16.1+g8d5abd1c27152ecca68f2594f9191c1c77a334a4';
+exports.version = '0.16.2+g2c1441eed2a1c71a895d0fb5166c431799b3d3ca';
 exports["default"] = exports.version;
 
 

@@ -1446,11 +1446,12 @@ export declare const lib: {
         ASN1: typeof import("../lib/utils/asn1");
         Bloom: typeof import("../lib/utils/bloom");
         Buffer: typeof import("../lib/utils/buffer");
+        Certificate: typeof import("../lib/utils/certificate");
+        Conversion: typeof import("../lib/utils/conversion");
+        DomainSeparation: typeof import("../lib/utils/domain-separation");
         Hash: typeof import("../lib/utils/hash");
         Helper: typeof import("../lib/utils/helper");
         Initial: typeof import("../lib/utils/initial");
-        Conversion: typeof import("../lib/utils/conversion");
-        Certificate: typeof import("../lib/utils/certificate");
     };
 };
 export {};

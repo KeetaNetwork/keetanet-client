@@ -63,6 +63,18 @@ export declare function validateNumericValue(value: bigint, block: Pick<Block, '
 export declare function validateBlockSignerCount(amount: bigint, network: bigint): void;
 export declare function validateBlockSignerDepth(depth: bigint, network: bigint): void;
 /**
+ * Determines if an account type can delegate voting weight via SET_REP.
+ *
+ * Regular accounts (ECDSA_SECP256K1, ED25519, ECDSA_SECP256R1) can always delegate.
+ * Among identifier accounts, only STORAGE accounts can delegate.
+ * TOKEN, NETWORK, and MULTISIG identifier accounts cannot delegate.
+ *
+ * @param keyType - The account key algorithm type to check
+ * @returns true if the account type can use SET_REP to delegate, false otherwise
+ *
+ */
+export declare function canDelegate(keyType: AccountKeyAlgorithm): boolean;
+/**
  * Compute effects on the ledger from block effects
  */
 export declare function computeLedgerEffect<T extends boolean, P extends boolean, W extends boolean>(options: ComputeLedgerEffectOptions<T, P, W>, effects: ComputedEffectOfBlocksByAccount, storageProvider: computeLedgerEffectStorageProvider, network: bigint, transaction?: any): Promise<BalanceSupplyChangeResp<T, P, W>>;

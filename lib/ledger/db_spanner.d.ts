@@ -70,7 +70,7 @@ export declare class DBSpanner extends LedgerStorageBase implements LedgerStorag
     getBalance(transaction: SpannerTransaction, account: GenericAccount | string, token: TokenAddress | string): Promise<bigint>;
     getAllBalances(transaction: SpannerTransaction, account: GenericAccount): Promise<GetAllBalancesResponse>;
     addPendingVote(transaction: SpannerTransaction, votesAndBlocks: VoteStaple): Promise<void>;
-    getAccountRep(transaction: SpannerTransaction, userAccount: Account | string): Promise<Account | null>;
+    getAccountRep(transaction: SpannerTransaction, userAccount: GenericAccount | string): Promise<Account | null>;
     /**
      * If an adjustment cannot be made right now, defer it for follow-up
      */

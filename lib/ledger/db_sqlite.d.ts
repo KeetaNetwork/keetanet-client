@@ -34,7 +34,7 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
     getBalance(transaction: DBSqliteTransaction, account: GenericAccount, token: TokenAddress): Promise<bigint>;
     getAllBalances(transaction: DBSqliteTransaction, account: GenericAccount): Promise<GetAllBalancesResponse>;
     addPendingVote(transaction: DBSqliteTransaction, votesAndBlocks: VoteStaple): Promise<void>;
-    getAccountRep(transaction: DBSqliteTransaction, userAccount: Account | string): Promise<Account | null>;
+    getAccountRep(transaction: DBSqliteTransaction, userAccount: GenericAccount | string): Promise<Account | null>;
     /**
      * If an adjustment cannot be made right now, defer it for follow-up
      */

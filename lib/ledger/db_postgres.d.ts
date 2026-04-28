@@ -35,7 +35,7 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
     getBalance(transaction: PostgresTransaction, account: GenericAccount, token: TokenAddress, options?: PostgresSelectOptions): Promise<bigint>;
     getAllBalances(transaction: PostgresTransaction, account: GenericAccount): Promise<GetAllBalancesResponse>;
     addPendingVote(transaction: PostgresTransaction, votesAndBlocks: VoteStaple): Promise<void>;
-    getAccountRep(transaction: PostgresTransaction, userAccount: Account | string): Promise<Account | null>;
+    getAccountRep(transaction: PostgresTransaction, userAccount: GenericAccount | string): Promise<Account | null>;
     /**
      * If an adjustment cannot be made right now, defer it for follow-up
      */

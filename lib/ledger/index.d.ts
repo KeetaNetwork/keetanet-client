@@ -285,7 +285,7 @@ export interface LedgerStorageAPI {
     /**
      * Get the Account Representative
      */
-    getAccountRep: (transaction: any, account: Account | string) => Promise<Account | null>;
+    getAccountRep: (transaction: any, account: GenericAccount | string) => Promise<Account | null>;
     /**
      * Get Votes after a specific moment
      */
@@ -350,7 +350,7 @@ declare class LedgerAtomicInterface {
         [account: string]: Block | null;
     }>;
     getHeadBlock(account: GenericAccount, from: LedgerSelector): Promise<Block | null>;
-    getAccountRep(account: Account | string): Promise<Account | null>;
+    getAccountRep(account: GenericAccount | string): Promise<Account | null>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T> | string): Promise<AccountInfoForType<T>>;
     getBlock(blockhash: BlockHash, from?: LedgerSelector): Promise<Block | null>;
     getAccountsBlockHeightInfo(toFetch: {

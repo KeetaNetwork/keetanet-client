@@ -101235,6 +101235,7 @@ __webpack_require__.d(client_helper_namespaceObject, {
   crypto: () => (client_helper_crypto),
   debugPrintableObject: () => (client_debugPrintableObject),
   env: () => (client_env),
+  getTypedObjectEntries: () => (client_getTypedObjectEntries),
   isBuffer: () => (client_isBuffer),
   isIntegerOrBigInt: () => (client_isIntegerOrBigInt),
   nonNullable: () => (client_nonNullable),
@@ -101330,6 +101331,16 @@ __webpack_require__.d(client_utils_asn1_namespaceObject, {
   asn1: () => (client_asn1),
   isASN1Object: () => (client_isASN1Object),
   isValidSequenceSchema: () => (client_isValidSequenceSchema)
+});
+
+// NAMESPACE OBJECT: ./src/lib/utils/domain-separation.ts
+var client_domain_separation_namespaceObject = {};
+__webpack_require__.r(client_domain_separation_namespaceObject);
+__webpack_require__.d(client_domain_separation_namespaceObject, {
+  KeetaNamespaceVersion: () => (client_KeetaNamespaceVersion),
+  MaxNamespaceLength: () => (client_MaxNamespaceLength),
+  applyNamespace: () => (client_applyNamespace),
+  namespacePrefixSchema: () => (client_namespacePrefixSchema)
 });
 
 // NAMESPACE OBJECT: ./src/lib/utils/conversion.ts
@@ -105460,6 +105471,12 @@ function src_client_assertClassBrand(e, t, n) { if ("function" == typeof e ? e =
 
 
 
+
+// Helper to get properly typed entries from an object
+function client_getTypedObjectEntries(obj) {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return Object.entries(obj);
+}
 const client_helper_randomBytes = client_crypto_default().randomBytes.bind((client_crypto_default()));
 const client_helper_randomUUID = (client_crypto_default()).randomUUID ? client_crypto_default().randomUUID.bind((client_crypto_default())) : function () {
   return client_esm_browser_v4();
@@ -106337,6 +106354,58 @@ class src_client_BufferStorage {
 client_BufferStorage = src_client_BufferStorage;
 client_buffer_defineProperty(src_client_BufferStorage, "isInstance", client_checkableGenerator(client_BufferStorage));
 
+;// ./src/lib/error/base.ts
+var client_KeetaNetErrorBase;
+function client_base_defineProperty(e, r, t) { return (r = client_base_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_base_toPropertyKey(t) { var i = client_base_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_base_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+class src_client_KeetaNetErrorBase extends Error {
+  constructor(code, message, validation) {
+    super(message);
+    const type = (validation === null || validation === void 0 ? void 0 : validation.type) || 'GENERIC';
+    if (validation !== undefined) {
+      const prefix = `${validation.type}_`;
+      const validPrefix = code.startsWith(prefix);
+      const withoutPrefix = code.substring(prefix.length);
+      const validCode = validation.codes.includes(withoutPrefix);
+      if (!validPrefix || !validCode) {
+        throw new Error(`Invalid construction of KeetaNetError Type: ${validation.type} Code: ${code}, prefix ${prefix} valid ${validPrefix} valid code: ${validCode}`);
+      }
+    }
+    this.code = code;
+    this.type = type;
+  }
+  toJSON() {
+    return {
+      type: this.type,
+      code: this.code,
+      message: this.message
+    };
+  }
+}
+client_KeetaNetErrorBase = src_client_KeetaNetErrorBase;
+client_base_defineProperty(src_client_KeetaNetErrorBase, "isInstance", client_checkableGenerator(client_KeetaNetErrorBase, false));
+;// ./src/lib/error/account.ts
+var client_KeetaNetAccountError;
+function client_account_defineProperty(e, r, t) { return (r = client_account_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_account_toPropertyKey(t) { var i = client_account_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_account_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
+const client_AccountErrorType = 'ACCOUNT';
+const client_AccountErrorCodes = ['INVALID_PREFIX', 'INVALID_KEYTYPE', 'INVALID_KEYTYPE_EXTERNAL', 'PASSPHRASE_WEAK', 'INVALID_CONSTRUCTION', 'NO_IDENTIFIER_SIGN', 'NO_IDENTIFIER_VERIFY', 'NOT_ACCOUNT', 'NOT_IDENTIFIER', 'INVALID_IDENTIFIER_CONSTRUCTION', 'SEED_INDEX_UNDEFINED', 'SEED_INDEX_NEGATIVE', 'SEED_INDEX_NOT_INT', 'SEED_INDEX_TOO_LARGE', 'ENCRYPTION_NOT_SUPPORTED', 'NAMESPACE_EMPTY', 'NAMESPACE_TOO_LONG'];
+const client_FullAccountErrorCodes = client_AccountErrorCodes.map(code => `${client_AccountErrorType}_${code}`);
+class src_client_KeetaNetAccountError extends src_client_KeetaNetErrorBase {
+  constructor(code, message) {
+    super(code, message, {
+      type: client_AccountErrorType,
+      codes: client_AccountErrorCodes
+    });
+  }
+}
+client_KeetaNetAccountError = src_client_KeetaNetAccountError;
+client_account_defineProperty(src_client_KeetaNetAccountError, "isInstance", client_checkableGenerator(client_KeetaNetAccountError));
 ;// ./node_modules/pvutils/build/utils.es.js
 /*!
  Copyright (c) Peculiar Ventures, LLC
@@ -115204,6 +115273,58 @@ const client_Testing = {
     ASN1IntegerToBigInt: client_jsIntegerToBigInt
   }
 };
+;// ./src/lib/utils/domain-separation.ts
+/* provided dependency */ var client_domain_separation_Buffer = __webpack_require__(8287)["Buffer"];
+
+
+
+/**
+ * Version for Keeta's domain separation namespace schema, encoded as the
+ * `INTEGER` field of `namespacePrefixSchema`.
+ */
+const client_KeetaNamespaceVersion = 0;
+
+/**
+ * Maximum domain separation namespace length in bytes (for strings,
+ * this is the UTF-8 byte length, not the character count).
+ */
+const client_MaxNamespaceLength = 255;
+
+/**
+ * Schema for the namespace prefix:
+ *
+ * ```asn1
+ * NamespacePrefix ::= SEQUENCE {
+ *     version   INTEGER,
+ *     namespace OCTET STRING,
+ *     data      OCTET STRING
+ * }
+ * ```
+ */
+const client_namespacePrefixSchema = [client_ValidateASN1.IsInteger, client_ValidateASN1.IsOctetString, client_ValidateASN1.IsOctetString];
+
+/**
+ * Apply the `NamespacePrefix` domain separator to `data`.
+ *
+ * String namespaces are UTF-8 encoded; ArrayBuffer namespaces are used
+ * verbatim. Namespace length MUST be 1-`MaxNamespaceLength` bytes after
+ * encoding.
+ */
+function client_applyNamespace(namespace, data) {
+  let namespaceBytes;
+  if (typeof namespace === 'string') {
+    namespaceBytes = new TextEncoder().encode(namespace);
+  } else {
+    namespaceBytes = new Uint8Array(namespace);
+  }
+  if (namespaceBytes.length === 0) {
+    throw new src_client_KeetaNetAccountError('ACCOUNT_NAMESPACE_EMPTY', 'Domain separation namespace must not be empty');
+  }
+  if (namespaceBytes.length > client_MaxNamespaceLength) {
+    throw new src_client_KeetaNetAccountError('ACCOUNT_NAMESPACE_TOO_LONG', `Domain separation namespace must be 1-${client_MaxNamespaceLength} bytes, got: ${namespaceBytes.length}`);
+  }
+  return client_JStoASN1([client_KeetaNamespaceVersion, client_domain_separation_Buffer.from(namespaceBytes), client_domain_separation_Buffer.from(data)]).toBER(false);
+}
 ;// ./src/lib/utils/conversion.ts
 /* provided dependency */ var client_conversion_Buffer = __webpack_require__(8287)["Buffer"];
 
@@ -115561,38 +115682,6 @@ function client_fromOffsetArray(setOffsets) {
   return val;
 }
 client_bitfield_defineProperty(src_client_BitField, "isInstance", client_checkableGenerator(client_BitField));
-;// ./src/lib/error/base.ts
-var client_KeetaNetErrorBase;
-function client_base_defineProperty(e, r, t) { return (r = client_base_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_base_toPropertyKey(t) { var i = client_base_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_base_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-
-class src_client_KeetaNetErrorBase extends Error {
-  constructor(code, message, validation) {
-    super(message);
-    const type = (validation === null || validation === void 0 ? void 0 : validation.type) || 'GENERIC';
-    if (validation !== undefined) {
-      const prefix = `${validation.type}_`;
-      const validPrefix = code.startsWith(prefix);
-      const withoutPrefix = code.substring(prefix.length);
-      const validCode = validation.codes.includes(withoutPrefix);
-      if (!validPrefix || !validCode) {
-        throw new Error(`Invalid construction of KeetaNetError Type: ${validation.type} Code: ${code}, prefix ${prefix} valid ${validPrefix} valid code: ${validCode}`);
-      }
-    }
-    this.code = code;
-    this.type = type;
-  }
-  toJSON() {
-    return {
-      type: this.type,
-      code: this.code,
-      message: this.message
-    };
-  }
-}
-client_KeetaNetErrorBase = src_client_KeetaNetErrorBase;
-client_base_defineProperty(src_client_KeetaNetErrorBase, "isInstance", client_checkableGenerator(client_KeetaNetErrorBase, false));
 ;// ./src/lib/error/permissions.ts
 var client_KeetaNetPermissionsError;
 function client_permissions_defineProperty(e, r, t) { return (r = client_permissions_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -118013,6 +118102,32 @@ function client_validateBlockSignerDepth(depth, network) {
 }
 
 /**
+ * Determines if an account type can delegate voting weight via SET_REP.
+ *
+ * Regular accounts (ECDSA_SECP256K1, ED25519, ECDSA_SECP256R1) can always delegate.
+ * Among identifier accounts, only STORAGE accounts can delegate.
+ * TOKEN, NETWORK, and MULTISIG identifier accounts cannot delegate.
+ *
+ * @param keyType - The account key algorithm type to check
+ * @returns true if the account type can use SET_REP to delegate, false otherwise
+ *
+ */
+function client_canDelegate(keyType) {
+  // Regular accounts (non-identifiers) can always delegate
+  if (!client_lib_account.isIdentifierKeyType(keyType)) {
+    return true;
+  }
+
+  // Among identifiers, only STORAGE can delegate
+  if (keyType === client_AccountKeyAlgorithm.STORAGE) {
+    return true;
+  }
+
+  // Other identifier accounts cannot delegate
+  return false;
+}
+
+/**
  * Compute effects on the ledger from block effects
  */
 async function client_computeLedgerEffect(options, effects, storageProvider, network, transaction) {
@@ -118105,7 +118220,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     const delegationField = (_effects$accountPubKe = effects[accountPubKey]) === null || _effects$accountPubKe === void 0 ? void 0 : _effects$accountPubKe.fields.delegation;
     const isDelegating = delegationField !== undefined;
     let requestedRep = false;
-    if (isDelegating && computeWeights && getFinalNumericValues && account.isAccount()) {
+    if (isDelegating && computeWeights && getFinalNumericValues && client_canDelegate(account.keyType)) {
       requestedRep = true;
       prefetchPromises.push(getRep(account, getFinalNumericValues));
       prefetchPromises.push(getWeight(delegationField.delegateTo));
@@ -118137,7 +118252,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         if (possibleNegative && checkRangeConstraints || set || getFinalNumericValues || isDelegating && computeWeights) {
           prefetchPromises.push(getPreviousBalance(account, token));
         }
-        if (computeWeights && isBaseToken && account.isAccount() && !requestedRep) {
+        if (computeWeights && isBaseToken && client_canDelegate(account.keyType) && !requestedRep) {
           requestedRep = true;
           prefetchPromises.push(getRep(account, getFinalNumericValues));
         }
@@ -118287,7 +118402,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     }
     const delegationField = (_effects$accountPubKe2 = effects[accountPubKey]) === null || _effects$accountPubKe2 === void 0 ? void 0 : _effects$accountPubKe2.fields.delegation;
     const isDelegating = delegationField !== undefined;
-    if (isDelegating && account.isAccount() && computeWeights) {
+    if (isDelegating && client_canDelegate(account.keyType) && computeWeights) {
       const currentDelegation = await getRep(account, getFinalNumericValues);
       const previousBalance = await getPreviousBalance(account, baseToken);
       await modifyWeight(delegationField.delegateTo, previousBalance);
@@ -118348,7 +118463,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
           receivable[otherAccountPubKey][tokenPubKey] += balanceChange;
         }
         const isBaseToken = baseToken.comparePublicKey(tokenAcct);
-        if (isBaseToken && account.isAccount() && computeWeights) {
+        if (isBaseToken && client_canDelegate(account.keyType) && computeWeights) {
           if (isDelegating) {
             await modifyWeight(delegationField.delegateTo, balanceChange);
           } else {
@@ -119370,8 +119485,8 @@ class src_client_BlockOperationSET_REP extends src_client_BlockOperation {
     const {
       block
     } = context;
-    if (block.account.isIdentifier()) {
-      throw new src_client_KeetaNetBlockError('BLOCK_NO_IDENTIFIER_OP', 'Identifier accounts cannot use SET_REP');
+    if (!client_canDelegate(block.account.keyType)) {
+      throw new src_client_KeetaNetBlockError('BLOCK_NO_IDENTIFIER_OP', `${client_AccountKeyAlgorithm[block.account.keyType]} accounts cannot use SET_REP`);
     }
     if (this.to.isIdentifier()) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_IDENTIFIER_OP', 'Cannot delegate to an identifier');
@@ -121215,8 +121330,11 @@ class src_client_UnsignedBlock extends src_client_PossiblyUnsignedBlock {
   async seal() {
     const signers = src_client_UnsignedBlock.getSortedRequiredSigners(this.signer);
     const hash = this.hash;
+    const ancillaryData = this.toBytes(false);
     const signatures = await Promise.all(signers.map(async function (signer) {
-      const signature = await signer.sign(hash.getBuffer());
+      const signature = await signer.sign(hash.getBuffer(), {
+        ancillaryData
+      });
       return signature.getBuffer();
     }));
     const shared = {
@@ -121640,26 +121758,6 @@ client_lib_block_defineProperty(src_client_BlockBuilder, "Operation", src_client
 client_lib_block_defineProperty(src_client_BlockBuilder, "NO_PREVIOUS", src_client_Block.NO_PREVIOUS);
 src_client_Block.Builder = src_client_BlockBuilder;
 /* harmony default export */ const client_lib_block = (src_client_Block);
-;// ./src/lib/error/account.ts
-var client_KeetaNetAccountError;
-function client_account_defineProperty(e, r, t) { return (r = client_account_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
-function client_account_toPropertyKey(t) { var i = client_account_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
-function client_account_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
-
-
-const client_AccountErrorType = 'ACCOUNT';
-const client_AccountErrorCodes = ['INVALID_PREFIX', 'INVALID_KEYTYPE', 'INVALID_KEYTYPE_EXTERNAL', 'PASSPHRASE_WEAK', 'INVALID_CONSTRUCTION', 'NO_IDENTIFIER_SIGN', 'NO_IDENTIFIER_VERIFY', 'INVALID_IDENTIFIER_CONSTRUCTION', 'SEED_INDEX_UNDEFINED', 'SEED_INDEX_NEGATIVE', 'SEED_INDEX_NOT_INT', 'SEED_INDEX_TOO_LARGE', 'ENCRYPTION_NOT_SUPPORTED'];
-const client_FullAccountErrorCodes = client_AccountErrorCodes.map(code => `${client_AccountErrorType}_${code}`);
-class src_client_KeetaNetAccountError extends src_client_KeetaNetErrorBase {
-  constructor(code, message) {
-    super(code, message, {
-      type: client_AccountErrorType,
-      codes: client_AccountErrorCodes
-    });
-  }
-}
-client_KeetaNetAccountError = src_client_KeetaNetAccountError;
-client_account_defineProperty(src_client_KeetaNetAccountError, "isInstance", client_checkableGenerator(client_KeetaNetAccountError));
 ;// ./src/lib/utils/ed2curve.ts
 // https://raw.githubusercontent.com/jjavery/ed25519-to-x25519/main/src/ed2curve.js
 
@@ -122430,7 +122528,7 @@ class src_client_ExternalKeyPair extends client_KeyInterface {
     return client_account_classPrivateFieldGet(client_functions, this).decrypt(...arguments);
   }
   get supportsEncryption() {
-    return true;
+    return client_account_classPrivateFieldGet(client_functions, this).supportsEncryption;
   }
   get keyType() {
     return client_account_classPrivateFieldGet(client_keyType, this);
@@ -123121,10 +123219,8 @@ function client_derivePublicKeyStringFromPublicKey(key, keyType) {
 }
 
 /**
- * Account class, which is used to represent a key pair or an identifier
- * account (which have no private key) such as tokens.
- *
- * @template T - The type of the key algorithm used for this account.
+ * Statically validate that the KeyPairClassesByAlgorithm type has
+ * every AccountKeyAlgorithm as a key
  */
 var client_privateKeyPair = /*#__PURE__*/new WeakMap();
 var client_publicKeyPair2 = /*#__PURE__*/new WeakMap();
@@ -123132,6 +123228,12 @@ var client_keyType4 = /*#__PURE__*/new WeakMap();
 var client_keyPairHandlesHashing = /*#__PURE__*/new WeakMap();
 var client_publicKeyString2 = /*#__PURE__*/new WeakMap();
 var client_publicKeyAndTypeString = /*#__PURE__*/new WeakMap();
+/**
+ * Account class, which is used to represent a key pair or an identifier
+ * account (which have no private key) such as tokens.
+ *
+ * @template T - The type of the key algorithm used for this account.
+ */
 class src_client_Account {
   /**
    * Construct an account from a public key string.  The public key
@@ -123501,6 +123603,9 @@ class src_client_Account {
     if (client_account_classPrivateFieldGet(client_privateKeyPair, this) === null) {
       throw new Error('May not sign unless a private key is available');
     }
+    if (options.namespace !== undefined) {
+      data = client_applyNamespace(options.namespace, data);
+    }
     if (!client_account_classPrivateFieldGet(client_keyPairHandlesHashing, this) && !options.raw) {
       data = client_hash_Hash(client_account_Buffer.from(data));
     }
@@ -123516,6 +123621,9 @@ class src_client_Account {
       forCert: false,
       ...options
     };
+    if (options.namespace !== undefined) {
+      data = client_applyNamespace(options.namespace, data);
+    }
     if (!client_account_classPrivateFieldGet(client_keyPairHandlesHashing, this) && !options.raw) {
       data = client_hash_Hash(client_account_Buffer.from(data));
     }
@@ -123658,10 +123766,12 @@ class src_client_Account {
    * Determine if an account is an identifier
    */
   isIdentifier() {
-    // We are checking here, so it is safe to assert the type
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return client_identifierKeyTypes.includes(this.keyType);
+    return src_client_Account.isIdentifierKeyType(client_account_classPrivateFieldGet(client_keyType4, this));
   }
+
+  /**
+   * Determine if an account is a regular (non-identifier)
+   */
   isAccount() {
     return !this.isIdentifier();
   }
@@ -123695,7 +123805,7 @@ class src_client_Account {
   }
   assertAccount() {
     if (this.isIdentifier() !== false) {
-      throw new Error('Required Account but got Identifier');
+      throw new src_client_KeetaNetAccountError('ACCOUNT_NOT_ACCOUNT', 'Required Account but got Identifier');
     }
 
     // We need to assert this type because we are changing what the constructed type is
@@ -123704,7 +123814,7 @@ class src_client_Account {
   }
   assertIdentifier() {
     if (this.isIdentifier() !== true) {
-      throw new Error(`Required Identifier but got Account, ${this.keyType}`);
+      throw new src_client_KeetaNetAccountError('ACCOUNT_NOT_IDENTIFIER', `Required Identifier but got Account, ${this.keyType}`);
     }
 
     // We need to assert this type because we are changing what the constructed type is
@@ -123721,6 +123831,18 @@ client_Account = src_client_Account;
  */
 client_lib_account_defineProperty(src_client_Account, "AccountKeyAlgorithm", client_AccountKeyAlgorithm);
 client_lib_account_defineProperty(src_client_Account, "ExternalKeyPair", src_client_ExternalKeyPair);
+/**
+ * Access to the underlying Key Pair classes for advanced use cases.
+ */
+client_lib_account_defineProperty(src_client_Account, "KeyPairs", {
+  [client_AccountKeyAlgorithm.ECDSA_SECP256K1]: src_client_ECDSASECP256K1KeyPair,
+  [client_AccountKeyAlgorithm.ECDSA_SECP256R1]: src_client_ECDSASECP256R1KeyPair,
+  [client_AccountKeyAlgorithm.ED25519]: src_client_ED25519KeyPair,
+  [client_AccountKeyAlgorithm.NETWORK]: src_client_IdentifierKeyPair,
+  [client_AccountKeyAlgorithm.TOKEN]: src_client_IdentifierKeyPair,
+  [client_AccountKeyAlgorithm.STORAGE]: src_client_IdentifierKeyPair,
+  [client_AccountKeyAlgorithm.MULTISIG]: src_client_IdentifierKeyPair
+});
 client_lib_account_defineProperty(src_client_Account, "isInstance", client_checkableGenerator(client_Account));
 client_lib_account_defineProperty(src_client_Account, "Set", client_setGenerator(client_Account, function (account) {
   const retval = account.publicKeyAndTypeString;
@@ -126523,6 +126645,12 @@ class src_client_BaseVoteBuilder {
 }
 client_BaseVoteBuilder = src_client_BaseVoteBuilder;
 function client_formatSingleFeeEntry(feeInput) {
+  if (feeInput.amount === undefined) {
+    throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_FEE', 'Fee amount is required');
+  }
+  if (BigInt(feeInput.amount) < 0n) {
+    throw new src_client_KeetaNetVoteError('VOTE_BUILDER_INVALID_FEE', 'Fee amount cannot be negative');
+  }
   const fee = {
     amount: BigInt(feeInput.amount)
   };
@@ -128174,6 +128302,14 @@ class client_LedgerAtomicInterface {
       if (!quote.issuer.comparePublicKey(ledgerPubKey)) {
         throw new client_ledger_KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match issuer public key');
       }
+      if (quote.blocks.length !== blocks.length) {
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match blocks length');
+      }
+      for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+        if (!blocks[blockIndex].hash.compareHexString(quote.blocks[blockIndex])) {
+          throw new client_ledger_KeetaNetLedgerError('LEDGER_QUOTE_MISMATCH', 'Provided quote does not match blocks content');
+        }
+      }
     }
 
     /**
@@ -128201,6 +128337,7 @@ class client_LedgerAtomicInterface {
         }
       }
       const requiredFees = new Map();
+      const optionalFees = new Map();
       for (const checkVote of otherVotes) {
         if (checkVote.quote === true) {
           throw new client_ledger_KeetaNetLedgerError('LEDGER_VOTE_WITH_QUOTE', 'Cannot request votes with quote as supporting votes');
@@ -128214,7 +128351,18 @@ class client_LedgerAtomicInterface {
         seenVoteIssuers.add(checkVote.issuer);
         seenVoteUIDs.add(checkVote.$id);
         if (checkVote.fee !== undefined) {
-          requiredFees.set(checkVote.issuer, checkVote.fee);
+          const checkVoteFee = Array.isArray(checkVote.fee) ? checkVote.fee : [checkVote.fee];
+
+          // Check if user has the option to pay zero (any fee with amount === 0)
+          // If a zero-amount option exists, fee block is optional; otherwise required
+          const hasZeroFeeOption = checkVoteFee.some(fee => fee.amount === 0n);
+          if (hasZeroFeeOption) {
+            // At least one fee option is zero amount - fee block is optional, but if included should match one of the provided options
+            optionalFees.set(checkVote.issuer, checkVote.fee);
+          } else if (checkVoteFee.length > 0) {
+            // All fee options require payment (no zero option) - fee block MUST be present and operation should match at least one fee option
+            requiredFees.set(checkVote.issuer, checkVote.fee);
+          }
         }
 
         /*
@@ -128242,25 +128390,43 @@ class client_LedgerAtomicInterface {
           foundOurVote = true;
         }
       }
-
+      let finalRequiredFees = requiredFees;
       /*
        * We only care about fees if we are issuing a permanent vote,
        * if we are issuing a temporary vote the fees will be checked
        * when the permanent vote is requested
        */
       if (outcome === 'permanent') {
-        if (requiredFees.size > 0) {
-          if (!hasFeeBlock) {
-            throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it');
+        if (requiredFees.size > 0 || optionalFees.size > 0) {
+          // If fees are required then a fee block should have been provided
+          if (requiredFees.size > 0) {
+            if (!hasFeeBlock) {
+              throw new client_ledger_KeetaNetLedgerError('LEDGER_MISSING_REQUIRED_FEE_BLOCK', 'Missing fee block but votes require it');
+            }
           }
-          // Each vote requires exactly one fee payment, regardless of array size
-          if (requiredFees.size !== (possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length)) {
-            throw new client_ledger_KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees');
+
+          // We can only validate operations match if we have a fee block
+          if (hasFeeBlock) {
+            // Each vote requires exactly one fee payment, regardless of array size
+            // Optional fees may or may not be included in the operations but if they are they should match
+            if (optionalFees.size > 0) {
+              if ((possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length) !== requiredFees.size && (possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length) !== requiredFees.size + optionalFees.size) {
+                throw new client_ledger_KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees or required and optional fees');
+              }
+              // If user provided optional fees then we should validate they match
+              if ((possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length) === requiredFees.size + optionalFees.size) {
+                finalRequiredFees = new Map([...requiredFees, ...optionalFees]);
+              }
+            } else {
+              if (requiredFees.size !== (possibleFeeBlock === null || possibleFeeBlock === void 0 ? void 0 : possibleFeeBlock.operations.length)) {
+                throw new client_ledger_KeetaNetLedgerError('LEDGER_REQUIRED_FEE_MISMATCH', 'Fee Block Operations do not match required fees');
+              }
+            }
           }
         }
 
         // Verify that at least one required fee option has been satisfied for each vote
-        for (const [issuer, feeOrFees] of requiredFees) {
+        for (const [issuer, feeOrFees] of finalRequiredFees) {
           // Handle both single fee and array of fees
           const fees = Array.isArray(feeOrFees) ? feeOrFees : [feeOrFees];
 
@@ -128591,6 +128757,10 @@ class client_LedgerAtomicInterface {
     return retval;
   }
   async getAccountRep(account) {
+    const acct = client_lib_account.toAccount(account);
+    if (!client_canDelegate(acct.keyType)) {
+      return null;
+    }
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
     const retval = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getAccountRep(transaction, account);
     return retval;
@@ -129301,7 +129471,13 @@ async function client_voteOrQuoteWithFees(blocks, type, quote, options) {
   if (requireBlockTimestampCheck) {
     var _quote$fee;
     const fee = (_quote$fee = quote === null || quote === void 0 ? void 0 : quote.fee) !== null && _quote$fee !== void 0 ? _quote$fee : await this.getFee(blocks, effects);
-    if (fee !== null) {
+    // We add an explicit fee of 0 if one is not provided.
+    // Since the quote identifier is in the fee data and needs to be parsed correctly.
+    if (fee === null || Array.isArray(fee) && fee.length === 0) {
+      builder.addFee({
+        amount: 0n
+      });
+    } else {
       builder.addFee(fee);
     }
   }
@@ -129728,7 +129904,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.16.1+g8d5abd1c27152ecca68f2594f9191c1c77a334a4';
+const client_version = '0.16.2+g2c1441eed2a1c71a895d0fb5166c431799b3d3ca';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -132362,6 +132538,7 @@ async function client_generateInitialVoteStaple(options) {
 
 
 
+
 /* harmony default export */ const client_src_lib = ({
   /**
    * The `Account` module provides functionality for managing key pairs
@@ -132381,11 +132558,12 @@ async function client_generateInitialVoteStaple(options) {
     ASN1: client_utils_asn1_namespaceObject,
     Bloom: client_bloom_namespaceObject,
     Buffer: client_utils_buffer_namespaceObject,
+    Certificate: client_utils_certificate_namespaceObject,
+    Conversion: client_conversion_namespaceObject,
+    DomainSeparation: client_domain_separation_namespaceObject,
     Hash: client_hash_namespaceObject,
     Helper: client_helper_namespaceObject,
-    Initial: client_initial_namespaceObject,
-    Conversion: client_conversion_namespaceObject,
-    Certificate: client_utils_certificate_namespaceObject
+    Initial: client_initial_namespaceObject
   }
 });
 ;// ./src/client/builder.ts
@@ -132833,6 +133011,11 @@ class src_client_UserClientBuilder {
 
         // If there are no fees, skip this vote
         if (fees.length === 0) {
+          continue;
+        }
+
+        // If fee options contains an amount of 0, skip this vote
+        if (fees.some(fee => fee.amount === 0n)) {
           continue;
         }
 
@@ -133712,6 +133895,15 @@ class src_client_Client {
   }
 
   /**
+   * Check if the provided votes require a fee block.  This is true if any vote has only non zero-amount options available.
+   * If a vote has at least one zero-amount fee option, the user can satisfy the fee requirement without payment.
+   * This is used to determine if we need to generate a fee block before transmitting the blocks.
+   *
+   * @param tempVotes
+   * @returns boolean true if provided votes require a fee block
+   */
+
+  /**
    * Transmit a set of blocks to the network.  This will request short
    * votes and permanent votes for the blocks and then publish them to
    * the network.  Optionally it will generate a fee block from a user
@@ -133723,13 +133915,7 @@ class src_client_Client {
    */
   async transmit(blocks, options) {
     const tempVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, blocks, undefined, undefined, options === null || options === void 0 ? void 0 : options.quotes);
-    let requiresFee = false;
-    for (const vote of tempVotes) {
-      if (vote.fee !== undefined) {
-        requiresFee = true;
-      }
-    }
-    if (requiresFee) {
+    if (client_client_assertClassBrand(client_Client_brand, this, client_votesRequireFees).call(this, tempVotes)) {
       if ((options === null || options === void 0 ? void 0 : options.generateFeeBlock) === undefined) {
         throw new Error('Votes require fees but generateFeeBlock was not defined');
       }
@@ -134758,16 +134944,9 @@ class src_client_Client {
         tempVotes = [...tempVotes, ...newTempVotes];
       }
       const missingPermReps = client_client_classPrivateFieldGet(client_reps, this).filter(rep => !permReps.includes(rep));
-      // If any of the temporary votes require a fee, we need to generate a fee block
-      let requiresFee = false;
-      for (const vote of tempVotes) {
-        if (vote.fee !== undefined) {
-          requiresFee = true;
-        }
-      }
 
       // If we need a fee block and don't have any permanent votes, we need to generate a fee block
-      if (requiresFee && permVotes.length === 0) {
+      if (client_client_assertClassBrand(client_Client_brand, this, client_votesRequireFees).call(this, tempVotes) && permVotes.length === 0) {
         if ((options === null || options === void 0 ? void 0 : options.generateFeeBlock) === undefined) {
           throw new Error('Votes require fees but generateFeeBlock was not defined');
         }
@@ -135287,6 +135466,25 @@ function client_getBuilderRenderOptions(network) {
       return currentHeadBlock;
     }
   };
+}
+function client_votesRequireFees(tempVotes) {
+  let requiresFees = false;
+  for (const vote of tempVotes) {
+    if (vote.fee !== undefined) {
+      const voteFee = Array.isArray(vote.fee) ? vote.fee : [vote.fee];
+
+      // Check if user has the option to pay zero (any fee with amount === 0)
+      // If a zero-amount option exists, fee block is optional for this vote
+      const hasZeroFeeOption = voteFee.some(fee => fee.amount === 0n);
+
+      // If no zero option exists (requires payment), fee block is required
+      if (!hasZeroFeeOption) {
+        requiresFees = true;
+        break;
+      }
+    }
+  }
+  return requiresFees;
 }
 function client_urlSeparatedAccounts(accounts) {
   const pubKeys = accounts.map(account => client_lib_account.toPublicKeyString(account));

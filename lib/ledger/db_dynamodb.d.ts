@@ -50,7 +50,7 @@ declare class DynamoDBTransaction extends LedgerStorageTransactionBase {
     getHeadBlocks(accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [publicKey: string]: Block | null;
     }>;
-    getAccountRep(userAccount: Account | string): Promise<Account | null>;
+    getAccountRep(userAccount: GenericAccount | string): Promise<Account | null>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T> | string): Promise<AccountInfoForType<T>>;
     listOwners(identifier: IdentifierAddress): Promise<Account[]>;
     listACLsByEntity(entity: GenericAccount): Promise<ACLRow[]>;
@@ -90,7 +90,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
     getHeadBlocks(transaction: DynamoDBTransaction, accounts: GenericAccount[], from: LedgerSelector): Promise<{
         [publicKey: string]: Block | null;
     }>;
-    getAccountRep(transaction: DynamoDBTransaction, account: Account | string): Promise<Account | null>;
+    getAccountRep(transaction: DynamoDBTransaction, account: GenericAccount | string): Promise<Account | null>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: DynamoDBTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     listOwners(transaction: DynamoDBTransaction, identifier: IdentifierAddress): Promise<Account[]>;
     listACLsByPrincipal(transaction: DynamoDBTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;

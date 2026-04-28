@@ -304,7 +304,7 @@ declare const schema: {
     readonly delegation: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"ACCOUNT", false>;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
             readonly delegatedToRep: ColumnInterface<"ACCOUNT", false>;
         };
         readonly key: readonly [Key];

@@ -1,6 +1,7 @@
 import _crypto from 'crypto';
 import { inspect as nodeUtilsInspect, types as nodeUtilsTypes } from 'util';
 import type { JSONSerializable } from './conversion';
+export declare function getTypedObjectEntries<T extends object>(obj: T): Array<[keyof T, T[keyof T]]>;
 export type DistributiveOmit<T, P extends PropertyKey> = T extends T ? Omit<T, P> : never;
 export declare function validateBase64ToBuffer(input: string): Buffer;
 export declare function bufferToArrayBuffer(input: Buffer): ArrayBuffer;

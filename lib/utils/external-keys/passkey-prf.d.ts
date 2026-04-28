@@ -150,7 +150,5 @@ interface KeetaPasskeyPRFKeyPairClass {
     lookup: (options?: KeetaPasskeyPRFKeyPairLookupOptions) => Promise<KeetaPasskeyPRFKeyPair>;
     generate: (options: KeetaPasskeyPRFKeyPairGenerateOptions) => Promise<KeetaPasskeyPRFKeyPair>;
 }
-export declare function KeetaPasskeyPRFKeyPairFactory(packages: KeetaPasskeyPRFKeyPairPackages, includeTesting: true): Required<KeetaPasskeyPRFKeyPairClass>;
-export declare function KeetaPasskeyPRFKeyPairFactory(packages: KeetaPasskeyPRFKeyPairPackages, includeTesting?: false): Omit<KeetaPasskeyPRFKeyPairClass, '_Testing'>;
-export declare function KeetaPasskeyPRFKeyPairFactory(packages: KeetaPasskeyPRFKeyPairPackages, includeTesting?: boolean): KeetaPasskeyPRFKeyPairClass;
+export declare function KeetaPasskeyPRFKeyPairFactory(packages: KeetaPasskeyPRFKeyPairPackages): Omit<KeetaPasskeyPRFKeyPairClass, '_Testing'>;
 export {};

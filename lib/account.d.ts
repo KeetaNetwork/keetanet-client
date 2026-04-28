@@ -172,6 +172,25 @@ interface signOptionsType {
      * is accept for X.509
      */
     forCert?: boolean;
+    /**
+     * Additional data (usually raw value) that is being signed
+     * For example, when signing a block this would be the output of UnsignedBlock.toBytes(false)
+     */
+    ancillaryData?: ArrayBuffer;
+    /**
+     * Optional domain-separation namespace applied to `data` before hashing
+     * and signing (or verifying), using the `NamespacePrefix` schema. This
+     * prevents cross-context signature reuse between applications that
+     * share a key but use different namespaces.
+     *
+     * Signer and verifier MUST supply the same namespace. Domain separation
+     * is applied regardless of `raw`; `raw` controls only the subsequent
+     * hash step.
+     *
+     * If `namespace` is a string, the 1-255 byte limit applies to the UTF-8
+     * encoded namespace bytes, not the string's character count.
+     */
+    namespace?: string | ArrayBuffer;
 }
 /**
  * Signing function, accepts arbitrary data and returns a detached signature
@@ -373,6 +392,15 @@ declare class IdentifierKeyPair extends KeyInterface {
     encrypt(..._ignored_parameters: Parameters<encryptFunctionType>): ReturnType<encryptFunctionType>;
     decrypt(..._ignored_parameters: Parameters<decryptFunctionType>): ReturnType<decryptFunctionType>;
 }
+type KeyPairClassesByAlgorithm = {
+    [AccountKeyAlgorithm.ECDSA_SECP256K1]: typeof ECDSASECP256K1KeyPair;
+    [AccountKeyAlgorithm.ECDSA_SECP256R1]: typeof ECDSASECP256R1KeyPair;
+    [AccountKeyAlgorithm.ED25519]: typeof ED25519KeyPair;
+    [AccountKeyAlgorithm.NETWORK]: typeof IdentifierKeyPair;
+    [AccountKeyAlgorithm.TOKEN]: typeof IdentifierKeyPair;
+    [AccountKeyAlgorithm.STORAGE]: typeof IdentifierKeyPair;
+    [AccountKeyAlgorithm.MULTISIG]: typeof IdentifierKeyPair;
+};
 /**
  * Account class, which is used to represent a key pair or an identifier
  * account (which have no private key) such as tokens.
@@ -383,6 +411,12 @@ export declare class Account<T extends AccountKeyAlgorithm = KeyPairKeyAlgorithm
     #private;
     static AccountKeyAlgorithm: typeof AccountKeyAlgorithm;
     static ExternalKeyPair: typeof ExternalKeyPair;
+    /**
+     * Access to the underlying Key Pair classes for advanced use cases.
+     */
+    static readonly KeyPairs: {
+        [K in AccountKeyAlgorithm]: KeyPairClassesByAlgorithm[K];
+    };
     /**
      * Construct an account from a public key string.  The public key
      * string encodes the type and public key data
@@ -563,6 +597,9 @@ export declare class Account<T extends AccountKeyAlgorithm = KeyPairKeyAlgorithm
      * Determine if an account is an identifier
      */
     isIdentifier(): this is IdentifierAddress;
+    /**
+     * Determine if an account is a regular (non-identifier)
+     */
     isAccount(): this is Account;
     isKeyType<CheckType extends AccountKeyAlgorithm>(checkKeyType: CheckType): this is Account<CheckType>;
     isStorage(): this is Account<AccountKeyAlgorithm.STORAGE>;

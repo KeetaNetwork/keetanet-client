@@ -1204,7 +1204,7 @@ export declare class UserClient {
      * @param options The options to use for the request
      * @return The vote staple that was generated and whether it was able to be published
      */
-    updatePermissions(principal: GenericAccount | string, permissions: AcceptedPermissionTypes, target?: GenericAccount | string, method?: AdjustMethod, options?: UserClientOptions): Promise<{
+    updatePermissions(principal: GenericAccount | string | ACLRow['principal'], permissions: AcceptedPermissionTypes, target?: GenericAccount | string, method?: AdjustMethod, options?: UserClientOptions): Promise<{
         voteStaple: VoteStaple;
         publish: boolean;
         from: "direct";

@@ -57418,14 +57418,28 @@ class UserClientBuilder {
                 }
                 if (operations.permissionsChanges !== undefined) {
                     pendingOperations.permissionsChanges = {};
-                    for (const accountPubKey in operations.permissionsChanges) {
-                        pendingOperations.permissionsChanges[accountPubKey] = {};
-                        for (const targetPubKey in operations.permissionsChanges[accountPubKey]) {
+                    for (const [certificateOrAccountKey, changes] of Object.entries(operations.permissionsChanges)) {
+                        pendingOperations.permissionsChanges[certificateOrAccountKey] = {
+                            principal: (() => {
+                                if (typeof changes.principal === 'string') {
+                                    return (account_1.Account.toAccount(changes.principal));
+                                }
+                                else {
+                                    return ({
+                                        usingCertificate: true,
+                                        certificate: new certificate_1.Certificate.Hash(changes.principal.certificate),
+                                        certificateAccount: account_1.Account.toAccount(changes.principal.certificateAccount)
+                                    });
+                                }
+                            })(),
+                            targets: {}
+                        };
+                        for (const targetPubKey in changes.targets) {
                             const updateArray = [];
-                            for (const { method, permissions } of operations.permissionsChanges[accountPubKey][targetPubKey]) {
+                            for (const { method, permissions } of changes.targets[targetPubKey]) {
                                 updateArray.push({ method, permissions: permissions_1.Permissions.FromAcceptedTypes(permissions) });
                             }
-                            pendingOperations.permissionsChanges[accountPubKey][targetPubKey] = updateArray;
+                            pendingOperations.permissionsChanges[certificateOrAccountKey].targets[targetPubKey] = updateArray;
                         }
                     }
                 }
@@ -57802,9 +57816,9 @@ class UserClientBuilder {
                     amount: amount
                 });
             }
-            for (const principalPubKey in pending.permissionsChanges) {
-                for (const targetPubKey in pending.permissionsChanges[principalPubKey]) {
-                    for (const change of pending.permissionsChanges[principalPubKey][targetPubKey]) {
+            for (const { targets, principal } of Object.values(pending.permissionsChanges ?? {})) {
+                for (const targetPubKey in targets) {
+                    for (const change of targets[targetPubKey]) {
                         const { method, permissions } = change;
                         let target;
                         if (!account.comparePublicKey(targetPubKey)) {
@@ -57812,7 +57826,18 @@ class UserClientBuilder {
                         }
                         operations.push({
                             type: block_1.Block.OperationType.MODIFY_PERMISSIONS,
-                            principal: account_1.Account.fromPublicKeyString(principalPubKey),
+                            principal: (() => {
+                                if (account_1.Account.isInstance(principal)) {
+                                    return (principal);
+                                }
+                                else {
+                                    return ({
+                                        usingCertificate: true,
+                                        certificateHash: principal.certificate,
+                                        certificateAccount: principal.certificateAccount
+                                    });
+                                }
+                            })(),
                             target: target,
                             method: method,
                             permissions: permissions
@@ -57860,18 +57885,24 @@ class UserClientBuilder {
     updatePermissions(principal, permissions, target, method, options = {}) {
         __classPrivateFieldGet(this, _UserClientBuilder_instances, "m", _UserClientBuilder_useOptions).call(this, options);
         method = method ?? block_1.Block.AdjustMethod.SET;
-        const principalPubKey = principal.publicKeyString.get();
-        const targetPubKey = (target ?? __classPrivateFieldGet(this, _UserClientBuilder_pendingOptions, "f").account).publicKeyString.get();
+        let principalKey;
+        if (typeof principal === 'string' || account_1.Account.isInstance(principal)) {
+            principalKey = account_1.Account.toAccount(principal).publicKeyString.get();
+        }
+        else {
+            principalKey = principal.certificate.toString();
+        }
         if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges) {
             __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges = {};
         }
-        if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalPubKey]) {
-            __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalPubKey] = {};
+        if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalKey]) {
+            __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalKey] = { principal, targets: {} };
         }
-        if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalPubKey][targetPubKey]) {
-            __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalPubKey][targetPubKey] = [];
+        const targetPubKey = (target ?? __classPrivateFieldGet(this, _UserClientBuilder_pendingOptions, "f").account).publicKeyString.get();
+        if (!__classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalKey].targets[targetPubKey]) {
+            __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalKey].targets[targetPubKey] = [];
         }
-        __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalPubKey][targetPubKey].push({
+        __classPrivateFieldGet(this, _UserClientBuilder_pendingOperations, "f").permissionsChanges[principalKey].targets[targetPubKey].push({
             method: method,
             permissions: permissions_1.Permissions.FromAcceptedTypes(permissions)
         });
@@ -60563,7 +60594,14 @@ class UserClient {
      */
     async updatePermissions(principal, permissions, target, method, options = {}) {
         const builder = this.initBuilder(options);
-        builder.updatePermissions(account_1.default.toAccount(principal), permissions, account_1.default.toAccount(target), method, options);
+        let principalValue;
+        if (typeof principal === 'string' || account_1.default.isInstance(principal)) {
+            principalValue = account_1.default.toAccount(principal);
+        }
+        else {
+            principalValue = principal;
+        }
+        builder.updatePermissions(principalValue, permissions, account_1.default.toAccount(target), method, options);
         return (await this.publishBuilder(builder));
     }
     /**
@@ -76618,7 +76656,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _CertificateBuilder_params, _CertificateBuilder_caPathLen, _CertificateBundle_raw, _CertificateBundle_contents, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_isSelfSigned, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_parseKeyUsage, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued;
+var _CertificateBuilder_params, _CertificateBuilder_caPathLen, _CertificateBundle_raw, _CertificateBundle_contents, _Certificate_instances, _Certificate_raw, _Certificate_hash, _Certificate_extensionsRaw, _Certificate_extensionsProcessed, _Certificate_finalizeConstructionCalled, _Certificate_isSelfSigned, _Certificate_processExtensionsInternal, _Certificate_processBaseExtensions, _Certificate_parseKeyUsage, _Certificate_processBaseExtension, _Certificate_assertAllCriticalExtensionsProcessed, _Certificate_checkValid, _Certificate_checkIssued, _Certificate_computeHash;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Certificate = exports.CertificateBundle = exports.CertificateHash = exports.CertificateBuilder = void 0;
 const ASN1 = __importStar(__webpack_require__(6045));
@@ -77598,7 +77636,18 @@ class Certificate {
             }
         }
     }
-    verifyChain(store, _ignore_seenCerts /* XXX:TODO */) {
+    verifyChain(store, seenHashes = new CertificateHash.Set()) {
+        /**
+         * Loop detection: reject any certificate already on the current
+         * verification path, per RFC 4158 Section 2.4.1 (no certificate may
+         * repeat in a path) and Section 5.2 (detection guidance).
+         *
+         * @see {@link https://datatracker.ietf.org/doc/html/rfc4158#section-5.2 RFC 4158 Section 5.2}
+         * @see {@link https://datatracker.ietf.org/doc/html/rfc4158#section-2.4.1 RFC 4158 Section 2.4.1}
+         */
+        if (seenHashes.has(__classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_computeHash).call(this))) {
+            return (null);
+        }
         /*
          * Check to see if the certificate is signed by any of the Root CAs
          */
@@ -77629,6 +77678,8 @@ class Certificate {
          * Check to see if the certificate is signed by any of the specified intermediates
          */
         if (store.intermediate !== undefined) {
+            const nextSeen = new CertificateHash.Set(seenHashes);
+            nextSeen.add(__classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_computeHash).call(this));
             store.intermediate.forEach((intermediateCertificate) => {
                 if (retval !== null) {
                     return;
@@ -77636,7 +77687,7 @@ class Certificate {
                 const checkIssued = __classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_checkIssued).call(this, intermediateCertificate);
                 if (checkIssued.issued) {
                     if (intermediateCertificate.checkValid(this.moment)) {
-                        const moreChain = intermediateCertificate.verifyChain(store, undefined /* seenCerts XXX:TODO */);
+                        const moreChain = intermediateCertificate.verifyChain(store, nextSeen);
                         if (moreChain !== null) {
                             const checkRetval = [...moreChain, intermediateCertificate];
                             const validChain = Certificate.verifyChainDepth([...checkRetval, this]);
@@ -77792,10 +77843,7 @@ class Certificate {
      */
     hash() {
         this.assertConstructed();
-        if (!__classPrivateFieldGet(this, _Certificate_hash, "f")) {
-            __classPrivateFieldSet(this, _Certificate_hash, CertificateHash.fromData(Buffer.from(__classPrivateFieldGet(this, _Certificate_raw, "f"))), "f");
-        }
-        return (__classPrivateFieldGet(this, _Certificate_hash, "f"));
+        return (__classPrivateFieldGet(this, _Certificate_instances, "m", _Certificate_computeHash).call(this));
     }
     /**
      * Get a JSON representation of the certificate
@@ -78033,6 +78081,11 @@ _Certificate_raw = new WeakMap(), _Certificate_hash = new WeakMap(), _Certificat
         return ({ issued: false, reason: 'Signature verification failed' });
     }
     return ({ issued: true });
+}, _Certificate_computeHash = function _Certificate_computeHash() {
+    if (!__classPrivateFieldGet(this, _Certificate_hash, "f")) {
+        __classPrivateFieldSet(this, _Certificate_hash, CertificateHash.fromData(Buffer.from(__classPrivateFieldGet(this, _Certificate_raw, "f"))), "f");
+    }
+    return (__classPrivateFieldGet(this, _Certificate_hash, "f"));
 };
 /**
  * The Certificate Builder
@@ -81230,7 +81283,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.18.0+g5417d9af948be899fcebb75694edb492ff971891';
+exports.version = '0.18.1+gae2caf00c1e19c6d232ff1a37b9fd8e7ea8a1ddc';
 exports["default"] = exports.version;
 
 

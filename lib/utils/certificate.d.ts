@@ -384,7 +384,6 @@ export declare class Certificate {
      * Verify against a given certificate store
      */
     verifyChain(store: NonNullable<CertificateOptions['store']>): Certificate[] | null;
-    verifyChain(store: NonNullable<CertificateOptions['store']>, _ignore_seenCerts?: Set<Certificate>): Certificate[] | null;
     /**
      * Check if the certificate is valid at a given moment
      */

@@ -3,7 +3,7 @@ import { Account, AccountKeyAlgorithm } from '../lib/account';
 import type { AdjustMethod, BlockHash } from '../lib/block';
 import { Block } from '../lib/block';
 import type { IdentifierCreateArguments, BlockJSONOperations } from '../lib/block/operations';
-import type { AccountInfo, AccountInfoWithoutAccount } from '../lib/ledger/types';
+import type { AccountInfo, AccountInfoWithoutAccount, ACLRow } from '../lib/ledger/types';
 import type { AcceptedPermissionTypes } from '../lib/permissions';
 import type { UserClient, Client } from '.';
 import { Permissions } from '../lib/permissions';
@@ -87,10 +87,15 @@ export interface PendingOperations {
         certificate: Certificate;
         intermediateCertificates: CertificateBundle | null;
     }[];
-    permissionsChanges?: PerAccount<PerAccount<{
-        method: AdjustMethod;
-        permissions: Permissions;
-    }[]>>;
+    permissionsChanges?: {
+        [principalOrCertificate: string]: {
+            principal: ACLRow['principal'];
+            targets: PerAccount<{
+                method: AdjustMethod;
+                permissions: Permissions;
+            }[]>;
+        };
+    };
     info?: AccountInfoWithoutAccount;
     setRep?: Account;
 }
@@ -123,10 +128,18 @@ export interface PendingOperationsJSON {
         certificate: string;
         intermediateCertificates: string | null;
     }[];
-    permissionsChanges?: PerAccount<PerAccount<{
-        method: AdjustMethod;
-        permissions: [string, string];
-    }[]>>;
+    permissionsChanges?: {
+        [principalOrCertificate: string]: {
+            principal: string | {
+                certificate: string;
+                certificateAccount: string;
+            };
+            targets: PerAccount<{
+                method: AdjustMethod;
+                permissions: [string, string];
+            }[]>;
+        };
+    };
     info?: Pick<AccountInfo, 'name' | 'description' | 'metadata'> & {
         defaultPermission?: [string, string];
     };
@@ -183,7 +196,7 @@ export declare class UserClientBuilder {
     computeBlocks(renderOptions: RenderOptions): Promise<ComputeBlocksResponse>;
     send(recipient: AccountOrPending, amount: bigint, token: TokenOrPending, external?: string, options?: BuilderBlockOptions): void;
     receive(from: AccountOrPending, amount: bigint, token: TokenOrPending, exact?: boolean, forward?: GenericAccount, options?: BuilderBlockOptions): void;
-    updatePermissions(principal: GenericAccount, permissions: AcceptedPermissionTypes, target?: GenericAccount, method?: AdjustMethod, options?: BuilderBlockOptions): void;
+    updatePermissions(principal: ACLRow['principal'], permissions: AcceptedPermissionTypes, target?: GenericAccount, method?: AdjustMethod, options?: BuilderBlockOptions): void;
     modifyCertificate(method: ManageCertificateMethod, certificate: Certificate, intermediateCertificates?: CertificateBundle | null, options?: BuilderBlockOptions): void;
     modifyTokenSupply(amount: bigint, options?: BuilderBlockOptions): void;
     modifyTokenBalance(token: TokenOrPending, amount: bigint, isSet?: boolean, options?: BuilderBlockOptions): void;

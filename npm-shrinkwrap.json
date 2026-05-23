@@ -1,12 +1,12 @@
 {
 	"name": "@keetanetwork/keetanet-client",
-	"version": "0.18.0",
+	"version": "0.18.1",
 	"lockfileVersion": 3,
 	"requires": true,
 	"packages": {
 		"": {
 			"name": "@keetanetwork/keetanet-client",
-			"version": "0.18.0",
+			"version": "0.18.1",
 			"license": "see LICENSE",
 			"dependencies": {
 				"secp256k1": "5.0.1"

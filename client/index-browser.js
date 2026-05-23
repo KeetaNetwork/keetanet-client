@@ -117365,7 +117365,22 @@ class src_client_Certificate {
    * Verify against a given certificate store
    */
 
-  verifyChain(store, _ignore_seenCerts) {
+  /** @internal */
+
+  verifyChain(store) {
+    let seenHashes = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new src_client_CertificateHash.Set();
+    /**
+     * Loop detection: reject any certificate already on the current
+     * verification path, per RFC 4158 Section 2.4.1 (no certificate may
+     * repeat in a path) and Section 5.2 (detection guidance).
+     *
+     * @see {@link https://datatracker.ietf.org/doc/html/rfc4158#section-5.2 RFC 4158 Section 5.2}
+     * @see {@link https://datatracker.ietf.org/doc/html/rfc4158#section-2.4.1 RFC 4158 Section 2.4.1}
+     */
+    if (seenHashes.has(client_certificate_assertClassBrand(client_Certificate_brand, this, client_computeHash).call(this))) {
+      return null;
+    }
+
     /*
      * Check to see if the certificate is signed by any of the Root CAs
      */
@@ -117397,6 +117412,8 @@ class src_client_Certificate {
      * Check to see if the certificate is signed by any of the specified intermediates
      */
     if (store.intermediate !== undefined) {
+      const nextSeen = new src_client_CertificateHash.Set(seenHashes);
+      nextSeen.add(client_certificate_assertClassBrand(client_Certificate_brand, this, client_computeHash).call(this));
       store.intermediate.forEach(intermediateCertificate => {
         if (retval !== null) {
           return;
@@ -117404,7 +117421,7 @@ class src_client_Certificate {
         const checkIssued = client_certificate_assertClassBrand(client_Certificate_brand, this, client_checkIssued).call(this, intermediateCertificate);
         if (checkIssued.issued) {
           if (intermediateCertificate.checkValid(this.moment)) {
-            const moreChain = intermediateCertificate.verifyChain(store, undefined /* seenCerts XXX:TODO */);
+            const moreChain = intermediateCertificate.verifyChain(store, nextSeen);
             if (moreChain !== null) {
               const checkRetval = [...moreChain, intermediateCertificate];
               const validChain = src_client_Certificate.verifyChainDepth([...checkRetval, this]);
@@ -117581,11 +117598,12 @@ class src_client_Certificate {
    */
   hash() {
     this.assertConstructed();
-    if (!client_certificate_classPrivateFieldGet(client_hash, this)) {
-      client_certificate_classPrivateFieldSet(client_hash, this, src_client_CertificateHash.fromData(client_certificate_Buffer.from(client_certificate_classPrivateFieldGet(client_raw2, this))));
-    }
-    return client_certificate_classPrivateFieldGet(client_hash, this);
+    return client_certificate_assertClassBrand(client_Certificate_brand, this, client_computeHash).call(this);
   }
+
+  /*
+   * Compute the hash without asserting full construction.
+   */
 
   /**
    * Get a JSON representation of the certificate
@@ -117889,6 +117907,12 @@ function client_checkIssued(issuer) {
   return {
     issued: true
   };
+}
+function client_computeHash() {
+  if (!client_certificate_classPrivateFieldGet(client_hash, this)) {
+    client_certificate_classPrivateFieldSet(client_hash, this, src_client_CertificateHash.fromData(client_certificate_Buffer.from(client_certificate_classPrivateFieldGet(client_raw2, this))));
+  }
+  return client_certificate_classPrivateFieldGet(client_hash, this);
 }
 /**
  * The Certificate Builder
@@ -130232,7 +130256,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.18.0+g5417d9af948be899fcebb75694edb492ff971891';
+const client_version = '0.18.1+gae2caf00c1e19c6d232ff1a37b9fd8e7ea8a1ddc';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -133131,20 +133155,33 @@ class src_client_UserClientBuilder {
         }
         if (operations.permissionsChanges !== undefined) {
           pendingOperations.permissionsChanges = {};
-          for (const accountPubKey in operations.permissionsChanges) {
-            pendingOperations.permissionsChanges[accountPubKey] = {};
-            for (const targetPubKey in operations.permissionsChanges[accountPubKey]) {
+          for (const [certificateOrAccountKey, changes] of Object.entries(operations.permissionsChanges)) {
+            pendingOperations.permissionsChanges[certificateOrAccountKey] = {
+              principal: (() => {
+                if (typeof changes.principal === 'string') {
+                  return src_client_Account.toAccount(changes.principal);
+                } else {
+                  return {
+                    usingCertificate: true,
+                    certificate: new src_client_Certificate.Hash(changes.principal.certificate),
+                    certificateAccount: src_client_Account.toAccount(changes.principal.certificateAccount)
+                  };
+                }
+              })(),
+              targets: {}
+            };
+            for (const targetPubKey in changes.targets) {
               const updateArray = [];
               for (const {
                 method,
                 permissions
-              } of operations.permissionsChanges[accountPubKey][targetPubKey]) {
+              } of changes.targets[targetPubKey]) {
                 updateArray.push({
                   method,
                   permissions: client_permissions_Permissions.FromAcceptedTypes(permissions)
                 });
               }
-              pendingOperations.permissionsChanges[accountPubKey][targetPubKey] = updateArray;
+              pendingOperations.permissionsChanges[certificateOrAccountKey].targets[targetPubKey] = updateArray;
             }
           }
         }
@@ -133594,9 +133631,13 @@ class src_client_UserClientBuilder {
           amount: amount
         });
       }
-      for (const principalPubKey in pending.permissionsChanges) {
-        for (const targetPubKey in pending.permissionsChanges[principalPubKey]) {
-          for (const change of pending.permissionsChanges[principalPubKey][targetPubKey]) {
+      for (const {
+        targets,
+        principal
+      } of Object.values((_pending$permissionsC = pending.permissionsChanges) !== null && _pending$permissionsC !== void 0 ? _pending$permissionsC : {})) {
+        var _pending$permissionsC;
+        for (const targetPubKey in targets) {
+          for (const change of targets[targetPubKey]) {
             const {
               method,
               permissions
@@ -133607,7 +133648,17 @@ class src_client_UserClientBuilder {
             }
             operations.push({
               type: src_client_Block.OperationType.MODIFY_PERMISSIONS,
-              principal: src_client_Account.fromPublicKeyString(principalPubKey),
+              principal: (() => {
+                if (src_client_Account.isInstance(principal)) {
+                  return principal;
+                } else {
+                  return {
+                    usingCertificate: true,
+                    certificateHash: principal.certificate,
+                    certificateAccount: principal.certificateAccount
+                  };
+                }
+              })(),
               target: target,
               method: method,
               permissions: permissions
@@ -133673,18 +133724,26 @@ class src_client_UserClientBuilder {
     let options = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
     client_builder_assertClassBrand(client_UserClientBuilder_brand, this, client_useOptions).call(this, options);
     method = method !== null && method !== void 0 ? method : src_client_Block.AdjustMethod.SET;
-    const principalPubKey = principal.publicKeyString.get();
-    const targetPubKey = (target !== null && target !== void 0 ? target : client_builder_classPrivateFieldGet(client_pendingOptions, this).account).publicKeyString.get();
+    let principalKey;
+    if (typeof principal === 'string' || src_client_Account.isInstance(principal)) {
+      principalKey = src_client_Account.toAccount(principal).publicKeyString.get();
+    } else {
+      principalKey = principal.certificate.toString();
+    }
     if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges) {
       client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges = {};
     }
-    if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalPubKey]) {
-      client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalPubKey] = {};
+    if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalKey]) {
+      client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalKey] = {
+        principal,
+        targets: {}
+      };
     }
-    if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalPubKey][targetPubKey]) {
-      client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalPubKey][targetPubKey] = [];
+    const targetPubKey = (target !== null && target !== void 0 ? target : client_builder_classPrivateFieldGet(client_pendingOptions, this).account).publicKeyString.get();
+    if (!client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalKey].targets[targetPubKey]) {
+      client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalKey].targets[targetPubKey] = [];
     }
-    client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalPubKey][targetPubKey].push({
+    client_builder_classPrivateFieldGet(client_pendingOperations, this).permissionsChanges[principalKey].targets[targetPubKey].push({
       method: method,
       permissions: client_permissions_Permissions.FromAcceptedTypes(permissions)
     });
@@ -136710,7 +136769,13 @@ class src_client_UserClient {
   async updatePermissions(principal, permissions, target, method) {
     let options = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
     const builder = this.initBuilder(options);
-    builder.updatePermissions(client_lib_account.toAccount(principal), permissions, client_lib_account.toAccount(target), method, options);
+    let principalValue;
+    if (typeof principal === 'string' || client_lib_account.isInstance(principal)) {
+      principalValue = client_lib_account.toAccount(principal);
+    } else {
+      principalValue = principal;
+    }
+    builder.updatePermissions(principalValue, permissions, client_lib_account.toAccount(target), method, options);
     return await this.publishBuilder(builder);
   }
 

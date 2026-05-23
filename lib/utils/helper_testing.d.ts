@@ -2,6 +2,8 @@ import Account from '../account';
 import LocalNode from '../node/local';
 import { VoteStaple } from '../vote';
 import type { Block } from '../block';
+import { CertificateBuilder } from './certificate';
+import type { Certificate } from './certificate';
 export declare const testingNetworkId = 0n;
 type NodeConfig = ConstructorParameters<typeof LocalNode>[0];
 export declare function canListenOn(ip: string): Promise<boolean>;
@@ -26,6 +28,14 @@ export interface LocalNodeWithPrivateKey extends LocalNode {
 }
 export declare function createTestNode(account: Account, options?: CreateTestNodeOptions): Promise<LocalNodeWithPrivateKey>;
 export declare function getVotesFromSingleNode(node: LocalNode, fromAccount: Account, toAccount: Account, headBlock: Block | null): Promise<VoteStaple>;
+/**
+ * Build a Certificate with defaults for tests.
+ */
+export declare function buildTestCertificate(params: NonNullable<ConstructorParameters<typeof CertificateBuilder>[0]> & {
+    serial: bigint | number;
+    issuer: Account;
+    subjectPublicKey: Account;
+}): Promise<Certificate>;
 /**
  * Run a command and get its output
  */

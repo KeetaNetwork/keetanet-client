@@ -54,7 +54,7 @@ declare class DynamoDBTransaction extends LedgerStorageTransactionBase {
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(account: Account<T> | string): Promise<AccountInfoForType<T>>;
     listOwners(identifier: IdentifierAddress): Promise<Account[]>;
     listACLsByEntity(entity: GenericAccount): Promise<ACLRow[]>;
-    listACLsByPrincipal(principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
+    listACLsByPrincipal(principal: ACLRow['principal'], entityList?: GenericAccount[]): Promise<ACLRow[]>;
     getVotesAfter(moment: Date, startKey?: string, options?: GetVotesAfterOptions): Promise<PaginatedVotes>;
     getAccountCertificates(account: GenericAccount): Promise<CertificateWithIntermediates[]>;
     getAccountCertificateByHash(account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
@@ -93,7 +93,7 @@ export declare class DBDynamoDB extends LedgerStorageBase implements LedgerStora
     getAccountRep(transaction: DynamoDBTransaction, account: GenericAccount | string): Promise<Account | null>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: DynamoDBTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     listOwners(transaction: DynamoDBTransaction, identifier: IdentifierAddress): Promise<Account[]>;
-    listACLsByPrincipal(transaction: DynamoDBTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
+    listACLsByPrincipal(transaction: DynamoDBTransaction, principal: ACLRow['principal'], entityList?: GenericAccount[]): Promise<ACLRow[]>;
     listACLsByEntity(transaction: DynamoDBTransaction, entity: GenericAccount): Promise<ACLRow[]>;
     getVotesAfter(transaction: DynamoDBTransaction, moment: Date, startKey?: string): Promise<PaginatedVotes>;
     getAccountCertificates(transaction: DynamoDBTransaction, account: GenericAccount): Promise<CertificateWithIntermediates[]>;

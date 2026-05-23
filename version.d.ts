@@ -1,2 +1,2 @@
-export declare const version = "0.16.2+g2c1441eed2a1c71a895d0fb5166c431799b3d3ca";
+export declare const version = "0.18.0+g5417d9af948be899fcebb75694edb492ff971891";
 export default version;

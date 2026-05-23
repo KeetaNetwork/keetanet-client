@@ -393,7 +393,13 @@ export declare class VoteBlockBundle {
                 defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | undefined;
             }) | ({
                 type: import("./block/operations").OperationType.MODIFY_PERMISSIONS;
-                principal: string;
+                principal: string | ({
+                    usingCertificate: true;
+                    certificateHash: string | (string & {
+                        readonly __certificateHash: never;
+                    });
+                    certificateAccount: string;
+                } & {});
                 method: import("./block").AdjustMethod;
                 permissions: false | [string, number[]] | [string, string] | [number[] | import("./permissions").BaseFlagNames, number[]] | null;
             } & {

@@ -3,7 +3,7 @@ import Account from '../account';
 import type { AdjustMethod } from '../block';
 import { Block } from '../block';
 import type * as Operations from '../block/operations';
-import type { ACLEntry, ACLUpdate, AccountInfo } from '../ledger/types';
+import type { AccountInfo, ACLUpdate, ACLPermissionRequirement } from '../ledger/types';
 import type { Certificate, CertificateBundle } from '../utils/certificate';
 import { CertificateHash } from '../utils/certificate';
 import type { DistributiveOmit } from '../utils/helper';
@@ -56,27 +56,35 @@ interface ComputedBlocksEffectFields {
     supply?: NumericValueEntry[];
     info?: Partial<UserEditableAccountInfo>;
     permissions?: ACLUpdate[];
-    permissionRequirements?: ACLEntry[];
+    permissionRequirements?: ACLPermissionRequirement[];
     createRequests?: CreateIdentifierRequest[];
     delegation?: DelegationUpdate;
     certificate?: CertificateUpdate[];
     minSignerSetLength?: bigint;
 }
-/**
- * Which accounts and fields are affected by a set of block
- */
-interface ComputedBlockEffect {
+interface CertificateComputedEffect {
+    type: 'CERTIFICATE';
+    certificateHash: CertificateHash;
+    certificateAccount: GenericAccount;
+    fields: ComputedBlocksEffectFields;
+}
+interface AccountComputedEffect {
+    type: 'ACCOUNT';
     account: GenericAccount;
     fields: ComputedBlocksEffectFields;
 }
 /**
+ * Which accounts and fields are affected by a set of block
+ */
+type ComputedBlockEffect = CertificateComputedEffect | AccountComputedEffect;
+/**
  * A breakdown of computed effects by account public key
  */
-export type ComputedEffectOfBlocksByAccount = {
-    [accountPubKey: string]: ComputedBlockEffect;
+export type ComputedEffectOfBlocksByEntity = {
+    [entityKey: string]: ComputedBlockEffect;
 };
 export type ComputedEffectOfBlocks = {
-    accounts: ComputedEffectOfBlocksByAccount;
+    accounts: ComputedEffectOfBlocksByEntity;
     touched: InstanceType<typeof Account.Set>;
     possibleNewAccounts: InstanceType<typeof Account.Set>;
     metadata: {

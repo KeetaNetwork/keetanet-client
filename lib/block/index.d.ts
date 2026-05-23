@@ -227,7 +227,13 @@ declare abstract class PossiblyUnsignedBlock<HasSignature extends boolean> imple
             defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
         }) | ({
             type: Operations.OperationType.MODIFY_PERMISSIONS;
-            principal: string;
+            principal: string | ({
+                usingCertificate: true;
+                certificateHash: string | (string & {
+                    readonly __certificateHash: never;
+                });
+                certificateAccount: string;
+            } & {});
             method: AdjustMethod;
             permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
         } & {
@@ -445,7 +451,13 @@ export declare class BlockBuilder {
             defaultPermission?: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | undefined;
         }) | ({
             type: Operations.OperationType.MODIFY_PERMISSIONS;
-            principal: string;
+            principal: string | ({
+                usingCertificate: true;
+                certificateHash: string | (string & {
+                    readonly __certificateHash: never;
+                });
+                certificateAccount: string;
+            } & {});
             method: AdjustMethod;
             permissions: false | [string, number[]] | [string, string] | [number[] | import("../permissions").BaseFlagNames, number[]] | null;
         } & {

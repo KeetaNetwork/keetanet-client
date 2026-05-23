@@ -8,6 +8,7 @@ import type { KeyManagementServiceClient } from '@google-cloud/kms';
 import type * as KeetaNet from '../../../client';
 import type { AccountKeyAlgorithm } from '../../../lib/account';
 import type * as crypto from 'node:crypto';
+import type { GCPKMSKeyConfig } from './gcp-kms.common';
 type KeetaGCPKMSKeyPairPackages = {
     KeyManagementServiceClient: typeof KeyManagementServiceClient;
     KeetaNet: {
@@ -27,27 +28,21 @@ type KeetaGCPKMSKeyPairOptions = {
      * The GCP KMS key resource name or config object.
      * Format: projects/<project>/locations/<location>/keyRings/<keyRing>/cryptoKeys/<key>
      */
-    key: string | {
-        projectId: string;
-        locationId: string;
-        keyRingId: string;
-        keyId: string;
-        versionId?: string;
-    };
+    key: string | GCPKMSKeyConfig;
     /**
      * Key type for the KMS key. Optional - will be auto-detected from KMS
      * if not provided, but can be explicitly specified for validation.
      */
     keyType?: AccountKeyAlgorithm;
 };
-interface KeetaGCPKMSKeyPair extends InstanceType<typeof KeetaNet.lib.Account.ExternalKeyPair> {
+interface KeetaGCPKMSKeyPairInterface extends InstanceType<typeof KeetaNet.lib.Account.ExternalKeyPair> {
     /**
      * The full GCP KMS key resource name used for this key pair.
      */
     readonly keyName: string;
 }
 interface KeetaGCPKMSKeyPairClass {
-    lookup: (options: KeetaGCPKMSKeyPairOptions) => Promise<KeetaGCPKMSKeyPair>;
+    lookup: (options: KeetaGCPKMSKeyPairOptions) => Promise<KeetaGCPKMSKeyPairInterface>;
 }
 export declare function KeetaGCPKMSKeyPairFactory(packages: KeetaGCPKMSKeyPairPackages): Omit<KeetaGCPKMSKeyPairClass, '_Testing'>;
 export {};

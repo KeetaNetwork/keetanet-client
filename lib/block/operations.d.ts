@@ -24,6 +24,10 @@ export declare enum OperationType {
     MANAGE_CERTIFICATE = 8
 }
 export type BlockOperationTypes = keyof typeof OperationType;
+declare const ModifyPermissionsPrincipalContextSpecificTagValues: {
+    readonly CERTIFICATE: 1;
+};
+export type ModifyPermissionsPrincipalContextSpecificTag = keyof typeof ModifyPermissionsPrincipalContextSpecificTagValues;
 /**
  * Schema for each operation as well as names of each field within the block operations
  */
@@ -96,7 +100,25 @@ declare const BlockOperationASN1SchemaBase: {
     }];
     readonly MODIFY_PERMISSIONS: [{
         readonly name: "principal";
-        readonly schema: typeof ValidateASN1.IsOctetString;
+        readonly schema: {
+            readonly choice: [typeof ValidateASN1.IsOctetString, {
+                readonly type: "context";
+                readonly kind: "explicit";
+                readonly value: 1;
+                readonly contains: readonly [typeof ValidateASN1.IsOctetString, typeof ValidateASN1.IsOctetString];
+            }];
+        };
+        readonly encode: (data: ModifyPermissionsPrincipal) => Buffer | {
+            type: "context";
+            kind: "explicit";
+            value: 1;
+            contains: Buffer[];
+        };
+        readonly decode: (data: ASN1AnyJS) => GenericAccount | {
+            usingCertificate: true;
+            certificateHash: CertificateHash;
+            certificateAccount: GenericAccount;
+        };
     }, {
         readonly name: "method";
         readonly schema: typeof ValidateASN1.IsInteger;
@@ -339,12 +361,22 @@ declare class BlockOperationSET_INFO extends BlockOperation implements BlockJSON
     validate(context: BlockOperationValidateContext): void;
     toJSON(): ToJSONSerializable<BlockJSONOperationSET_INFO>;
 }
+export type ModifyPermissionsPrincipal = GenericAccount | {
+    usingCertificate: true;
+    certificateHash: CertificateHash;
+    certificateAccount: GenericAccount;
+};
+type ModifyPermissionsPrincipalInput = GenericAccount | string | {
+    usingCertificate: true;
+    certificateHash: CertificateHash | ConstructorParameters<typeof CertificateHash>[0];
+    certificateAccount: GenericAccount | string;
+};
 /**
  * Set Permissions Operation
  */
 export interface BlockJSONOperationMODIFY_PERMISSIONS extends BlockJSONOperation {
     type: OperationType.MODIFY_PERMISSIONS;
-    principal: string | GenericAccount;
+    principal: ModifyPermissionsPrincipalInput;
     method: AdjustMethod;
     permissions: AcceptedPermissionTypes | null;
     target?: string | GenericAccount;
@@ -355,7 +387,7 @@ declare class BlockOperationMODIFY_PERMISSIONS extends BlockOperation implements
     type: OperationType.MODIFY_PERMISSIONS;
     constructor(input: BlockJSONOperationMODIFY_PERMISSIONS);
     set principal(principal: string | GenericAccount);
-    get principal(): GenericAccount;
+    get principal(): ModifyPermissionsPrincipal;
     set permissions(newPerms: Permissions | null);
     get permissions(): Permissions | null;
     set target(token: string | GenericAccount | undefined);
@@ -465,7 +497,11 @@ export declare function ExportBlockOperations(operations: BlockOperations[]): ((
     value: OperationType.SET_INFO;
     kind: "explicit";
 }) | (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {
-    contains: [Buffer, bigint, [bigint, bigint] | null, Buffer | undefined];
+    contains: [Buffer | (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {
+        contains: [Buffer, Buffer];
+        value: 1;
+        kind: "explicit";
+    }), bigint, [bigint, bigint] | null, Buffer | undefined];
     value: OperationType.MODIFY_PERMISSIONS;
     kind: "explicit";
 }) | (Omit<import("../utils/asn1").ASN1ContextTag, "kind" | "value" | "contains"> & {

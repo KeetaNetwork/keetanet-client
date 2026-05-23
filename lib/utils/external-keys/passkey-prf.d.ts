@@ -49,6 +49,22 @@ type KeetaPasskeyPRFKeyPairOptions = {
      * string "keeta.com/wallet/seed/v1" and should generally be used.
      */
     salt?: Uint8Array;
+    /**
+     * Time in milliseconds to cache the backing account for signing and
+     * decryption operations.  This is optional and defaults to no
+     * caching of the account (the safest option), but can be set to a
+     * positive integer to cache the account for a certain amount of time
+     * after it is first retrieved.  This removes the need for the user
+     * to interact for a series of subsequent signing or decryption
+     * operations, but also increases the risk of signing unintended
+     * messages.
+     *
+     * The caching can be disabled after setup by calling
+     * {@link KeetaPasskeyPRFKeyPair.removeCachedAccountTimeout}
+     * on the key pair instance, which will remove the cached account
+     * and disable caching.
+     */
+    cachedAccountTimeout?: number;
 };
 /**
  * Options for looking up an existing Passkey PRF key pair.  You can look up
@@ -56,7 +72,15 @@ type KeetaPasskeyPRFKeyPairOptions = {
  * or you can just look up any key pair (the user will be prompted to select a
  * credential.
  */
-type KeetaPasskeyPRFKeyPairLookupOptions = KeetaPasskeyPRFKeyPairOptions & ({
+type KeetaPasskeyPRFKeyPairLookupOptions = KeetaPasskeyPRFKeyPairOptions & {
+    /**
+     * Relying party ID to use for looking up the credential.  This is
+     * optional and defaults to not being specified, but can be set to
+     * a specific relying party ID.  This will be passed to the WebAuthn
+     * API and can result in errors if set incorrectly.
+     */
+    rpID?: string;
+} & ({
     /**
      * Look up by a key ID
      */
@@ -123,6 +147,16 @@ type KeetaPasskeyPRFKeyPairGenerateOptions = KeetaPasskeyPRFKeyPairOptions & {
          */
         id?: Uint8Array;
     };
+    /**
+     * Whether the generated credential should be syncable across devices.
+     *
+     * This is optional and defaults to false, which means the credential
+     * may not be synced across devices.  If set to true, the credential
+     * will be created in such a way that it can be synced across devices,
+     * but this may result in the credential being stored in a less secure
+     * manner by the authenticator.
+     */
+    syncable?: boolean;
 };
 interface KeetaPasskeyPRFKeyPair extends InstanceType<typeof KeetaNet.lib.Account.ExternalKeyPair> {
     /**
@@ -145,6 +179,13 @@ interface KeetaPasskeyPRFKeyPair extends InstanceType<typeof KeetaNet.lib.Accoun
      *                      compromise the security of the key pair.
      */
     exportPassphrase: () => Promise<string>;
+    /**
+     * Remove the cached account and disable further caching for this key pair.
+     * This method should be called when you want to ensure that subsequent
+     * signing or decryption operations will require user interaction, even if
+     * a cachedAccountTimeout was configured.
+     */
+    removeCachedAccountTimeout: () => void;
 }
 interface KeetaPasskeyPRFKeyPairClass {
     lookup: (options?: KeetaPasskeyPRFKeyPairLookupOptions) => Promise<KeetaPasskeyPRFKeyPair>;

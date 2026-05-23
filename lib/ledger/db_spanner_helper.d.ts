@@ -6,7 +6,17 @@ import Vote, { PossiblyExpiredVote, VoteBlockHash } from '../vote';
 import type { BaseSet, ExternalSet } from '../permissions';
 import type { SpannerTransaction } from './db_spanner';
 import { Certificate, CertificateBundle, CertificateHash } from '../utils/certificate';
+import type { ACLPrincipalType } from './types';
 declare const ColumnTypes: {
+    readonly GENERIC_ACCOUNT_OR_CERTIFICATE_HASH: {
+        readonly fromSpanner: (value: string) => GenericAccount | CertificateHash;
+        readonly toSpanner: (value: CertificateHash | GenericAccount) => import("../account").TokenPublicKeyString | import("../account").NetworkPublicKeyString | import("../account").StoragePublicKeyString | import("../account").MultisigPublicKeyString | import("../account").Secp256K1PublicKeyString | import("../account").Secp256R1PublicKeyString | import("../account").ED25519PublicKeyString | (string & {
+            readonly __certificateHash: never;
+        });
+        readonly toComparable: (name: string | CertificateHash | GenericAccount) => string;
+        readonly dbType: string;
+        readonly dbSize: number;
+    };
     readonly LEDGER: {
         readonly dbType: "STRING";
         readonly dbSize: 4;
@@ -212,6 +222,13 @@ declare const ColumnTypes: {
         fromSpanner: (value: Buffer) => bigint;
         toComparable: (val: Buffer | bigint | string) => bigint;
     };
+    readonly ACL_ROW_TYPE: {
+        dbType: string;
+        dbSize: number;
+        toComparable: (input: string | ACLPrincipalType) => "ACCOUNT" | "CERTIFICATE";
+        fromSpanner: (input: string) => "ACCOUNT" | "CERTIFICATE";
+        toSpanner: (input: ACLPrincipalType) => "ACCOUNT" | "CERTIFICATE";
+    };
 };
 type ColumnTypeName = keyof typeof ColumnTypes;
 type ColumnOutputTypeArg<T extends ColumnTypeName> = Parameters<typeof ColumnTypes[T]['fromSpanner']>[0];
@@ -221,6 +238,7 @@ type ColumnOutputTypeInfer<X> = X extends ColumnInterface<infer TR, infer Nullab
 type ColumnInputTypeArg<T extends ColumnTypeName> = Parameters<typeof ColumnTypes[T]['toSpanner']>[0];
 type ColumnInputTypeReturn<T extends ColumnTypeName> = ReturnType<typeof ColumnTypes[T]['toSpanner']>;
 interface ColumnInterface<T extends ColumnTypeName, Nullable extends boolean = boolean> {
+    default: (value: ColumnOutputTypeReturn<T>) => ColumnInterface<T, Nullable>;
     nullable: <SetNullable extends boolean>(nullable: SetNullable) => ColumnInterface<T, SetNullable>;
     fromSpanner: (value: ColumnOutputTypeArg<T>, transaction: SpannerTransaction) => ColumnOutputTypeReturn<T>;
     toSpanner: (value: ColumnInputTypeArg<T>, transaction: SpannerTransaction) => ColumnInputTypeReturn<T>;
@@ -247,7 +265,7 @@ declare const schema: {
     readonly accountInfo: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT_OR_CERTIFICATE_HASH", false>;
             readonly name: ColumnInterface<"INFO_NAME", true>;
             readonly description: ColumnInterface<"INFO_DESCRIPTION", true>;
             readonly metadata: ColumnInterface<"INFO_METADATA", true>;
@@ -261,11 +279,13 @@ declare const schema: {
     readonly permissions: {
         readonly type: "TABLE";
         readonly columns: {
-            readonly account: ColumnInterface<"GENERIC_ACCOUNT", false>;
+            readonly account: ColumnInterface<"GENERIC_ACCOUNT_OR_CERTIFICATE_HASH", false>;
             readonly entity: ColumnInterface<"GENERIC_ACCOUNT", false>;
             readonly target: ColumnInterface<"GENERIC_ACCOUNT", false>;
             readonly basePermission: ColumnInterface<"BASE_PERMISSION", false>;
             readonly externalPermission: ColumnInterface<"EXTERNAL_PERMISSION", false>;
+            readonly principalType: ColumnInterface<"ACL_ROW_TYPE", false>;
+            readonly certificateAccount: ColumnInterface<"GENERIC_ACCOUNT", true>;
         };
         readonly key: readonly [Key, Key, Key];
         readonly interleave: Interleave;
@@ -391,7 +411,7 @@ declare const schema: {
         readonly type: "INDEX";
         readonly table: "permissions";
         readonly key: readonly [Key];
-        readonly storing: readonly [Key, Key];
+        readonly storing: readonly [Key, Key, Key, Key];
     };
     readonly permissionsEntityBasePerm: {
         readonly type: "INDEX";

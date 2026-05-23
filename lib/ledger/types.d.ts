@@ -2,7 +2,7 @@ import type { Account, AccountKeyAlgorithm, GenericAccount, IdentifierKeyAlgorit
 import type { AdjustMethod } from '../block';
 import type { Permissions } from '../permissions';
 import type { DbStats, TimeStats } from '../stats';
-import type { Certificate, CertificateBundle } from '../utils/certificate';
+import type { Certificate, CertificateBundle, CertificateHash } from '../utils/certificate';
 import type { DistributiveOmit } from '../utils/helper';
 export interface MultisigConfig {
     signers: (Account | MultisigAddress)[];
@@ -70,14 +70,21 @@ export declare function isKeyPairAccountInfo(info: AccountInfo): info is KeyPair
 export declare function isAccountInfoOfType<T extends AccountKeyAlgorithm>(info: AccountInfo, type: T): info is Extract<AccountInfo, {
     account: Account<T>;
 }>;
-/**
- * Permissions types
- */
-export interface ACLRow {
+declare const aclPrincipalType: readonly ["ACCOUNT", "CERTIFICATE"];
+export type ACLPrincipalType = typeof aclPrincipalType[number];
+export declare function isACLPrincipalType(type: string): type is ACLPrincipalType;
+export declare function assertACLPrincipalType(type: string): asserts type is ACLPrincipalType;
+export declare function asACLPrincipalType(type: string): ACLPrincipalType;
+interface CertificateACLPrincipal {
+    usingCertificate: true;
+    certificate: CertificateHash;
+    certificateAccount: GenericAccount;
+}
+interface BaseACLRow<PrincipalType extends ACLPrincipalType> {
     /**
-     * The account that these permissions apply to
+     * The type of ACL row, which determines the shape of the principal
      */
-    principal: GenericAccount;
+    principalType: PrincipalType;
     /**
      * The account that this row is for
      */
@@ -91,19 +98,36 @@ export interface ACLRow {
      */
     permissions: Permissions;
 }
-/**
- * An entry for the ACL
- * @expandType ACLRow
- */
-export interface ACLEntry extends Omit<ACLRow, 'target'> {
-    target?: GenericAccount;
-    method?: AdjustMethod.SET;
+interface AccountACLRow extends BaseACLRow<'ACCOUNT'> {
+    /**
+     * The account that these permissions apply to
+     */
+    principal: GenericAccount;
+}
+interface CertificateACLRow extends BaseACLRow<'CERTIFICATE'> {
+    /**
+     * Accounts having certificate issued by this certificate will be granted the permissions in this ACL row
+     */
+    principal: CertificateACLPrincipal;
 }
 /**
- * Update an ACL for an account
- * @expandType ACLEntry
+ * Permissions types
  */
-export interface ACLUpdate extends Omit<ACLEntry, 'method' | 'permissions'> {
+export type ACLRow = AccountACLRow | CertificateACLRow;
+/**
+ * A permission requirement for ledger effects
+ * @expandType AccountACLRow
+ */
+export type ACLPermissionRequirement = Omit<AccountACLRow, 'target' | 'principalType'> & {
+    target?: GenericAccount;
+    method?: AdjustMethod.SET;
+};
+/**
+ * Update an ACL for an account
+ * @expandType ACLRow
+ */
+export type ACLUpdate = DistributiveOmit<ACLRow, 'method' | 'permissions' | 'target'> & {
+    target?: GenericAccount;
     /**
      * The method to use to update the ACL
      */
@@ -114,7 +138,7 @@ export interface ACLUpdate extends Omit<ACLEntry, 'method' | 'permissions'> {
      * If this is set to null, the permissions will be unset
      */
     permissions: Permissions | null;
-}
+};
 /**
  * All balances for each token on an account
  */

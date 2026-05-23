@@ -4,7 +4,7 @@ import { BlockHash } from '../block';
 import { Block } from '../block';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions, ListACLsByEntityFilters } from '../ledger';
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import { LedgerStorageBase } from './common';
@@ -40,8 +40,8 @@ export declare class DBSqlite extends LedgerStorageBase implements LedgerStorage
      */
     protected adjustDefer(transaction: DBSqliteTransaction, input: VoteStaple): Promise<void>;
     listOwners(transaction: DBSqliteTransaction, entity: IdentifierAddress): Promise<Account<AccountKeyAlgorithm.TOKEN>[]>;
-    listACLsByEntity(transaction: DBSqliteTransaction, entity: GenericAccount): Promise<ACLRow[]>;
-    listACLsByPrincipal(transaction: DBSqliteTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
+    listACLsByEntity(transaction: DBSqliteTransaction, entity: GenericAccount, options?: ListACLsByEntityFilters): Promise<ACLRow[]>;
+    listACLsByPrincipal(transaction: DBSqliteTransaction, principal: ACLRow['principal'], entityList?: GenericAccount[]): Promise<ACLRow[]>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: DBSqliteTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     adjust(transaction: DBSqliteTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: DBSqliteTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;

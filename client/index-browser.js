@@ -115473,7 +115473,7 @@ const client_baseValidationConfig = {
   },
   blockOperations: {
     external: {
-      maxLength: 256,
+      maxLength: 1024,
       regex: /^[-_A-Za-z0-9+/= ]+$/,
       canBeEmpty: true
     },
@@ -116297,7 +116297,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS', 'SIGNATURE_REQUIRED', 'SIGNATURE_PARAMETER_DIFFERS'];
+const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'INVALID_PRINCIPAL', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS', 'SIGNATURE_REQUIRED', 'SIGNATURE_PARAMETER_DIFFERS'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -117915,7 +117915,7 @@ function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_LedgerErrorType = 'LEDGER';
-const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'BLOCK_EXPIRED', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'TEMP_VOTE_INCLUDES_SELF', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS',
+const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'BLOCK_EXPIRED', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'INVALID_ACL_ROW_TYPE', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'TEMP_VOTE_INCLUDES_SELF', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS', 'CERTIFICATE_NOT_FOUND',
 // Fee Errors
 'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'MULTIPLE_FEE_BLOCK', 'VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
 
@@ -118036,6 +118036,16 @@ function client_common_assertClassBrand(e, t, n) { if ("function" == typeof e ? 
 
 
 
+function client_areACLPrincipalEqual(a, b) {
+  if (client_lib_account.isInstance(a) || client_lib_account.isInstance(b)) {
+    if (!client_lib_account.isInstance(a) || !client_lib_account.isInstance(b)) {
+      return false;
+    }
+    return a.comparePublicKey(b);
+  } else {
+    return a.certificate.compareHexString(b.certificate) && a.certificateAccount.comparePublicKey(b.certificateAccount);
+  }
+}
 function client_findPermissionMatch(lookingFor, entries) {
   const {
     principal,
@@ -118044,7 +118054,8 @@ function client_findPermissionMatch(lookingFor, entries) {
   } = lookingFor;
   let foundRow;
   for (const entry of entries) {
-    if (!principal.comparePublicKey(entry.principal)) {
+    // If principals do not match, we can skip
+    if (!client_areACLPrincipalEqual(principal, entry.principal)) {
       continue;
     }
 
@@ -118182,79 +118193,111 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     const resolved = await getAccountInfoPromises[accountPubKey];
     return resolved;
   };
-  const getPermissionPromises = {};
-  const getPermissions = async (account, entityList) => {
-    const accountPubKey = account.publicKeyString.get();
-    if (!entityList) {
-      return await getPermissionPromises[accountPubKey];
+  const getCertificatePromises = {};
+  const getCertificate = async (certificateHash, account) => {
+    const promiseKey = `${certificateHash.toString()}-${account.publicKeyString.get()}`;
+    if (getCertificatePromises[promiseKey] === undefined) {
+      getCertificatePromises[promiseKey] = storageProvider.getAccountCertificateByHash(transaction, account, certificateHash);
     }
-    if (getPermissionPromises[accountPubKey] !== undefined) {
+    return await getCertificatePromises[promiseKey];
+  };
+  const getPermissionPromises = {};
+  const getPermissions = async (principal, entityList) => {
+    let promiseKey;
+    if (client_lib_account.isInstance(principal)) {
+      promiseKey = `account-${principal.publicKeyString.get()}`;
+    } else {
+      promiseKey = `certificate-${principal.certificate.toString()}-${principal.certificateAccount.publicKeyString.get()}`;
+    }
+    if (!entityList) {
+      return await getPermissionPromises[promiseKey];
+    }
+    if (getPermissionPromises[promiseKey] !== undefined) {
       throw new Error('getPermissions() can only be called once per account');
     }
-    getPermissionPromises[accountPubKey] = storageProvider.listACLsByPrincipal(transaction, account, entityList);
-    return await getPermissionPromises[accountPubKey];
+    getPermissionPromises[promiseKey] = storageProvider.listACLsByPrincipal(transaction, principal, entityList);
+    return await getPermissionPromises[promiseKey];
   };
   const prefetchPromises = [];
-  for (const {
-    account,
-    fields
-  } of Object.values(effects)) {
-    var _fields$supply, _effects$accountPubKe;
-    // Always fetch the supply from accountInfo if it's changing so we can validate the effect
-    if (((_fields$supply = fields.supply) !== null && _fields$supply !== void 0 ? _fields$supply : []).length > 0 && (checkRangeConstraints || getFinalNumericValues)) {
-      prefetchPromises.push(getAccountInfo(account));
-    }
-    const accountPubKey = account.publicKeyString.get();
-    if (computePermissions && fields.permissions) {
-      const toReadEntity = new client_lib_account.Set();
-      for (const permUpdate of (_fields$permissions = fields.permissions) !== null && _fields$permissions !== void 0 ? _fields$permissions : []) {
-        var _fields$permissions;
-        if (permUpdate.method === src_client_Block.AdjustMethod.SET || permUpdate.permissions === null) {
-          toReadEntity.delete(permUpdate.entity);
-          continue;
-        }
-        toReadEntity.add(permUpdate.entity);
+  for (const effect of Object.values(effects)) {
+    const fields = effect.fields;
+    const toReadEntity = new client_lib_account.Set();
+    for (const permUpdate of (_fields$permissions = fields.permissions) !== null && _fields$permissions !== void 0 ? _fields$permissions : []) {
+      var _fields$permissions;
+      if ((permUpdate.method === src_client_Block.AdjustMethod.ADD || permUpdate.method === src_client_Block.AdjustMethod.SET) && permUpdate.principalType === 'CERTIFICATE') {
+        prefetchPromises.push(getCertificate(permUpdate.principal.certificate, permUpdate.principal.certificateAccount));
       }
-      prefetchPromises.push(getPermissions(account, toReadEntity.toArray()));
+      if (permUpdate.method === src_client_Block.AdjustMethod.SET || permUpdate.permissions === null) {
+        toReadEntity.delete(permUpdate.entity);
+        continue;
+      }
+      toReadEntity.add(permUpdate.entity);
     }
-    const delegationField = (_effects$accountPubKe = effects[accountPubKey]) === null || _effects$accountPubKe === void 0 ? void 0 : _effects$accountPubKe.fields.delegation;
-    const isDelegating = delegationField !== undefined;
-    let requestedRep = false;
-    if (isDelegating && computeWeights && getFinalNumericValues && client_canDelegate(account.keyType)) {
-      requestedRep = true;
-      prefetchPromises.push(getRep(account, getFinalNumericValues));
-      prefetchPromises.push(getWeight(delegationField.delegateTo));
+    let principal;
+    if (effect.type === 'ACCOUNT') {
+      principal = effect.account;
+    } else {
+      principal = {
+        usingCertificate: true,
+        certificate: effect.certificateHash,
+        certificateAccount: effect.certificateAccount
+      };
     }
-    const rollingChanges = {};
-    for (const tokenPubKey in (_fields$balance = fields.balance) !== null && _fields$balance !== void 0 ? _fields$balance : {}) {
-      var _fields$balance;
-      for (const balanceUpdate of ((_fields$balance2 = fields.balance) !== null && _fields$balance2 !== void 0 ? _fields$balance2 : {})[tokenPubKey]) {
-        var _fields$balance2;
-        if (balanceUpdate.isReceive) {
-          continue;
-        }
-        const {
-          set,
-          value
-        } = balanceUpdate;
-        const token = client_lib_account.fromPublicKeyString(tokenPubKey).assertKeyType(client_AccountKeyAlgorithm.TOKEN);
-        if (rollingChanges[tokenPubKey] === undefined) {
-          rollingChanges[tokenPubKey] = 0n;
-        }
-        if (set) {
-          prefetchPromises.push(getPreviousBalance(token, token));
-          rollingChanges[tokenPubKey] = value;
-        } else {
-          rollingChanges[tokenPubKey] += value;
-        }
-        const isBaseToken = baseToken.comparePublicKey(tokenPubKey);
-        const possibleNegative = rollingChanges[tokenPubKey] < 0n && checkRangeConstraints;
-        if (possibleNegative && checkRangeConstraints || set || getFinalNumericValues || isDelegating && computeWeights) {
-          prefetchPromises.push(getPreviousBalance(account, token));
-        }
-        if (computeWeights && isBaseToken && client_canDelegate(account.keyType) && !requestedRep) {
-          requestedRep = true;
-          prefetchPromises.push(getRep(account, getFinalNumericValues));
+
+    // Only prefetch the permissions if we are computing the permissions
+    if (computePermissions) {
+      prefetchPromises.push(getPermissions(principal, toReadEntity.toArray()));
+    }
+    if (effect.type !== 'CERTIFICATE') {
+      var _fields$supply, _effects$accountPubKe;
+      const {
+        account
+      } = effect;
+
+      // Always fetch the supply from accountInfo if it's changing so we can validate the effect
+      if (((_fields$supply = fields.supply) !== null && _fields$supply !== void 0 ? _fields$supply : []).length > 0 && (checkRangeConstraints || getFinalNumericValues)) {
+        prefetchPromises.push(getAccountInfo(account));
+      }
+      const accountPubKey = account.publicKeyString.get();
+      const delegationField = (_effects$accountPubKe = effects[accountPubKey]) === null || _effects$accountPubKe === void 0 ? void 0 : _effects$accountPubKe.fields.delegation;
+      const isDelegating = delegationField !== undefined;
+      let requestedRep = false;
+      if (isDelegating && computeWeights && getFinalNumericValues && client_canDelegate(account.keyType)) {
+        requestedRep = true;
+        prefetchPromises.push(getRep(account, getFinalNumericValues));
+        prefetchPromises.push(getWeight(delegationField.delegateTo));
+      }
+      const rollingChanges = {};
+      for (const tokenPubKey in (_fields$balance = fields.balance) !== null && _fields$balance !== void 0 ? _fields$balance : {}) {
+        var _fields$balance;
+        for (const balanceUpdate of ((_fields$balance2 = fields.balance) !== null && _fields$balance2 !== void 0 ? _fields$balance2 : {})[tokenPubKey]) {
+          var _fields$balance2;
+          if (balanceUpdate.isReceive) {
+            continue;
+          }
+          const {
+            set,
+            value
+          } = balanceUpdate;
+          const token = client_lib_account.fromPublicKeyString(tokenPubKey).assertKeyType(client_AccountKeyAlgorithm.TOKEN);
+          if (rollingChanges[tokenPubKey] === undefined) {
+            rollingChanges[tokenPubKey] = 0n;
+          }
+          if (set) {
+            prefetchPromises.push(getPreviousBalance(token, token));
+            rollingChanges[tokenPubKey] = value;
+          } else {
+            rollingChanges[tokenPubKey] += value;
+          }
+          const isBaseToken = baseToken.comparePublicKey(tokenPubKey);
+          const possibleNegative = rollingChanges[tokenPubKey] < 0n && checkRangeConstraints;
+          if (possibleNegative && checkRangeConstraints || set || getFinalNumericValues || isDelegating && computeWeights) {
+            prefetchPromises.push(getPreviousBalance(account, token));
+          }
+          if (computeWeights && isBaseToken && client_canDelegate(account.keyType) && !requestedRep) {
+            requestedRep = true;
+            prefetchPromises.push(getRep(account, getFinalNumericValues));
+          }
         }
       }
     }
@@ -118357,34 +118400,56 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     newEntry.change += change;
     supplies[tokenPubKey] = newEntry;
   };
-  for (const {
-    account,
-    fields
-  } of Object.values(effects)) {
-    var _effects$accountPubKe2;
-    const accountPubKey = account.publicKeyString.get();
+  for (const effect of Object.values(effects)) {
+    const fields = effect.fields;
     for (const supplyChange of (_fields$supply2 = fields.supply) !== null && _fields$supply2 !== void 0 ? _fields$supply2 : []) {
       var _fields$supply2;
-      if (!account.isToken()) {
+      if (effect.type !== 'ACCOUNT' || !effect.account.isToken()) {
         throw new Error('Cannot modify supply of non-token account');
       }
-      await modifySupply(account, supplyChange.value);
+      await modifySupply(effect.account, supplyChange.value);
     }
-    let permissionUpdates = [];
-    if (computePermissions && fields.permissions) {
-      permissionUpdates = fields.permissions;
-    }
-    for (const permUpdate of permissionUpdates) {
-      var _previousEntry$permis;
-      if (!permUpdate.principal.comparePublicKey(account)) {
-        throw new Error('permUpdate.principal should not differ current account');
+    for (const permUpdate of (_fields$permissions2 = fields.permissions) !== null && _fields$permissions2 !== void 0 ? _fields$permissions2 : []) {
+      var _fields$permissions2, _previousEntry$permis;
+      let principal;
+      if (effect.type === 'ACCOUNT') {
+        principal = effect.account;
+        if (!client_lib_account.isInstance(permUpdate.principal)) {
+          throw new Error('permUpdate.principal should be an account for ACCOUNT type effects');
+        }
+        if (!permUpdate.principal.comparePublicKey(effect.account)) {
+          throw new Error('permUpdate.principal should not differ current account');
+        }
+      } else {
+        if (client_lib_account.isInstance(permUpdate.principal)) {
+          throw new Error('permUpdate.principal should be a certificate for CERTIFICATE type effects');
+        }
+        if (!permUpdate.principal.certificate.compareHexString(effect.certificateHash)) {
+          throw new Error('permUpdate.principal should not differ current certificate');
+        }
+        principal = {
+          usingCertificate: true,
+          certificate: effect.certificateHash,
+          certificateAccount: effect.certificateAccount
+        };
+        if (permUpdate.method === src_client_Block.AdjustMethod.ADD || permUpdate.method === src_client_Block.AdjustMethod.SET) {
+          const certificate = await getCertificate(permUpdate.principal.certificate, permUpdate.principal.certificateAccount);
+          if (!certificate) {
+            throw new client_ledger_KeetaNetLedgerError('LEDGER_CERTIFICATE_NOT_FOUND', `Certificate with hash ${permUpdate.principal.certificate.toString()} for account ${permUpdate.principal.certificateAccount.publicKeyString.get()} not found`);
+          }
+        }
+      }
+
+      // If not computing permissions, we only need to validate certificate existence
+      if (!computePermissions) {
+        continue;
       }
       if (permUpdate.method === src_client_Block.AdjustMethod.SET || permUpdate.permissions === null) {
         permissions.push(permUpdate);
         continue;
       }
       let newPermissions;
-      const previousEntry = client_findPermissionMatch(permUpdate, await getPermissions(account));
+      const previousEntry = client_findPermissionMatch(permUpdate, await getPermissions(principal));
       const previousPermissions = (_previousEntry$permis = previousEntry === null || previousEntry === void 0 ? void 0 : previousEntry.permissions) !== null && _previousEntry$permis !== void 0 ? _previousEntry$permis : new client_permissions_Permissions();
       switch (permUpdate.method) {
         case src_client_Block.AdjustMethod.ADD:
@@ -118400,14 +118465,19 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         permissions: newPermissions
       });
     }
-    const delegationField = (_effects$accountPubKe2 = effects[accountPubKey]) === null || _effects$accountPubKe2 === void 0 ? void 0 : _effects$accountPubKe2.fields.delegation;
-    const isDelegating = delegationField !== undefined;
-    if (isDelegating && client_canDelegate(account.keyType) && computeWeights) {
-      const currentDelegation = await getRep(account, getFinalNumericValues);
-      const previousBalance = await getPreviousBalance(account, baseToken);
-      await modifyWeight(delegationField.delegateTo, previousBalance);
-      if (currentDelegation) {
-        await modifyWeight(currentDelegation, -1n * previousBalance);
+    let isDelegating;
+    let delegationField;
+    if (effect.type === 'ACCOUNT') {
+      var _effects$effect$accou;
+      delegationField = (_effects$effect$accou = effects[effect.account.publicKeyString.get()]) === null || _effects$effect$accou === void 0 ? void 0 : _effects$effect$accou.fields.delegation;
+      isDelegating = delegationField !== undefined;
+      if (isDelegating && delegationField && client_canDelegate(effect.account.keyType) && computeWeights) {
+        const currentDelegation = await getRep(effect.account, getFinalNumericValues);
+        const previousBalance = await getPreviousBalance(effect.account, baseToken);
+        await modifyWeight(delegationField.delegateTo, previousBalance);
+        if (currentDelegation) {
+          await modifyWeight(currentDelegation, -1n * previousBalance);
+        }
       }
     }
     const receivable = {};
@@ -118416,6 +118486,9 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
       const tokenAcct = client_lib_account.fromPublicKeyString(tokenPubKey).assertKeyType(client_AccountKeyAlgorithm.TOKEN);
       for (const balanceUpdate of ((_fields$balance4 = fields.balance) !== null && _fields$balance4 !== void 0 ? _fields$balance4 : {})[tokenPubKey]) {
         var _fields$balance4;
+        if (effect.type !== 'ACCOUNT') {
+          throw new Error('Only accounts can have balance changes');
+        }
         const {
           isReceive,
           value,
@@ -118423,7 +118496,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         } = balanceUpdate;
         if (isReceive) {
           const receiveFromPubKey = otherAccount.publicKeyString.get();
-          const previousEntry = getBalanceEntry(account, tokenAcct);
+          const previousEntry = getBalanceEntry(effect.account, tokenAcct);
           if (previousEntry.receiveValidated === false) {
             continue;
           }
@@ -118440,15 +118513,15 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
           } else {
             receiveValid = value <= receivableAmount;
           }
-          balances[accountPubKey][tokenPubKey].receiveValidated = receiveValid;
+          balances[effect.account.publicKeyString.get()][tokenPubKey].receiveValidated = receiveValid;
           continue;
         }
         let balanceChange;
         if (balanceUpdate.set) {
-          balanceChange = await modifyBalance(account, tokenAcct, value, true);
+          balanceChange = await modifyBalance(effect.account, tokenAcct, value, true);
           await modifyBalance(tokenAcct, tokenAcct, -1n * balanceChange, false);
         } else {
-          balanceChange = await modifyBalance(account, tokenAcct, value, false);
+          balanceChange = await modifyBalance(effect.account, tokenAcct, value, false);
         }
         if (balanceUpdate.receivable) {
           const otherAccountPubKey = otherAccount.publicKeyString.get();
@@ -118463,11 +118536,14 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
           receivable[otherAccountPubKey][tokenPubKey] += balanceChange;
         }
         const isBaseToken = baseToken.comparePublicKey(tokenAcct);
-        if (isBaseToken && client_canDelegate(account.keyType) && computeWeights) {
+        if (isBaseToken && client_canDelegate(effect.account.keyType) && computeWeights) {
           if (isDelegating) {
+            if (!delegationField) {
+              throw new Error('delegationField should be defined if isDelegating is true');
+            }
             await modifyWeight(delegationField.delegateTo, balanceChange);
           } else {
-            const currentRep = await getRep(account);
+            const currentRep = await getRep(effect.account);
             if (currentRep) {
               await modifyWeight(currentRep, balanceChange);
             }
@@ -118889,6 +118965,9 @@ function client_operationTypeToNumber(str) {
   }
   return type;
 }
+const client_ModifyPermissionsPrincipalContextSpecificTagValues = {
+  CERTIFICATE: 1
+};
 function client_makeEncodeDecodePermission(emptyValue) {
   return {
     encode: data => {
@@ -118984,7 +119063,52 @@ const client_BlockOperationASN1SchemaBase = {
   }],
   'MODIFY_PERMISSIONS': [{
     name: 'principal',
-    schema: client_ValidateASN1.IsOctetString
+    schema: {
+      choice: [client_ValidateASN1.IsOctetString, {
+        type: 'context',
+        kind: 'explicit',
+        value: client_ModifyPermissionsPrincipalContextSpecificTagValues.CERTIFICATE,
+        contains: [/* Certificate Hash */
+        client_ValidateASN1.IsOctetString, /* Certificate Issued To Account */
+        client_ValidateASN1.IsOctetString]
+      }]
+    },
+    encode(data) {
+      if (client_lib_account.isInstance(data)) {
+        return data.publicKeyAndType;
+      } else if (data.usingCertificate) {
+        return {
+          type: 'context',
+          kind: 'explicit',
+          value: client_ModifyPermissionsPrincipalContextSpecificTagValues.CERTIFICATE,
+          contains: [data.certificateHash.getBuffer(), data.certificateAccount.publicKeyAndType]
+        };
+      } else {
+        throw new Error('Invalid principal type for MODIFY_PERMISSIONS operation');
+      }
+    },
+    decode(data) {
+      if (client_isBuffer(data)) {
+        return client_lib_account.fromPublicKeyAndType(data);
+      } else if (client_ASN1CheckUtilities.isASN1ContextTag(data, 'explicit')) {
+        if (data.value === client_ModifyPermissionsPrincipalContextSpecificTagValues.CERTIFICATE) {
+          if (!Array.isArray(data.contains) || data.contains.length !== 2) {
+            throw new Error('Invalid principal data for MODIFY_PERMISSIONS operation');
+          }
+          const certificateHashData = data.contains[0];
+          const certificateAccountData = data.contains[1];
+          if (!client_isBuffer(certificateHashData) || !client_isBuffer(certificateAccountData)) {
+            throw new Error('Invalid certificate hash data for MODIFY_PERMISSIONS operation');
+          }
+          return {
+            usingCertificate: true,
+            certificateHash: new src_client_CertificateHash(client_bufferToArrayBuffer(certificateHashData)),
+            certificateAccount: client_lib_account.fromPublicKeyAndType(certificateAccountData)
+          };
+        }
+      }
+      throw new Error('Invalid principal data for MODIFY_PERMISSIONS operation');
+    }
   }, {
     name: 'method',
     schema: client_ValidateASN1.IsInteger
@@ -119724,10 +119848,6 @@ class src_client_BlockOperationSET_INFO extends src_client_BlockOperation {
     return client_toJSONSerializable(val);
   }
 }
-
-/**
- * Set Permissions Operation
- */
 client_BlockOperationSET_INFO = src_client_BlockOperationSET_INFO;
 function client_validateNameDesc(field, value, network) {
   const {
@@ -119746,6 +119866,9 @@ function client_validateNameDesc(field, value, network) {
   return;
 }
 client_operations_defineProperty(src_client_BlockOperationSET_INFO, "isInstance", client_checkableGenerator(client_BlockOperationSET_INFO));
+/**
+ * Set Permissions Operation
+ */
 var client_principal = /*#__PURE__*/new WeakMap();
 var client_target = /*#__PURE__*/new WeakMap();
 var client_method2 = /*#__PURE__*/new WeakMap();
@@ -119763,7 +119886,7 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
     if (input.type !== client_OperationType.MODIFY_PERMISSIONS) {
       throw new src_client_KeetaNetBlockError('BLOCK_INVALID_TYPE', 'Invalid construction of BlockJSONOperationMODIFY_PERMISSIONS');
     }
-    client_operations_classPrivateFieldSet(client_principal, this, this.computeTo(input.principal));
+    client_operations_classPrivateFieldSet(client_principal, this, client_operations_assertClassBrand(client_BlockOperationMODIFY_PERMISSIONS_brand, this, client_computePrincipal).call(this, input.principal));
     client_operations_classPrivateFieldSet(client_target, this, client_lib_account.toAccount(input.target));
     client_operations_classPrivateFieldSet(client_method2, this, client_toAdjustMethod(input.method));
     client_operations_classPrivateFieldSet(client_permissions, this, client_operations_assertClassBrand(client_BlockOperationMODIFY_PERMISSIONS_brand, this, client_computePermissions).call(this, input.permissions));
@@ -119811,8 +119934,15 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
         base
       } = this.permissions;
       const baseFlagsString = `[${base.flags.join(',')}]`;
-      if (!base.checkAccountMatchesGroup('principal', this.principal)) {
-        throw new src_client_KeetaNetBlockError('BLOCK_PERMISSIONS_INVALID_PRINCIPAL', `Incorrect principal for flags ${baseFlagsString}`);
+      if (client_lib_account.isInstance(this.principal)) {
+        if (!base.checkAccountMatchesGroup('principal', this.principal)) {
+          throw new src_client_KeetaNetBlockError('BLOCK_PERMISSIONS_INVALID_PRINCIPAL', `Incorrect principal for flags ${baseFlagsString}`);
+        }
+      } else {
+        // If the principal is not an account, we only allow default permissions to be issued by a certificate principal
+        if (!base.isValidForDefault) {
+          throw new src_client_KeetaNetBlockError('BLOCK_PERMISSIONS_INVALID_DEFAULT', 'Invalid permissions, cannot use certificate principal with non-default permissions');
+        }
       }
       if (this.target && !base.checkAccountMatchesGroup('target', this.target)) {
         throw new src_client_KeetaNetBlockError('BLOCK_PERMISSIONS_INVALID_TARGET', `Incorrect target for flags ${baseFlagsString}`);
@@ -119840,7 +119970,12 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
         target,
         method
       } = operation;
-      const principalKey = principal.publicKeyString.get();
+      let principalKey;
+      if (client_lib_account.isInstance(principal)) {
+        principalKey = principal.publicKeyString.get();
+      } else {
+        principalKey = `cert:${principal.certificateHash.get()}:${principal.certificateAccount.publicKeyString.get()}`;
+      }
       const targetKey = (target !== null && target !== void 0 ? target : block.account).publicKeyString.get();
       if (!foundPrevious[principalKey]) {
         foundPrevious[principalKey] = {};
@@ -119870,6 +120005,26 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
  * Token Supply operation
  */
 client_BlockOperationMODIFY_PERMISSIONS = src_client_BlockOperationMODIFY_PERMISSIONS;
+function client_computePrincipal(principal) {
+  if (typeof principal === 'string' || client_lib_account.isInstance(principal)) {
+    return this.computeTo(principal);
+  } else if (principal.usingCertificate) {
+    const certificateAccount = client_lib_account.toAccount(principal.certificateAccount);
+    let certificateHash;
+    if (src_client_CertificateHash.isInstance(principal.certificateHash)) {
+      certificateHash = principal.certificateHash;
+    } else {
+      certificateHash = new src_client_CertificateHash(principal.certificateHash);
+    }
+    return {
+      usingCertificate: true,
+      certificateHash,
+      certificateAccount
+    };
+  } else {
+    throw new src_client_KeetaNetBlockError('BLOCK_INVALID_PRINCIPAL', 'Invalid principal for MODIFY_PERMISSIONS');
+  }
+}
 function client_computePermissions(permissions) {
   if (!permissions) {
     return null;
@@ -124018,34 +124173,53 @@ function client_addOrCombineRequirements(existing, addition, alwaysCombine) {
   resp.push(addition);
   return resp;
 }
-function client_addPermission(state, addition) {
-  const principalPubKey = addition.principal.publicKeyString.get();
-  if (state.accounts[principalPubKey] === undefined) {
-    state.accounts[principalPubKey] = {
+function client_touchStateFields(state, toTouch) {
+  let entityKey;
+  let defaultValue;
+  if (client_lib_account.isInstance(toTouch)) {
+    entityKey = toTouch.publicKeyString.get();
+    defaultValue = {
+      type: 'ACCOUNT',
       fields: {},
-      account: client_lib_account.fromPublicKeyString(principalPubKey)
+      account: toTouch
     };
+  } else if (toTouch.usingCertificate) {
+    entityKey = `${toTouch.certificate.toString()}:${toTouch.certificateAccount.publicKeyString.get()}`;
+    defaultValue = {
+      type: 'CERTIFICATE',
+      fields: {},
+      certificateHash: toTouch.certificate,
+      certificateAccount: toTouch.certificateAccount
+    };
+  } else {
+    throw new Error('Invalid principal type in touchStateFields');
   }
-  if (state.accounts[principalPubKey].fields === undefined) {
-    state.accounts[principalPubKey].fields = {};
+  let value = state.accounts[entityKey];
+  if (value === undefined) {
+    state.accounts[entityKey] = defaultValue;
+    value = state.accounts[entityKey];
   }
-  if (state.accounts[principalPubKey].fields.permissions === undefined) {
-    state.accounts[principalPubKey].fields.permissions = [];
+  return {
+    value,
+    entityKey
+  };
+}
+function client_addPermission(state, addition) {
+  const {
+    value
+  } = client_touchStateFields(state, addition.principal);
+  if (value.fields.permissions === undefined) {
+    value.fields.permissions = [];
   }
-  const existing = state.accounts[principalPubKey].fields.permissions || [];
-  state.accounts[principalPubKey].fields.permissions = client_addOrCombineRequirements(existing, addition);
+  const existing = value.fields.permissions || [];
+  value.fields.permissions = client_addOrCombineRequirements(existing, addition);
 }
 function client_addPermissionRequirement(state, requirement) {
-  var _state$accounts$princ, _state$accounts$princ2;
-  const principalPubKey = requirement.principal.publicKeyString.get();
-  const entityPubKey = requirement.entity.publicKeyString.get();
-  if (state.accounts[principalPubKey] === undefined) {
-    state.accounts[principalPubKey] = {
-      account: requirement.principal,
-      fields: {}
-    };
-  }
-  const alreadyAdded = (_state$accounts$princ = state.accounts[principalPubKey].fields.permissions) !== null && _state$accounts$princ !== void 0 ? _state$accounts$princ : [];
+  var _principalFields$fiel, _principalFields$fiel2;
+  const {
+    value: principalFields
+  } = client_touchStateFields(state, requirement.principal);
+  const alreadyAdded = (_principalFields$fiel = principalFields.fields.permissions) !== null && _principalFields$fiel !== void 0 ? _principalFields$fiel : [];
   const foundAddedMatch = alreadyAdded.find(function (_ref) {
     let {
       permissions
@@ -124058,6 +124232,7 @@ function client_addPermissionRequirement(state, requirement) {
   if (foundAddedMatch !== undefined) {
     return;
   }
+  const entityPubKey = requirement.entity.publicKeyString.get();
   if (state.accounts[entityPubKey] !== undefined) {
     const entityInfo = state.accounts[entityPubKey].fields.info;
     if (entityInfo !== undefined && 'defaultPermission' in entityInfo) {
@@ -124069,13 +124244,14 @@ function client_addPermissionRequirement(state, requirement) {
       }
     }
   }
-  const existing = (_state$accounts$princ2 = state.accounts[principalPubKey].fields.permissionRequirements) !== null && _state$accounts$princ2 !== void 0 ? _state$accounts$princ2 : [];
-  state.accounts[principalPubKey].fields.permissionRequirements = client_addOrCombineRequirements(existing, requirement, true);
+  const existing = (_principalFields$fiel2 = principalFields.fields.permissionRequirements) !== null && _principalFields$fiel2 !== void 0 ? _principalFields$fiel2 : [];
+  principalFields.fields.permissionRequirements = client_addOrCombineRequirements(existing, requirement, true);
 }
 function client_updateMinSignerSetLength(state, multisigAccount, count) {
   const multisigPublicKey = multisigAccount.publicKeyString.get();
   if (state.accounts[multisigPublicKey] === undefined) {
     state.accounts[multisigPublicKey] = {
+      type: 'ACCOUNT',
       account: multisigAccount,
       fields: {}
     };
@@ -124099,6 +124275,7 @@ function client_modifyBalanceInState(balanceState) {
   const tokenPubKey = token.publicKeyString.get();
   if (state.accounts[accountPubKey] === undefined) {
     state.accounts[accountPubKey] = {
+      type: 'ACCOUNT',
       account: client_lib_account.fromPublicKeyString(accountPubKey),
       fields: {}
     };
@@ -124164,6 +124341,7 @@ function client_updateAccountInfoInState(state, account, info) {
   }
   if (!state.accounts[accountPubKey]) {
     state.accounts[accountPubKey] = {
+      type: 'ACCOUNT',
       account: account,
       fields: {}
     };
@@ -124321,6 +124499,7 @@ function client_computeEffectOfOperationCREATE_IDENTIFIER(state, block, operatio
     for (const multisigSigner of operation.createArguments.signers) {
       state.possibleNewAccounts.add(multisigSigner);
       client_addPermission(state, {
+        principalType: 'ACCOUNT',
         principal: multisigSigner,
         entity: operation.identifier,
         method: src_client_Block.AdjustMethod.SET,
@@ -124329,6 +124508,7 @@ function client_computeEffectOfOperationCREATE_IDENTIFIER(state, block, operatio
     }
   } else {
     client_addPermission(state, {
+      principalType: 'ACCOUNT',
       principal: block.account,
       entity: operation.identifier,
       method: src_client_Block.AdjustMethod.SET,
@@ -124345,17 +124525,41 @@ function client_computeEffectOfOperationSET_INFO(state, block, operation) {
   });
 }
 function client_computeEffectOfOperationMODIFY_PERMISSIONS(state, block, operation) {
-  state.possibleNewAccounts.add(operation.principal);
+  if (client_lib_account.isInstance(operation.principal)) {
+    state.possibleNewAccounts.add(operation.principal);
+  } else if (operation.principal.usingCertificate) {
+    state.possibleNewAccounts.add(operation.principal.certificateAccount);
+  } else {
+    throw new Error('Invalid principal in MODIFY_PERMISSIONS operation');
+  }
   if (operation.target) {
     state.possibleNewAccounts.add(operation.target);
   }
-  client_addPermission(state, {
-    principal: operation.principal,
+  const shared = {
     entity: block.account,
     permissions: operation.permissions,
     method: operation.method,
     target: operation.target
-  });
+  };
+  if (client_lib_account.isInstance(operation.principal)) {
+    client_addPermission(state, {
+      principalType: 'ACCOUNT',
+      principal: operation.principal,
+      ...shared
+    });
+  } else if (operation.principal.usingCertificate) {
+    client_addPermission(state, {
+      principalType: 'CERTIFICATE',
+      principal: {
+        usingCertificate: true,
+        certificate: operation.principal.certificateHash,
+        certificateAccount: operation.principal.certificateAccount
+      },
+      ...shared
+    });
+  } else {
+    throw new Error('Invalid principal in MODIFY_PERMISSIONS operation');
+  }
 }
 function client_computeEffectOfOperationTOKEN_ADMIN_SUPPLY(state, block, operation) {
   var _state$accounts$token;
@@ -124436,14 +124640,19 @@ function client_computeEffectOfOperationMANAGE_CERTIFICATE(state, block, operati
 const client_operationHandlers = {
   [src_client_Block.OperationType.SEND]: {
     effectGenerator: client_computeEffectOfOperationSEND,
-    accountPermissionACL: (block, operation, context) => {
-      const baseEffect = {
-        entity: operation.token || context.ledger.baseToken
-      };
+    accountPermissionACL: (block, operation) => {
+      // Require both the sender and the recipient to have ['ACCESS'] on the token
+      const baseEffect = [{
+        principal: block.account,
+        entity: operation.token
+      }, {
+        principal: operation.to,
+        entity: operation.token
+      }];
       if (operation.to.keyType !== client_AccountKeyAlgorithm.STORAGE) {
         return baseEffect;
       }
-      return [baseEffect,
+      return [...baseEffect,
       // Require that the token identifier was granted access by storage account for it to be able to hold
       {
         entity: operation.to,
@@ -124541,9 +124750,16 @@ const client_operationHandlers = {
           delegateMethodNeeded = 'PERMISSION_DELEGATE_ADD';
           break;
       }
+      let target;
+      if (client_lib_account.isInstance(operation.principal)) {
+        target = operation.principal;
+      } else {
+        // Currently, we do not have a way to specify a target for certificate principals, so we will not include a target in this case
+        target = undefined;
+      }
       necessary.push({
         permissions: new client_permissions_Permissions([delegateMethodNeeded]),
-        target: operation.principal
+        target: target
       });
       return necessary;
     }
@@ -124691,6 +124907,7 @@ function client_computeEffectOfBlocks(blocks, ledger) {
     }
     if (accumulatedEffects.accounts[blockAccountPubKey] === undefined) {
       accumulatedEffects.accounts[blockAccountPubKey] = {
+        type: 'ACCOUNT',
         account: block.account,
         fields: {}
       };
@@ -124747,6 +124964,9 @@ function client_computeEffectOfBlocks(blocks, ledger) {
     }
   }
   for (const effect of Object.values(accumulatedEffects.accounts)) {
+    if (effect.type !== 'ACCOUNT') {
+      continue;
+    }
     accumulatedEffects.touched.add(effect.account);
     if (effect.fields.balance) {
       let hasDebit = false;
@@ -126739,6 +126959,8 @@ const src_client_Testing = {
   feeExtensionSchema: client_feeExtensionSchema
 };
 ;// ./src/lib/ledger/types.ts
+
+
 /**
  * Account info entry
  */
@@ -126769,19 +126991,33 @@ function client_isKeyPairAccountInfo(info) {
 function client_isAccountInfoOfType(info, type) {
   return info.account.isKeyType(type);
 }
+const client_aclPrincipalType = (/* unused pure expression or super */ null && (['ACCOUNT', 'CERTIFICATE']));
+function client_isACLPrincipalType(type) {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return client_aclPrincipalType.includes(type);
+}
+function client_assertACLPrincipalType(type) {
+  if (!client_isACLPrincipalType(type)) {
+    throw new KeetaNetLedgerError('LEDGER_INVALID_ACL_ROW_TYPE', `Invalid ACL Row Type: ${type}`);
+  }
+}
+function client_asACLPrincipalType(type) {
+  client_assertACLPrincipalType(type);
+  return type;
+}
 
 /**
  * Permissions types
  */
 
 /**
- * An entry for the ACL
- * @expandType ACLRow
+ * A permission requirement for ledger effects
+ * @expandType AccountACLRow
  */
 
 /**
  * Update an ACL for an account
- * @expandType ACLEntry
+ * @expandType ACLRow
  */
 
 /**
@@ -128102,6 +128338,7 @@ function client_lib_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) r
 
 
 
+
 /**
  * Kind of ledger
  */
@@ -128129,6 +128366,10 @@ let client_LedgerKind = /*#__PURE__*/function (LedgerKind) {
 
 /**
  * Options for "getVotesAfter"
+ */
+
+/**
+ * Filters for listing ACLs by entity
  */
 
 /**
@@ -128716,9 +128957,9 @@ class client_LedgerAtomicInterface {
     const permissions = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).listACLsByPrincipal(transaction, principal, entityList);
     return permissions;
   }
-  async listACLsByEntity(entity) {
+  async listACLsByEntity(entity, options) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
-    const permissions = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).listACLsByEntity(transaction, entity);
+    const permissions = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).listACLsByEntity(transaction, entity, options);
     return permissions;
   }
   async votingPower(rep) {
@@ -129065,6 +129306,71 @@ async function client_listAccountInfo(accounts) {
   await Promise.all(permissionPromises);
   return accountInfo;
 }
+async function client_fetchSatisfiedCertificateACLs(account, requirement) {
+  const entityCertificateACLs = await this.listACLsByEntity(requirement.entity, {
+    principalType: 'CERTIFICATE'
+  });
+  if (entityCertificateACLs.length === 0) {
+    return null;
+  }
+  const entityACLsWithValuesResponse = await Promise.all(entityCertificateACLs.map(async acl => {
+    if (acl.principalType !== 'CERTIFICATE') {
+      throw new Error('Expected certificate ACL row');
+    }
+    const certificate = await this.getAccountCertificateByHash(acl.principal.certificateAccount, acl.principal.certificate);
+    if (certificate === null) {
+      return null;
+    }
+    return {
+      acl,
+      certificate
+    };
+  }));
+
+  // XXX:TODO does this need to be paginated
+  const userCertificates = await this.getAccountCertificates(account);
+  const matchedCertificateACLs = [];
+  for (const aclWithCertificate of entityACLsWithValuesResponse) {
+    if (!aclWithCertificate) {
+      continue;
+    }
+    const {
+      certificate: aclCertificate,
+      acl
+    } = aclWithCertificate;
+    const issuerCertificate = new src_client_Certificate(aclCertificate.certificate, {
+      isTrustedRoot: true
+    });
+    if (!issuerCertificate.checkValid()) {
+      continue;
+    }
+    for (const userCertificate of userCertificates) {
+      var _aclCertificate$inter, _aclCertificate$inter2, _userCertificate$inte, _userCertificate$inte2;
+      if (!userCertificate.certificate.checkValid()) {
+        continue;
+      }
+      const foundChain = userCertificate.certificate.verifyChain({
+        root: new Set([issuerCertificate]),
+        intermediate: new Set([...((_aclCertificate$inter = (_aclCertificate$inter2 = aclCertificate.intermediates) === null || _aclCertificate$inter2 === void 0 ? void 0 : _aclCertificate$inter2.getCertificates()) !== null && _aclCertificate$inter !== void 0 ? _aclCertificate$inter : []), ...((_userCertificate$inte = (_userCertificate$inte2 = userCertificate.intermediates) === null || _userCertificate$inte2 === void 0 ? void 0 : _userCertificate$inte2.getCertificates()) !== null && _userCertificate$inte !== void 0 ? _userCertificate$inte : [])])
+      });
+      if (foundChain === null) {
+        continue;
+      }
+      let foundRootInChain = false;
+      for (const certInChain of foundChain) {
+        if (certInChain.hash().compareHexString(issuerCertificate.hash())) {
+          foundRootInChain = true;
+          break;
+        }
+      }
+      if (!foundRootInChain) {
+        throw new Error('Internal error: issuer certificate not found in verified chain');
+      }
+      matchedCertificateACLs.push(acl);
+    }
+  }
+  return matchedCertificateACLs;
+}
 async function client_checkSingleAccountPermissions(account, requirements, accountInfos) {
   client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
 
@@ -129073,6 +129379,9 @@ async function client_checkSingleAccountPermissions(account, requirements, accou
   const entityAccounts = new client_lib_account.Set(unfilteredEntity).toArray();
   const gotPermissions = await this.listACLsByPrincipal(account, entityAccounts);
   for (const requirement of requirements) {
+    if (!requirement.permissions) {
+      throw new Error('Unexpected null permissions in requirement');
+    }
     const reqEntityKey = requirement.entity.publicKeyString.get();
     const foundACLRow = client_findPermissionMatch(requirement, gotPermissions);
     const foundAccountInfo = accountInfos[reqEntityKey];
@@ -129084,10 +129393,19 @@ async function client_checkSingleAccountPermissions(account, requirements, accou
     } else {
       foundPermission = new client_permissions_Permissions();
     }
-    if (requirement.permissions === null) {
-      continue;
+    let hasPermissions = foundPermission.has(requirement.permissions);
+    if (!hasPermissions && account.isAccount()) {
+      const found = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_fetchSatisfiedCertificateACLs).call(this, account, requirement);
+      if (found) {
+        for (const row of found) {
+          const certificateRowHasPermissions = row.permissions.has(requirement.permissions);
+          if (certificateRowHasPermissions) {
+            hasPermissions = true;
+            break;
+          }
+        }
+      }
     }
-    const hasPermissions = foundPermission.has(requirement.permissions);
     if (!hasPermissions) {
       var _requirement$target;
       const accountPubKey = account.publicKeyString.get();
@@ -129105,19 +129423,22 @@ async function client_checkPermissionRequirements(effects) {
   const needToGetAccountInfoFor = new client_lib_account.Set();
   const allAccountsChanges = Object.values(effects);
   const foundMultisigSignerLengths = [];
-  for (const {
-    account,
-    fields
-  } of allAccountsChanges) {
-    if (account.isMultisig()) {
+  for (const accountChanges of allAccountsChanges) {
+    const {
+      fields
+    } = accountChanges;
+    if (accountChanges.type === 'ACCOUNT' && accountChanges.account.isMultisig()) {
       if (fields.minSignerSetLength !== undefined) {
-        needToGetAccountInfoFor.add(account);
-        foundMultisigSignerLengths.push([account, fields.minSignerSetLength]);
+        needToGetAccountInfoFor.add(accountChanges.account);
+        foundMultisigSignerLengths.push([accountChanges.account, fields.minSignerSetLength]);
       }
     }
     for (const singleRequirement of (_fields$permissionReq = fields.permissionRequirements) !== null && _fields$permissionReq !== void 0 ? _fields$permissionReq : []) {
       var _fields$permissionReq;
       const principal = singleRequirement.principal;
+      if (!client_lib_account.isInstance(principal)) {
+        throw new Error('Principal in permission requirement is not an account');
+      }
       const principalPubKey = principal.publicKeyString.get();
       if (!requirementsByPrincipal[principalPubKey]) {
         requirementsByPrincipal[principalPubKey] = [];
@@ -129261,6 +129582,9 @@ async function client_validateLedgerOutcome(blocks) {
   }
   for (const accountChanges of allAccountsChanges) {
     var _fields$createRequest, _fields$permissions;
+    if (accountChanges.type === 'CERTIFICATE') {
+      continue;
+    }
     const {
       account,
       fields = {}
@@ -129279,6 +129603,10 @@ async function client_validateLedgerOutcome(blocks) {
      */
     const addedPermissions = (_fields$permissions = fields.permissions) !== null && _fields$permissions !== void 0 ? _fields$permissions : [];
     for (const newPerm of addedPermissions) {
+      // We only care about permissions that include ownership, and non-accounts (ex: certificate principals) cannot be owners
+      if (newPerm.principalType === 'CERTIFICATE') {
+        continue;
+      }
       let method = 'ADD';
       if (newPerm.permissions === null || !newPerm.permissions.has(['OWNER'])) {
         method = 'REMOVE';
@@ -129904,7 +130232,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.16.2+g2c1441eed2a1c71a895d0fb5166c431799b3d3ca';
+const client_version = '0.18.0+g5417d9af948be899fcebb75694edb492ff971891';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -133641,6 +133969,7 @@ function client_client_assertClassBrand(e, t, n) { if ("function" == typeof e ? 
 
 
 
+
 /*
  * Turn the nested API tree into a flat structure
  */
@@ -135558,12 +135887,31 @@ function client_parseAccountInfo(account, accountInfo) {
 }
 function client_parsePermissionEntries(entries) {
   return entries.map(entry => {
-    return {
-      principal: client_src_lib.Account.fromPublicKeyString(entry.principal),
+    const shared = {
       entity: client_src_lib.Account.fromPublicKeyString(entry.entity),
       permissions: client_client_assertClassBrand(client_Client_brand, this, client_parseResponsePermissions).call(this, entry.permissions),
       target: client_src_lib.Account.fromPublicKeyString(entry.target)
     };
+    if (entry.principalType === 'ACCOUNT') {
+      return {
+        principalType: 'ACCOUNT',
+        principal: client_src_lib.Account.fromPublicKeyString(entry.principal),
+        ...shared
+      };
+    } else if (entry.principalType === 'CERTIFICATE') {
+      return {
+        principalType: 'CERTIFICATE',
+        principal: {
+          usingCertificate: true,
+          certificate: new src_client_Certificate.Hash(entry.principal.certificate),
+          certificateAccount: client_src_lib.Account.fromPublicKeyString(entry.principal.certificateAccount)
+        },
+        ...shared
+      };
+    } else {
+      client_assertNever(entry);
+    }
+    throw new Error('Unknown ACL Entry Type');
   });
 }
 function client_mapCertificateWithBundleResult(input) {
@@ -135908,7 +136256,9 @@ class src_client_UserClient {
                 principals.push(operation.to);
                 break;
               case client_OperationType.MODIFY_PERMISSIONS:
-                principals.push(operation.principal);
+                if (client_lib_account.isInstance(operation.principal)) {
+                  principals.push(operation.principal);
+                }
                 break;
               case client_OperationType.CREATE_IDENTIFIER:
                 principals.push(operation.identifier);

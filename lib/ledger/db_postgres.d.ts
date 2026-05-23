@@ -3,7 +3,7 @@ import { Block, BlockHash } from '../block';
 import type { VoteBlockHash, VoteBlockHashMap } from '../vote';
 import type { GenericAccount, IdentifierAddress, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
-import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions } from '../ledger';
+import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedVotes, GetVotesAfterOptions, LedgerStorageTransactionBaseOptions, ListACLsByEntityFilters } from '../ledger';
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import { LedgerStorageBase } from './common';
@@ -41,8 +41,8 @@ export declare class DBPostgres extends LedgerStorageBase implements LedgerStora
      */
     protected adjustDefer(transaction: PostgresTransaction, input: VoteStaple): Promise<void>;
     listOwners(transaction: PostgresTransaction, entity: IdentifierAddress): Promise<Account<AccountKeyAlgorithm.TOKEN>[]>;
-    listACLsByEntity(transaction: PostgresTransaction, entity: GenericAccount): Promise<ACLRow[]>;
-    listACLsByPrincipal(transaction: PostgresTransaction, principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
+    listACLsByEntity(transaction: PostgresTransaction, entity: GenericAccount, options?: ListACLsByEntityFilters): Promise<ACLRow[]>;
+    listACLsByPrincipal(transaction: PostgresTransaction, principal: ACLRow['principal'], entityList?: GenericAccount[]): Promise<ACLRow[]>;
     getAccountInfo<T extends AccountKeyAlgorithm = AccountKeyAlgorithm>(transaction: PostgresTransaction, account: Account<T> | string): Promise<AccountInfoForType<T>>;
     adjust(transaction: PostgresTransaction, input: VoteStaple, changes: ComputedEffectOfBlocks, mayDefer?: boolean, completedStaples?: Set<string>): Promise<VoteStaple[]>;
     getBlock(transaction: PostgresTransaction, block: BlockHash, from: LedgerSelector): Promise<Block | null>;

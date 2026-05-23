@@ -4,11 +4,11 @@ import type { GenericAccount, TokenAddress } from '../account';
 import Account, { AccountKeyAlgorithm } from '../account';
 import { Block, BlockHash } from '../block';
 import type { LedgerConfig, LedgerSelector, LedgerStorage, LedgerStorageAPI } from '.';
-import type { AccountInfo, ACLRow, ACLEntry, ACLUpdate, AccountInfoForType } from './types';
+import type { AccountInfo, ACLRow, ACLUpdate, AccountInfoForType } from './types';
 import type Node from '../node';
 import type Stats from '../stats';
 import type { BaseSet, ExternalSet } from '../permissions';
-import type { ComputedEffectOfBlocksByAccount } from './effects';
+import type { ComputedEffectOfBlocksByEntity } from './effects';
 interface NumericEffect {
     change: bigint;
     starting?: bigint;
@@ -38,7 +38,7 @@ type PerAccount<T> = {
 };
 type NumericEffectPerAccount<T extends boolean> = PerAccount<CompNumericEffect<T>>;
 type BalanceChanges<T extends boolean> = PerAccount<PerAccount<BalanceEffect<T>>>;
-type computeLedgerEffectStorageProvider = Pick<LedgerStorageAPI, 'getAccountInfo' | 'getBalance' | 'listACLsByPrincipal' | 'delegatedWeight' | 'getAccountRep'>;
+type computeLedgerEffectStorageProvider = Pick<LedgerStorageAPI, 'getAccountInfo' | 'getBalance' | 'listACLsByPrincipal' | 'delegatedWeight' | 'getAccountRep' | 'getAccountCertificateByHash'>;
 type BalanceSupplyChangeRespBase<T extends boolean> = {
     balances: BalanceChanges<T>;
     supplies: NumericEffectPerAccount<T>;
@@ -48,7 +48,9 @@ type BalanceSupplyChangeResp<T extends boolean, P extends boolean, W extends boo
 }> & IfTrue<W, {
     weights: NumericEffectPerAccount<T>;
 }>;
-export declare function findPermissionMatch(lookingFor: Pick<ACLEntry, 'entity' | 'principal' | 'target'>, entries: ACLRow[]): ACLRow | undefined;
+export declare function findPermissionMatch(lookingFor: Pick<ACLRow, 'entity' | 'principal'> & {
+    target?: GenericAccount;
+}, entries: ACLRow[]): ACLRow | undefined;
 interface ComputeLedgerEffectOptions<T extends boolean, P extends boolean, W extends boolean> {
     getFinalNumericValues?: T;
     computePermissions?: P;
@@ -77,7 +79,7 @@ export declare function canDelegate(keyType: AccountKeyAlgorithm): boolean;
 /**
  * Compute effects on the ledger from block effects
  */
-export declare function computeLedgerEffect<T extends boolean, P extends boolean, W extends boolean>(options: ComputeLedgerEffectOptions<T, P, W>, effects: ComputedEffectOfBlocksByAccount, storageProvider: computeLedgerEffectStorageProvider, network: bigint, transaction?: any): Promise<BalanceSupplyChangeResp<T, P, W>>;
+export declare function computeLedgerEffect<T extends boolean, P extends boolean, W extends boolean>(options: ComputeLedgerEffectOptions<T, P, W>, effects: ComputedEffectOfBlocksByEntity, storageProvider: computeLedgerEffectStorageProvider, network: bigint, transaction?: any): Promise<BalanceSupplyChangeResp<T, P, W>>;
 /**
  * A partial LedgerStorageAPI which just has the methods for "addTimeStatistics"
  */

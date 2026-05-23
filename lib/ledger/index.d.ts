@@ -6,7 +6,7 @@ import Account from '../account';
 import type Node from '../node';
 import type { BloomFilter } from '../utils/bloom';
 import type { ComputedEffectOfBlocks } from './effects';
-import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
+import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType, ACLPrincipalType } from './types';
 import LedgerRequestCache from './cache';
 import type { Logger } from '../log';
 import type { CertificateHash } from '../utils/certificate';
@@ -109,6 +109,15 @@ export type GetVotesAfterOptions = {
      */
     timeout?: number;
 };
+/**
+ * Filters for listing ACLs by entity
+ */
+export interface ListACLsByEntityFilters {
+    /**
+     * If provided, only return ACL rows of this type
+     */
+    principalType?: ACLPrincipalType;
+}
 type IdempotentKeyString = string & {
     readonly __idempotentKey: never;
 };
@@ -197,11 +206,11 @@ export interface LedgerStorageAPI {
     /**
      * List permissions principal has on all provided entity's
      */
-    listACLsByPrincipal: (transaction: any, principal: GenericAccount, entityList?: GenericAccount[]) => Promise<ACLRow[]>;
+    listACLsByPrincipal: (transaction: any, principal: ACLRow['principal'], entityList?: GenericAccount[]) => Promise<ACLRow[]>;
     /**
      * List permissions any principal has on provided entity
      */
-    listACLsByEntity: (transaction: any, entity: GenericAccount) => Promise<ACLRow[]>;
+    listACLsByEntity: (transaction: any, entity: GenericAccount, options?: ListACLsByEntityFilters) => Promise<ACLRow[]>;
     /**
      * Adjust the ledger by performing a set of changes based on some blocks and votes
      */
@@ -338,8 +347,8 @@ declare class LedgerAtomicInterface {
     getAllBalances(account: GenericAccount): Promise<GetAllBalancesResponse>;
     getAccountCertificates(account: GenericAccount): Promise<CertificateWithIntermediates[]>;
     getAccountCertificateByHash(account: GenericAccount, hash: CertificateHash): Promise<CertificateWithIntermediates | null>;
-    listACLsByPrincipal(principal: GenericAccount, entityList?: GenericAccount[]): Promise<ACLRow[]>;
-    listACLsByEntity(entity: GenericAccount): Promise<ACLRow[]>;
+    listACLsByPrincipal(principal: ACLRow['principal'], entityList?: GenericAccount[]): Promise<ACLRow[]>;
+    listACLsByEntity(entity: GenericAccount, options?: ListACLsByEntityFilters): Promise<ACLRow[]>;
     votingPower(rep?: Account): Promise<bigint>;
     getVotes(block: BlockHash, from?: LedgerStorage): Promise<Vote[] | null>;
     getVotesFromMultiplePrevious(prevBlocks: BlockHash[], from?: LedgerSelector, issuer?: Account): Promise<{

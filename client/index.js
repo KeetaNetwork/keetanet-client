@@ -67198,11 +67198,13 @@ async function computeLedgerEffect(options, effects, storageProvider, network, t
                 }
             }
         }
-        if (prefetchPromises.length > 70) {
+        // Process promises in batches to avoid spanner's 100 concurrent read per session limit
+        if (prefetchPromises.length > 50) {
             const toAwait = prefetchPromises.splice(0);
             await Promise.all(toAwait);
         }
     }
+    // Wait for the final batch to complete
     await Promise.all(prefetchPromises);
     const supplies = {};
     const balances = {};
@@ -69758,13 +69760,17 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
             throw (new ledger_1.KeetaNetLedgerError('LEDGER_INVALID_PERMISSIONS', `Quorum of ${foundInfo.multisigQuorum} not reached for ${multisigPubKey} -- got ${foundSingerLength}`));
         }
     }
-    const checkPromises = [];
-    for (const principalPubKey in requirementsByPrincipal) {
-        const accountRequirements = requirementsByPrincipal[principalPubKey];
-        const principal = account_1.default.fromPublicKeyString(principalPubKey);
-        checkPromises.push(__classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_checkSingleAccountPermissions).call(this, principal, accountRequirements, foundAccountInfo));
+    // Process promises in batches to avoid spanner's 100 concurrent read per session limit
+    const batchSize = 50;
+    const principalPubKeys = Object.keys(requirementsByPrincipal);
+    for (let i = 0; i < principalPubKeys.length; i += batchSize) {
+        const batch = principalPubKeys.slice(i, i + batchSize).map((principalPubKey) => {
+            const accountRequirements = requirementsByPrincipal[principalPubKey];
+            const principal = account_1.default.fromPublicKeyString(principalPubKey);
+            return (__classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_checkSingleAccountPermissions).call(this, principal, accountRequirements, foundAccountInfo));
+        });
+        await Promise.all(batch);
     }
-    await Promise.all(checkPromises);
     return ({ newOwners });
 }, _LedgerAtomicInterface_validateBlockOperations = async function _LedgerAtomicInterface_validateBlockOperations(blocks) {
     if (__classPrivateFieldGet(this, _LedgerAtomicInterface_operations, "f") === undefined) {
@@ -70580,8 +70586,9 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _Log_instances, _Log_logs, _Log_autoSyncInterval, _Log_isSyncing, _Log_shouldSyncAgain, _Log_destroyed, _Log_emitOnLog, _Log_logDebugTracing, _Log_targets, _Log_log, _Log_extractArguments;
+var _Log_instances, _Log_logs, _Log_autoSyncInterval, _Log_isSyncing, _Log_shouldSyncAgain, _Log_destroyed, _Log_emitOnLog, _Log__logDebugTracing, _Log_targets, _Log__filter, _Log__logLevel, _Log_logDebugTracing_get, _Log_filter_get, _Log_logLevel_get, _Log_log, _Log_extractArguments;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const common_1 = __webpack_require__(7364);
 const helper_generated_1 = __webpack_require__(5910);
 const target_console_1 = __importDefault(__webpack_require__(9022));
 /**
@@ -70680,18 +70687,36 @@ class Log {
         /**
          * Whether or not to generate debug tracing information for each log entry
          */
-        _Log_logDebugTracing.set(this, false);
+        _Log__logDebugTracing.set(this, void 0);
+        /**
+         * Registered log targets (sinks) to send logs to, keyed by a unique
+         * ID returned by `registerTarget()`
+         */
         _Log_targets.set(this, new Map());
         /**
-         * The maximum number of log entries to send to each target at a time
+         * Filter to apply before sending to targets
          */
-        this.batchSize = 10;
+        _Log__filter.set(this, void 0);
+        /**
+         * Log-level to filter for at the logger level
+         */
+        _Log__logLevel.set(this, void 0);
         /**
          * Parent logger, if any -- used for creating hierarchical loggers
          */
         this.parent = null;
+        /**
+         * The maximum number of log entries to send to each target at a time
+         */
+        this.batchSize = 10;
         if (options?.logDebugTracing !== undefined) {
-            __classPrivateFieldSet(this, _Log_logDebugTracing, options.logDebugTracing, "f");
+            __classPrivateFieldSet(this, _Log__logDebugTracing, options.logDebugTracing, "f");
+        }
+        if (options?.filter !== undefined) {
+            __classPrivateFieldSet(this, _Log__filter, options.filter, "f");
+        }
+        if (options?.logLevel !== undefined) {
+            __classPrivateFieldSet(this, _Log__logLevel, options.logLevel, "f");
         }
     }
     log(...args) {
@@ -70780,10 +70805,8 @@ class Log {
      * Since the child shares the same targets, registering or unregistering targets
      * from either the parent or child will affect both.
      */
-    createChild() {
-        const child = new Log({
-            logDebugTracing: __classPrivateFieldGet(this, _Log_logDebugTracing, "f")
-        });
+    createChild(options) {
+        const child = new Log(options);
         /**
          * Attach child nodes to our own parent to collapse
          * chains of loggers
@@ -70876,12 +70899,39 @@ class Log {
     /**
      * Dispose of the logger instance, clearing all logs and targets
      */
-    [(_Log_logs = new WeakMap(), _Log_autoSyncInterval = new WeakMap(), _Log_isSyncing = new WeakMap(), _Log_shouldSyncAgain = new WeakMap(), _Log_destroyed = new WeakMap(), _Log_emitOnLog = new WeakMap(), _Log_logDebugTracing = new WeakMap(), _Log_targets = new WeakMap(), _Log_instances = new WeakSet(), _Log_log = function _Log_log(level, options, from, ...args) {
+    [(_Log_logs = new WeakMap(), _Log_autoSyncInterval = new WeakMap(), _Log_isSyncing = new WeakMap(), _Log_shouldSyncAgain = new WeakMap(), _Log_destroyed = new WeakMap(), _Log_emitOnLog = new WeakMap(), _Log__logDebugTracing = new WeakMap(), _Log_targets = new WeakMap(), _Log__filter = new WeakMap(), _Log__logLevel = new WeakMap(), _Log_instances = new WeakSet(), _Log_logDebugTracing_get = function _Log_logDebugTracing_get() {
+        if (__classPrivateFieldGet(this, _Log__logDebugTracing, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _Log__logDebugTracing, "f"));
+        }
+        if (this.parent) {
+            return (__classPrivateFieldGet(this.parent, _Log_instances, "a", _Log_logDebugTracing_get));
+        }
+        return (false);
+    }, _Log_filter_get = function _Log_filter_get() {
+        if (__classPrivateFieldGet(this, _Log__filter, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _Log__filter, "f"));
+        }
+        if (this.parent) {
+            return (__classPrivateFieldGet(this.parent, _Log_instances, "a", _Log_filter_get));
+        }
+        return (null);
+    }, _Log_logLevel_get = function _Log_logLevel_get() {
+        if (__classPrivateFieldGet(this, _Log__logLevel, "f") !== undefined) {
+            return (__classPrivateFieldGet(this, _Log__logLevel, "f"));
+        }
+        if (this.parent) {
+            return (__classPrivateFieldGet(this.parent, _Log_instances, "a", _Log_logLevel_get));
+        }
+        return ('ALL');
+    }, _Log_log = function _Log_log(level, options, from, ...args) {
         if (__classPrivateFieldGet(this, _Log_destroyed, "f")) {
             return;
         }
         const log = { options, level, from, args };
-        if (__classPrivateFieldGet(this, _Log_logDebugTracing, "f")) {
+        if ((0, common_1.filterLog)({ logLevel: __classPrivateFieldGet(this, _Log_instances, "a", _Log_logLevel_get), filter: __classPrivateFieldGet(this, _Log_instances, "a", _Log_filter_get) }, log) === null) {
+            return;
+        }
+        if (__classPrivateFieldGet(this, _Log_instances, "a", _Log_logDebugTracing_get)) {
             log.trace = new Error().stack?.split('\n').slice(2).join('\n') ?? '[No stack trace available]';
         }
         __classPrivateFieldGet(this, _Log_logs, "f").push(log);
@@ -81283,7 +81333,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.18.1+gae2caf00c1e19c6d232ff1a37b9fd8e7ea8a1ddc';
+exports.version = '0.18.2+gac0baac4139da80613edd4a1ebc7532f37fc834a';
 exports["default"] = exports.version;
 
 

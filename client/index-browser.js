@@ -118325,11 +118325,14 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         }
       }
     }
-    if (prefetchPromises.length > 70) {
+
+    // Process promises in batches to avoid spanner's 100 concurrent read per session limit
+    if (prefetchPromises.length > 50) {
       const toAwait = prefetchPromises.splice(0);
       await Promise.all(toAwait);
     }
   }
+  // Wait for the final batch to complete
   await Promise.all(prefetchPromises);
   const supplies = {};
   const balances = {};
@@ -127103,6 +127106,48 @@ class client_LedgerRequestCache {
   }
 }
 /* harmony default export */ const client_cache = (client_LedgerRequestCache);
+;// ./src/lib/log/common.ts
+const client_numericLogLevels = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3
+};
+
+/* XXX:TODO -- Do something with this */
+
+function client_canLogForLevel(level, currentLevel) {
+  return client_numericLogLevels[level] >= client_numericLogLevels[currentLevel];
+}
+function client_canLogForTargetLevel(level, targetLevel) {
+  if (targetLevel === 'ALL') {
+    return true;
+  }
+  if (targetLevel === 'NONE') {
+    return false;
+  }
+  return client_canLogForLevel(level, targetLevel);
+}
+function client_filterLog(target, message) {
+  var _message$options$user, _message$options$curr, _message$options$curr2;
+  if (!client_canLogForTargetLevel(message.level, target.logLevel)) {
+    return null;
+  }
+  if (target.filter && !target.filter.test(message.from)) {
+    return null;
+  }
+  return {
+    ...message,
+    options: {
+      userVisible: (_message$options$user = message.options.userVisible) !== null && _message$options$user !== void 0 ? _message$options$user : true,
+      currentRequestInfo: {
+        id: (_message$options$curr = (_message$options$curr2 = message.options.currentRequestInfo) === null || _message$options$curr2 === void 0 ? void 0 : _message$options$curr2.id) !== null && _message$options$curr !== void 0 ? _message$options$curr : '<NO_REQUEST_ID>',
+        ...message.options.currentRequestInfo
+      },
+      ...message.options
+    }
+  };
+}
 // EXTERNAL MODULE: ./node_modules/typia/lib/internal/_assertGuard.js
 var client_assertGuard = __webpack_require__(7422);
 ;// ./src/lib/log/helper.generated.ts
@@ -127180,48 +127225,6 @@ const client_assertLogTargetLevel = (() => {
     return input;
   };
 })();
-;// ./src/lib/log/common.ts
-const client_numericLogLevels = {
-  DEBUG: 0,
-  INFO: 1,
-  WARN: 2,
-  ERROR: 3
-};
-
-/* XXX:TODO -- Do something with this */
-
-function client_canLogForLevel(level, currentLevel) {
-  return client_numericLogLevels[level] >= client_numericLogLevels[currentLevel];
-}
-function client_canLogForTargetLevel(level, targetLevel) {
-  if (targetLevel === 'ALL') {
-    return true;
-  }
-  if (targetLevel === 'NONE') {
-    return false;
-  }
-  return client_canLogForLevel(level, targetLevel);
-}
-function client_filterLog(target, message) {
-  var _message$options$user, _message$options$curr, _message$options$curr2;
-  if (!client_canLogForTargetLevel(message.level, target.logLevel)) {
-    return null;
-  }
-  if (target.filter && !target.filter.test(message.from)) {
-    return null;
-  }
-  return {
-    ...message,
-    options: {
-      userVisible: (_message$options$user = message.options.userVisible) !== null && _message$options$user !== void 0 ? _message$options$user : true,
-      currentRequestInfo: {
-        id: (_message$options$curr = (_message$options$curr2 = message.options.currentRequestInfo) === null || _message$options$curr2 === void 0 ? void 0 : _message$options$curr2.id) !== null && _message$options$curr !== void 0 ? _message$options$curr : '<NO_REQUEST_ID>',
-        ...message.options.currentRequestInfo
-      },
-      ...message.options
-    }
-  };
-}
 ;// ./src/lib/log/target_console.ts
 function client_target_console_classPrivateFieldInitSpec(e, t, a) { client_target_console_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_target_console_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -127284,9 +127287,11 @@ function client_log_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new Ty
 function client_log_defineProperty(e, r, t) { return (r = client_log_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_log_toPropertyKey(t) { var i = client_log_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
 function client_log_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function client_log_classPrivateGetter(s, r, a) { return a(client_log_assertClassBrand(s, r)); }
 function client_log_classPrivateFieldSet(s, a, r) { return s.set(client_log_assertClassBrand(s, a), r), r; }
 function client_log_classPrivateFieldGet(s, a) { return s.get(client_log_assertClassBrand(s, a)); }
 function client_log_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
 
 
 /**
@@ -127314,6 +127319,8 @@ var client_destroyed = /*#__PURE__*/new WeakMap();
 var client_emitOnLog = /*#__PURE__*/new WeakMap();
 var client_logDebugTracing = /*#__PURE__*/new WeakMap();
 var client_targets = /*#__PURE__*/new WeakMap();
+var client_filter = /*#__PURE__*/new WeakMap();
+var client_logLevel = /*#__PURE__*/new WeakMap();
 var client_Log_brand = /*#__PURE__*/new WeakSet();
 class client_Log {
   /**
@@ -127403,18 +127410,36 @@ class client_Log {
     /**
      * Whether or not to generate debug tracing information for each log entry
      */
-    client_log_classPrivateFieldInitSpec(this, client_logDebugTracing, false);
+    client_log_classPrivateFieldInitSpec(this, client_logDebugTracing, void 0);
+    /**
+     * Registered log targets (sinks) to send logs to, keyed by a unique
+     * ID returned by `registerTarget()`
+     */
     client_log_classPrivateFieldInitSpec(this, client_targets, new Map());
     /**
-     * The maximum number of log entries to send to each target at a time
+     * Filter to apply before sending to targets
      */
-    client_log_defineProperty(this, "batchSize", 10);
+    client_log_classPrivateFieldInitSpec(this, client_filter, void 0);
+    /**
+     * Log-level to filter for at the logger level
+     */
+    client_log_classPrivateFieldInitSpec(this, client_logLevel, void 0);
     /**
      * Parent logger, if any -- used for creating hierarchical loggers
      */
     client_log_defineProperty(this, "parent", null);
+    /**
+     * The maximum number of log entries to send to each target at a time
+     */
+    client_log_defineProperty(this, "batchSize", 10);
     if ((_options === null || _options === void 0 ? void 0 : _options.logDebugTracing) !== undefined) {
       client_log_classPrivateFieldSet(client_logDebugTracing, this, _options.logDebugTracing);
+    }
+    if ((_options === null || _options === void 0 ? void 0 : _options.filter) !== undefined) {
+      client_log_classPrivateFieldSet(client_filter, this, _options.filter);
+    }
+    if ((_options === null || _options === void 0 ? void 0 : _options.logLevel) !== undefined) {
+      client_log_classPrivateFieldSet(client_logLevel, this, _options.logLevel);
     }
   }
   log() {
@@ -127528,6 +127553,7 @@ class client_Log {
     }
     return Array.from(client_log_classPrivateFieldGet(client_targets, this).values());
   }
+
   /**
    * Create a child logger instance that shares the same targets as this instance
    * but has its own log queue, this is useful for creating hierarchical loggers
@@ -127536,11 +127562,9 @@ class client_Log {
    * Since the child shares the same targets, registering or unregistering targets
    * from either the parent or child will affect both.
    */
-  createChild() {
+  createChild(options) {
     var _this$parent;
-    const child = new client_Log({
-      logDebugTracing: client_log_classPrivateFieldGet(client_logDebugTracing, this)
-    });
+    const child = new client_Log(options);
 
     /**
      * Attach child nodes to our own parent to collapse
@@ -127666,6 +127690,33 @@ class client_Log {
     client_log_classPrivateFieldSet(client_destroyed, this, true);
   }
 }
+function client_get_logDebugTracing(_this) {
+  if (client_log_classPrivateFieldGet(client_logDebugTracing, _this) !== undefined) {
+    return client_log_classPrivateFieldGet(client_logDebugTracing, _this);
+  }
+  if (_this.parent) {
+    return client_log_classPrivateGetter(client_Log_brand, _this.parent, client_get_logDebugTracing);
+  }
+  return false;
+}
+function client_get_filter(_this2) {
+  if (client_log_classPrivateFieldGet(client_filter, _this2) !== undefined) {
+    return client_log_classPrivateFieldGet(client_filter, _this2);
+  }
+  if (_this2.parent) {
+    return client_log_classPrivateGetter(client_Log_brand, _this2.parent, client_get_filter);
+  }
+  return null;
+}
+function client_get_logLevel(_this3) {
+  if (client_log_classPrivateFieldGet(client_logLevel, _this3) !== undefined) {
+    return client_log_classPrivateFieldGet(client_logLevel, _this3);
+  }
+  if (_this3.parent) {
+    return client_log_classPrivateGetter(client_Log_brand, _this3.parent, client_get_logLevel);
+  }
+  return 'ALL';
+}
 function client_log_log(level, options, from) {
   if (client_log_classPrivateFieldGet(client_destroyed, this)) {
     return;
@@ -127679,7 +127730,13 @@ function client_log_log(level, options, from) {
     from,
     args
   };
-  if (client_log_classPrivateFieldGet(client_logDebugTracing, this)) {
+  if (client_filterLog({
+    logLevel: client_log_classPrivateGetter(client_Log_brand, this, client_get_logLevel),
+    filter: client_log_classPrivateGetter(client_Log_brand, this, client_get_filter)
+  }, log) === null) {
+    return;
+  }
+  if (client_log_classPrivateGetter(client_Log_brand, this, client_get_logDebugTracing)) {
     var _Error$stack$split$sl, _Error$stack;
     log.trace = (_Error$stack$split$sl = (_Error$stack = new Error().stack) === null || _Error$stack === void 0 ? void 0 : _Error$stack.split('\n').slice(2).join('\n')) !== null && _Error$stack$split$sl !== void 0 ? _Error$stack$split$sl : '[No stack trace available]';
   }
@@ -129501,13 +129558,18 @@ async function client_checkPermissionRequirements(effects) {
       throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_PERMISSIONS', `Quorum of ${foundInfo.multisigQuorum} not reached for ${multisigPubKey} -- got ${foundSingerLength}`);
     }
   }
-  const checkPromises = [];
-  for (const principalPubKey in requirementsByPrincipal) {
-    const accountRequirements = requirementsByPrincipal[principalPubKey];
-    const principal = client_lib_account.fromPublicKeyString(principalPubKey);
-    checkPromises.push(client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_checkSingleAccountPermissions).call(this, principal, accountRequirements, foundAccountInfo));
+
+  // Process promises in batches to avoid spanner's 100 concurrent read per session limit
+  const batchSize = 50;
+  const principalPubKeys = Object.keys(requirementsByPrincipal);
+  for (let i = 0; i < principalPubKeys.length; i += batchSize) {
+    const batch = principalPubKeys.slice(i, i + batchSize).map(principalPubKey => {
+      const accountRequirements = requirementsByPrincipal[principalPubKey];
+      const principal = client_lib_account.fromPublicKeyString(principalPubKey);
+      return client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_checkSingleAccountPermissions).call(this, principal, accountRequirements, foundAccountInfo);
+    });
+    await Promise.all(batch);
   }
-  await Promise.all(checkPromises);
   return {
     newOwners
   };
@@ -130256,7 +130318,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.18.1+gae2caf00c1e19c6d232ff1a37b9fd8e7ea8a1ddc';
+const client_version = '0.18.2+gac0baac4139da80613edd4a1ebc7532f37fc834a';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];

@@ -42,5 +42,5 @@ export interface Logger {
 }
 export declare function canLogForLevel(level: LogLevel, currentLevel: LogLevel): boolean;
 export declare function canLogForTargetLevel(level: LogLevel, targetLevel: LogTargetLevel): boolean;
-export declare function filterLog(target: LogTarget, message: LogEntry): LogEntryFilled | null;
+export declare function filterLog(target: Pick<LogTarget, 'filter' | 'logLevel'>, message: LogEntry): LogEntryFilled | null;
 export {};

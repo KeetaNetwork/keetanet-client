@@ -1,4 +1,4 @@
-import type { LogLevel, LogTargetLevel, Logger, LogTarget } from './common';
+import { type LogLevel, type LogTargetLevel, type Logger, type LogTarget } from './common';
 import type { LogOptionsParam } from './helper.generated';
 import LogTargetConsole from './target_console';
 export type { Logger, LogTargetLevel, LogLevel };
@@ -10,6 +10,21 @@ type LogOptions = {
      * Whether to generate debug tracing information for each log entry
      */
     logDebugTracing?: boolean;
+    /**
+     * Filter to apply before sending to targets
+     */
+    filter?: LogTarget['filter'];
+    /**
+     * Log-level to filter for at the logger level, this is applied
+     * before sending to targets and can be used to create loggers
+     * that are less verbose than their targets for subsystems that
+     * generate a lot of logs, so they can be tuned separately from
+     * other systems.
+     *
+     * The default log level is 'ALL' so all logs are sent to all
+     * targets (each of which can apply their own filtering)
+     */
+    logLevel?: LogTarget['logLevel'];
 };
 type LogTargetID = symbol & {
     _branded: 'LogTargetID';
@@ -47,6 +62,10 @@ declare class Log implements Logger {
      */
     static Legacy(name?: string): Log;
     /**
+     * Parent logger, if any -- used for creating hierarchical loggers
+     */
+    protected parent: Log | null;
+    /**
      * The maximum number of log entries to send to each target at a time
      */
     batchSize: number;
@@ -82,10 +101,6 @@ declare class Log implements Logger {
      */
     protected get targets(): LogTarget[];
     /**
-     * Parent logger, if any -- used for creating hierarchical loggers
-     */
-    protected parent: Log | null;
-    /**
      * Create a child logger instance that shares the same targets as this instance
      * but has its own log queue, this is useful for creating hierarchical loggers
      * which can call sync independently.
@@ -93,7 +108,7 @@ declare class Log implements Logger {
      * Since the child shares the same targets, registering or unregistering targets
      * from either the parent or child will affect both.
      */
-    createChild(): Log;
+    createChild(options?: LogOptions): Log;
     /**
      * Emit a set of logs to all registered targets
      */

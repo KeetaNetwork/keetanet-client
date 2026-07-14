@@ -28,7 +28,11 @@ export interface Logger {
     /**
      * Optional method to ask a logger to perform a sync operation
      */
-    sync?: () => Promise<void>;
+    sync?: (wait?: boolean) => Promise<void>;
+    /**
+     * Optional method to create a child logger
+     */
+    createChild?: () => Logger;
     log(options: LogEntry['options'], from: string, ...args: unknown[]): void;
     log(from: string, ...args: unknown[]): void;
     debug(options: LogEntry['options'], from: string, ...args: unknown[]): void;

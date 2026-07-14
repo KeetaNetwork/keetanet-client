@@ -127391,7 +127391,7 @@ class client_Log {
     /**
      * Keep track of whether or not we are currently syncing
      */
-    client_log_classPrivateFieldInitSpec(this, client_isSyncing, false);
+    client_log_classPrivateFieldInitSpec(this, client_isSyncing, null);
     /**
      * If `sync()` is called while we are syncing, we should sync again
      * to ensure all logs are sent
@@ -127616,6 +127616,7 @@ class client_Log {
    * Sync all currently enqueued logs to all targets
    */
   async sync() {
+    let wait = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
     /*
      * If there are currently no targets, do not dequeue logs
      * in case a target is added later;  However, if there are
@@ -127632,10 +127633,13 @@ class client_Log {
      * If we are already syncing, set a flag to sync again after the current sync is done
      */
     if (client_log_classPrivateFieldGet(client_isSyncing, this)) {
+      if (wait) {
+        client_log_classPrivateFieldSet(client_shouldSyncAgain, this, true);
+        await client_log_classPrivateFieldGet(client_isSyncing, this);
+      }
       client_log_classPrivateFieldSet(client_shouldSyncAgain, this, true);
       return;
     }
-    client_log_classPrivateFieldSet(client_isSyncing, this, true);
 
     /*
      * Create a copy of the currently registered targets in case
@@ -127647,18 +127651,21 @@ class client_Log {
      * to the registered targets at the time of the sync
      */
     const targets = [...this.targets];
-    do {
-      try {
-        client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
-        while (client_log_classPrivateFieldGet(client_logs, this).length > 0) {
-          const logs = client_log_classPrivateFieldGet(client_logs, this).splice(0, this.batchSize);
-          await this.emitLogs(logs, targets);
+    client_log_classPrivateFieldSet(client_isSyncing, this, (async () => {
+      do {
+        try {
+          client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
+          while (client_log_classPrivateFieldGet(client_logs, this).length > 0) {
+            const logs = client_log_classPrivateFieldGet(client_logs, this).splice(0, this.batchSize);
+            await this.emitLogs(logs, targets);
+          }
+        } catch {
+          /* Ignore errors */
         }
-      } catch {
-        /* Ignore errors */
-      }
-    } while (client_log_classPrivateFieldGet(client_shouldSyncAgain, this));
-    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+      } while (client_log_classPrivateFieldGet(client_shouldSyncAgain, this));
+    })());
+    await client_log_classPrivateFieldGet(client_isSyncing, this);
+    client_log_classPrivateFieldSet(client_isSyncing, this, null);
   }
 
   /**
@@ -127684,7 +127691,7 @@ class client_Log {
     this.stopAutoSync();
     client_log_classPrivateFieldSet(client_logs, this, []);
     client_log_classPrivateFieldGet(client_targets, this).clear();
-    client_log_classPrivateFieldSet(client_isSyncing, this, false);
+    client_log_classPrivateFieldSet(client_isSyncing, this, null);
     client_log_classPrivateFieldSet(client_shouldSyncAgain, this, false);
     client_log_classPrivateFieldSet(client_emitOnLog, this, false);
     client_log_classPrivateFieldSet(client_destroyed, this, true);
@@ -130318,7 +130325,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.18.2+gac0baac4139da80613edd4a1ebc7532f37fc834a';
+const client_version = '0.18.3+gf53e394dcd1c7187ed5ceca45df7225433f318c1';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];

@@ -124,7 +124,7 @@ declare class Log implements Logger {
     /**
      * Sync all currently enqueued logs to all targets
      */
-    sync(): Promise<void>;
+    sync(wait?: boolean): Promise<void>;
     /**
      * Dispose of the logger instance, clearing all logs and targets
      */

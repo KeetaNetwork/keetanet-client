@@ -70668,7 +70668,7 @@ class Log {
         /**
          * Keep track of whether or not we are currently syncing
          */
-        _Log_isSyncing.set(this, false);
+        _Log_isSyncing.set(this, null);
         /**
          * If `sync()` is called while we are syncing, we should sync again
          * to ensure all logs are sent
@@ -70852,7 +70852,7 @@ class Log {
     /**
      * Sync all currently enqueued logs to all targets
      */
-    async sync() {
+    async sync(wait = true) {
         /*
          * If there are currently no targets, do not dequeue logs
          * in case a target is added later;  However, if there are
@@ -70868,10 +70868,13 @@ class Log {
          * If we are already syncing, set a flag to sync again after the current sync is done
          */
         if (__classPrivateFieldGet(this, _Log_isSyncing, "f")) {
+            if (wait) {
+                __classPrivateFieldSet(this, _Log_shouldSyncAgain, true, "f");
+                await __classPrivateFieldGet(this, _Log_isSyncing, "f");
+            }
             __classPrivateFieldSet(this, _Log_shouldSyncAgain, true, "f");
             return;
         }
-        __classPrivateFieldSet(this, _Log_isSyncing, true, "f");
         /*
          * Create a copy of the currently registered targets in case
          * they are modified while a sync is on-going, we use the
@@ -70882,19 +70885,22 @@ class Log {
          * to the registered targets at the time of the sync
          */
         const targets = [...this.targets];
-        do {
-            try {
-                __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
-                while (__classPrivateFieldGet(this, _Log_logs, "f").length > 0) {
-                    const logs = __classPrivateFieldGet(this, _Log_logs, "f").splice(0, this.batchSize);
-                    await this.emitLogs(logs, targets);
+        __classPrivateFieldSet(this, _Log_isSyncing, (async () => {
+            do {
+                try {
+                    __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
+                    while (__classPrivateFieldGet(this, _Log_logs, "f").length > 0) {
+                        const logs = __classPrivateFieldGet(this, _Log_logs, "f").splice(0, this.batchSize);
+                        await this.emitLogs(logs, targets);
+                    }
                 }
-            }
-            catch {
-                /* Ignore errors */
-            }
-        } while (__classPrivateFieldGet(this, _Log_shouldSyncAgain, "f"));
-        __classPrivateFieldSet(this, _Log_isSyncing, false, "f");
+                catch {
+                    /* Ignore errors */
+                }
+            } while (__classPrivateFieldGet(this, _Log_shouldSyncAgain, "f"));
+        })(), "f");
+        await __classPrivateFieldGet(this, _Log_isSyncing, "f");
+        __classPrivateFieldSet(this, _Log_isSyncing, null, "f");
     }
     /**
      * Dispose of the logger instance, clearing all logs and targets
@@ -70969,7 +70975,7 @@ class Log {
         this.stopAutoSync();
         __classPrivateFieldSet(this, _Log_logs, [], "f");
         __classPrivateFieldGet(this, _Log_targets, "f").clear();
-        __classPrivateFieldSet(this, _Log_isSyncing, false, "f");
+        __classPrivateFieldSet(this, _Log_isSyncing, null, "f");
         __classPrivateFieldSet(this, _Log_shouldSyncAgain, false, "f");
         __classPrivateFieldSet(this, _Log_emitOnLog, false, "f");
         __classPrivateFieldSet(this, _Log_destroyed, true, "f");
@@ -81333,7 +81339,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.18.2+gac0baac4139da80613edd4a1ebc7532f37fc834a';
+exports.version = '0.18.3+gf53e394dcd1c7187ed5ceca45df7225433f318c1';
 exports["default"] = exports.version;
 
 

@@ -81339,7 +81339,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.18.3+gf53e394dcd1c7187ed5ceca45df7225433f318c1';
+exports.version = '0.18.4+gbd3f30c7e7903e4990e5a283f15c23d0df18bbb4';
 exports["default"] = exports.version;
 
 

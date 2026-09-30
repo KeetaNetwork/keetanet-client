@@ -129413,7 +129413,7 @@ async function client_validateVotingWeight(votes) {
     });
     return foundTrustedVote !== undefined;
   }
-  const twoThirdsOfTotalWeight = totalVotingPower / 3n * 2n;
+  const twoThirdsOfTotalWeight = totalVotingPower * 2n / 3n;
   const requiredPower = twoThirdsOfTotalWeight + 1n;
   const voters = votes.map(function (vote) {
     return vote.issuer;
@@ -129525,8 +129525,17 @@ async function client_checkSingleAccountPermissions(account, requirements, accou
       const found = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_fetchSatisfiedCertificateACLs).call(this, account, requirement);
       if (found) {
         for (const row of found) {
-          const certificateRowHasPermissions = row.permissions.has(requirement.permissions);
-          if (certificateRowHasPermissions) {
+          /**
+          	 * Cert chain match only proves principal eligibility. Target
+          	 * selection must use the same exact-then-wildcard rules as
+          	 * account ACLs (findPermissionMatch).
+          	 */
+          const matchedCertificateACL = client_findPermissionMatch({
+            entity: requirement.entity,
+            principal: row.principal,
+            target: requirement.target
+          }, found);
+          if (matchedCertificateACL !== null && matchedCertificateACL !== void 0 && matchedCertificateACL.permissions.has(requirement.permissions)) {
             hasPermissions = true;
             break;
           }

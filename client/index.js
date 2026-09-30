@@ -69613,7 +69613,7 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
         });
         return (foundTrustedVote !== undefined);
     }
-    const twoThirdsOfTotalWeight = ((totalVotingPower / 3n) * 2n);
+    const twoThirdsOfTotalWeight = ((totalVotingPower * 2n) / 3n);
     const requiredPower = twoThirdsOfTotalWeight + 1n;
     const voters = votes.map(function (vote) {
         return (vote.issuer);
@@ -69716,8 +69716,17 @@ _LedgerAtomicInterface_network = new WeakMap(), _LedgerAtomicInterface_subnet = 
             const found = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_fetchSatisfiedCertificateACLs).call(this, account, requirement);
             if (found) {
                 for (const row of found) {
-                    const certificateRowHasPermissions = row.permissions.has(requirement.permissions);
-                    if (certificateRowHasPermissions) {
+                    /**
+                     * Cert chain match only proves principal eligibility. Target
+                     * selection must use the same exact-then-wildcard rules as
+                     * account ACLs (findPermissionMatch).
+                     */
+                    const matchedCertificateACL = (0, common_1.findPermissionMatch)({
+                        entity: requirement.entity,
+                        principal: row.principal,
+                        target: requirement.target
+                    }, found);
+                    if (matchedCertificateACL?.permissions.has(requirement.permissions)) {
                         hasPermissions = true;
                         break;
                     }

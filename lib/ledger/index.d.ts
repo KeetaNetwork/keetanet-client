@@ -66,6 +66,11 @@ export interface LedgerConfig {
         maxRetries?: number;
     });
     /**
+     * Max time, in milliseconds, to spend processing the heap of deferred
+     * vote staples within a single transaction before bailing out. Defaults to 5000
+     */
+    heapProcessWindowMs?: number;
+    /**
      * Logging method
      */
     log?: Logger;
@@ -380,7 +385,6 @@ declare class LedgerAtomicInterface {
     getFee(blocks: Block[], effectsInput?: ComputedEffectOfBlocks): Promise<FeeAmountAndToken | FeeAmountAndToken[] | null>;
     getIdempotentBlockHash(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<BlockHash | null>;
     getBlockFromIdempotent(account: GenericAccount, idempotent: string | Buffer, from?: LedgerSelector, excludeBlockHash?: BlockHash): Promise<Block | null>;
-    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 /**
  * The core Ledger components
@@ -436,6 +440,5 @@ export declare class Ledger implements Omit<LedgerAtomicInterface, 'commit' | 'a
     getIdempotentBlockHash(...args: Parameters<LedgerAtomicInterface['getIdempotentBlockHash']>): ReturnType<LedgerAtomicInterface['getIdempotentBlockHash']>;
     getBlockFromIdempotent(...args: Parameters<LedgerAtomicInterface['getBlockFromIdempotent']>): ReturnType<LedgerAtomicInterface['getBlockFromIdempotent']>;
     stats(): Promise<LedgerStatistics>;
-    _testingRunStorageFunction<T>(code: (storage: LedgerStorageAPI, transaction: LedgerStorageTransactionBase) => Promise<T>): Promise<T>;
 }
 export default Ledger;

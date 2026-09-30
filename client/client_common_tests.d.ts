@@ -43,13 +43,24 @@ declare function runBasicTests(nodes: LocalNode[], userClient: UserClient, trust
 declare function runSingleFeeTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runMultipleFeeTests(_ignore_nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runBuilderStorageTests(_ignoreNodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
+declare function runTokenSelfSendStorageScopingTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
+declare function runSendDrainAuthorizationTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runMultiSigTests(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
+declare function runPermissionEscalationSameStapleSelfGrant(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runRecoverAccountTest(nodes: LocalNode[], userClient: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runNonNodeTests(_ignore_nodes: LocalNode[], _ignore_userClient: UserClient, _ignore_trustedClient: UserClient, _ignore_params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 declare function runErrorTests(nodes: LocalNode[], userClientAccount1: UserClient, trustedClient: UserClient, params: ClientParams, expect: any, ExpectErrorCode: any): Promise<void>;
 export declare const clientTests: {
     'Basic Client Tests': {
         test: typeof runBasicTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+            timeout: number;
+        };
+    };
+    'Permission Escalation Same Staple Self Grant': {
+        test: typeof runPermissionEscalationSameStapleSelfGrant;
         options: {
             p2pTested: boolean;
             count: number;
@@ -104,6 +115,20 @@ export declare const clientTests: {
     };
     'MultiSig Tests': {
         test: typeof runMultiSigTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+        };
+    };
+    'Send Drain Authorization': {
+        test: typeof runSendDrainAuthorizationTests;
+        options: {
+            p2pTested: boolean;
+            count: number;
+        };
+    };
+    'Token Self Send Storage Scoping': {
+        test: typeof runTokenSelfSendStorageScopingTests;
         options: {
             p2pTested: boolean;
             count: number;

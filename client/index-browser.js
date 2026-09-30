@@ -116297,7 +116297,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'INVALID_PRINCIPAL', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS', 'SIGNATURE_REQUIRED', 'SIGNATURE_PARAMETER_DIFFERS'];
+const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PRINCIPAL', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SIGNATURE_PARAMETER_DIFFERS', 'SIGNATURE_REQUIRED', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -121406,7 +121406,7 @@ function client_validateSignatures() {
     const signature = new src_client_BufferStorage(signatureArray[i], 64);
     const valid = signers[i].verify(this.hash.get(), signature.get());
     if (valid !== true) {
-      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures)[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`);
+      throw new src_client_KeetaNetBlockError('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of block with computed hash of ${this.hash.toString()} against signature ${src_client_classPrivateGetter(client_PossiblyUnsignedBlock_brand, this, client_get_nonNullableSignatures)[i].toString('hex').toUpperCase()} for account ${signers[i].publicKeyString.get()}`);
     }
   }
 }
@@ -124248,9 +124248,37 @@ function client_addPermissionRequirement(state, requirement) {
   } = client_touchStateFields(state, requirement.principal);
   const alreadyAdded = (_principalFields$fiel = principalFields.fields.permissions) !== null && _principalFields$fiel !== void 0 ? _principalFields$fiel : [];
   const foundAddedMatch = alreadyAdded.find(function (_ref) {
+    var _requirement$target;
     let {
-      permissions
+      entity,
+      target,
+      permissions,
+      method
     } = _ref;
+    /*
+     * Only a grant that adds or sets a permission can satisfy a requirement. A
+     * SUBTRACT records the removed flag in `permissions`, so ignoring the method
+     * would let a removal satisfy a later requirement for that same flag.
+     */
+    if (method === src_client_Block.AdjustMethod.SUBTRACT) {
+      return false;
+    }
+
+    /*
+     * The accumulated grant must apply to the same entity the requirement is scoped to.
+     */
+    if (!entity.comparePublicKey(requirement.entity)) {
+      return false;
+    }
+
+    /*
+     * The grant must either target the specific target the requirement asks for, or apply
+     * to the whole entity (target equal to entity) as a wildcard.
+     */
+    const grantTarget = target !== null && target !== void 0 ? target : entity;
+    if (!grantTarget.comparePublicKey((_requirement$target = requirement.target) !== null && _requirement$target !== void 0 ? _requirement$target : requirement.entity) && !grantTarget.comparePublicKey(entity)) {
+      return false;
+    }
     if (requirement.permissions === null) {
       return true;
     }
@@ -124852,7 +124880,7 @@ function client_computePermissionEffect(state, type, effect, block, operation, c
       throw new Error('Error computing permission effect: Permissions cannot be undefined');
     }
     if (requirement.entity.comparePublicKey(requirement.principal)) {
-      return;
+      continue;
     }
 
     /**
@@ -128514,6 +128542,12 @@ class client_LedgerStorageTransactionBase {
  */
 
 /**
+ * @internal
+ * Testing-only surface for private storage methods.
+ * Production code MUST NOT call these.
+ */
+
+/**
  * Each Ledger Storage backend must implement this interface
  */
 var client_network = /*#__PURE__*/new WeakMap();
@@ -129344,6 +129378,11 @@ class client_LedgerAtomicInterface {
     const block = await this.getBlock(blockHash, from);
     return block;
   }
+
+  /**
+   * @internal
+   * Testing-only surface for private storage methods.
+   */
   async _testingRunStorageFunction(code) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
     const retval = await code(client_ledger_classPrivateFieldGet(client_ledger_storage, this), transaction);
@@ -130312,6 +130351,11 @@ class src_client_Ledger {
       _usingCtx4.d();
     }
   }
+
+  /**
+   * @internal
+   * Testing-only surface for private storage methods.
+   */
   async _testingRunStorageFunction(code) {
     return await this.run('db-runStorageFunction', async function (transaction) {
       return await transaction._testingRunStorageFunction(code);

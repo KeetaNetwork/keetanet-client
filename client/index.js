@@ -63941,7 +63941,7 @@ _a = PossiblyUnsignedBlock, _PossiblyUnsignedBlock_valueBytes = new WeakMap(), _
         const signature = new buffer_1.BufferStorage(signatureArray[i], 64);
         const valid = signers[i].verify(this.hash.get(), signature.get());
         if (valid !== true) {
-            throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of ${this.hash.toString()} against signature ${__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get)[i].toString('hex')} for account ${signers[i].publicKeyString.get()}`));
+            throw (new block_1.default('BLOCK_INVALID_SIGNATURE', `Unable to validate signature of block with computed hash of ${this.hash.toString()} against signature ${__classPrivateFieldGet(this, _PossiblyUnsignedBlock_instances, "a", _PossiblyUnsignedBlock_nonNullableSignatures_get)[i].toString('hex').toUpperCase()} for account ${signers[i].publicKeyString.get()}`));
         }
     }
 }, _PossiblyUnsignedBlock_validateIdempotent = function _PossiblyUnsignedBlock_validateIdempotent() {
@@ -66011,12 +66011,12 @@ exports.BlockErrorCodes = [
     'INVALID_MULTISIG_SIGNER_COUNT',
     'INVALID_MULTISIG_SIGNER_DEPTH',
     'INVALID_MULTISIG_SIGNER_DUPLICATE',
+    'INVALID_PRINCIPAL',
     'INVALID_PURPOSE_VALIDATION',
     'INVALID_SIGNATURE',
     'INVALID_SIGNER',
     'INVALID_TYPE',
     'INVALID_VERSION',
-    'INVALID_PRINCIPAL',
     'NO_ADMIN_ON_TARGET',
     'NO_DELEGATE_ADMIN',
     'NO_DUPLICATE_CERTIFICATE_OPERATION',
@@ -66032,10 +66032,10 @@ exports.BlockErrorCodes = [
     'PERMISSIONS_INVALID_PRINCIPAL',
     'PERMISSIONS_INVALID_TARGET',
     'PREVIOUS_SELF',
-    'SUPPLY_INVALID',
-    'TOKEN_RECEIVE_DIFFERS',
+    'SIGNATURE_PARAMETER_DIFFERS',
     'SIGNATURE_REQUIRED',
-    'SIGNATURE_PARAMETER_DIFFERS'
+    'SUPPLY_INVALID',
+    'TOKEN_RECEIVE_DIFFERS'
 ];
 exports.FullBlockErrorCodes = exports.BlockErrorCodes.map(code => `${BlockErrorType}_${code}`);
 class KeetaNetBlockError extends base_1.KeetaNetErrorBase {
@@ -67898,7 +67898,29 @@ function addPermission(state, addition) {
 function addPermissionRequirement(state, requirement) {
     const { value: principalFields } = touchStateFields(state, requirement.principal);
     const alreadyAdded = principalFields.fields.permissions ?? [];
-    const foundAddedMatch = alreadyAdded.find(function ({ permissions }) {
+    const foundAddedMatch = alreadyAdded.find(function ({ entity, target, permissions, method }) {
+        /*
+         * Only a grant that adds or sets a permission can satisfy a requirement. A
+         * SUBTRACT records the removed flag in `permissions`, so ignoring the method
+         * would let a removal satisfy a later requirement for that same flag.
+         */
+        if (method === block_1.Block.AdjustMethod.SUBTRACT) {
+            return (false);
+        }
+        /*
+         * The accumulated grant must apply to the same entity the requirement is scoped to.
+         */
+        if (!entity.comparePublicKey(requirement.entity)) {
+            return (false);
+        }
+        /*
+         * The grant must either target the specific target the requirement asks for, or apply
+         * to the whole entity (target equal to entity) as a wildcard.
+         */
+        const grantTarget = target ?? entity;
+        if (!grantTarget.comparePublicKey(requirement.target ?? requirement.entity) && !grantTarget.comparePublicKey(entity)) {
+            return (false);
+        }
         if (requirement.permissions === null) {
             return (true);
         }
@@ -68488,7 +68510,7 @@ function computePermissionEffect(state, type, effect, block, operation, context)
             throw (new Error('Error computing permission effect: Permissions cannot be undefined'));
         }
         if (requirement.entity.comparePublicKey(requirement.principal)) {
-            return;
+            continue;
         }
         /**
          * The initialTrustedAccount is able to bypass all permission requirements signing opening blocks for the networkAddress and the baseToken
@@ -69563,6 +69585,10 @@ class LedgerAtomicInterface {
         const block = await this.getBlock(blockHash, from);
         return (block);
     }
+    /**
+     * @internal
+     * Testing-only surface for private storage methods.
+     */
     async _testingRunStorageFunction(code) {
         const transaction = __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_assertTransaction).call(this);
         const retval = await code(__classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f"), transaction);
@@ -70377,6 +70403,10 @@ class Ledger {
             __disposeResources(env_3);
         }
     }
+    /**
+     * @internal
+     * Testing-only surface for private storage methods.
+     */
     async _testingRunStorageFunction(code) {
         return (await this.run('db-runStorageFunction', async function (transaction) {
             return (await transaction._testingRunStorageFunction(code));

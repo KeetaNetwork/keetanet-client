@@ -55,6 +55,16 @@ export interface P2PConfig {
     useHTTPRepublish?: boolean;
 }
 /**
+ * Upper bound on the size of a single P2P WebSocket frame, applied in both
+ * directions: the node's inbound "/p2p" server and every outbound connection
+ * this module dials. Without it the "ws" default of 100 MiB applies, which
+ * lets a peer that has not been authenticated send a very large compressed
+ * payload that expands during decompression and exhausts node memory. The
+ * bound is generous relative to a legitimate vote-staple message and may be
+ * lowered toward the protocol maximum.
+ */
+export declare const P2P_WEBSOCKET_MAX_PAYLOAD_BYTES: number;
+/**
  * Shape of statistics
  */
 export interface P2PSwitchStatistics {

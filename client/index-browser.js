@@ -7410,6 +7410,12 @@ PEMEncoder.prototype.encode = function encode(data, options) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -8503,6 +8509,10 @@ PEMEncoder.prototype.encode = function encode(data, options) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -8708,6 +8718,11 @@ PEMEncoder.prototype.encode = function encode(data, options) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -9036,17 +9051,19 @@ PEMEncoder.prototype.encode = function encode(data, options) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -12978,6 +12995,12 @@ function fromByteArray (uint8) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -14076,6 +14099,10 @@ function fromByteArray (uint8) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return isNegNum ? this.ineg() : this;
   };
@@ -14281,6 +14308,11 @@ function fromByteArray (uint8) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this._strip();
@@ -14609,17 +14641,19 @@ function fromByteArray (uint8) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || (r2 === 1 && cmp === 0)) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modrn = function modrn (num) {
@@ -21979,6 +22013,12 @@ function formatReturnValue (bn, enc, len) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -23072,6 +23112,10 @@ function formatReturnValue (bn, enc, len) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -23277,6 +23321,11 @@ function formatReturnValue (bn, enc, len) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -23605,17 +23654,19 @@ function formatReturnValue (bn, enc, len) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -34548,6 +34599,12 @@ function findPrime(bits, gen) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -35641,6 +35698,10 @@ function findPrime(bits, gen) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -35846,6 +35907,11 @@ function findPrime(bits, gen) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -36174,17 +36240,19 @@ function findPrime(bits, gen) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -42739,6 +42807,12 @@ utils.intFromLE = intFromLE;
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -43832,6 +43906,10 @@ utils.intFromLE = intFromLE;
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -44037,6 +44115,11 @@ utils.intFromLE = intFromLE;
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -44365,17 +44448,19 @@ utils.intFromLE = intFromLE;
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -67652,6 +67737,12 @@ MillerRabin.prototype.getDivisor = function getDivisor(n, k) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -68745,6 +68836,10 @@ MillerRabin.prototype.getDivisor = function getDivisor(n, k) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -68950,6 +69045,11 @@ MillerRabin.prototype.getDivisor = function getDivisor(n, k) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -69278,17 +69378,19 @@ MillerRabin.prototype.getDivisor = function getDivisor(n, k) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -77137,7 +77239,7 @@ module.exports = function (iterations, keylen) {
 
 
 var md5 = __webpack_require__(6211);
-var RIPEMD160 = __webpack_require__(4304);
+var RIPEMD160 = __webpack_require__(6011);
 var sha = __webpack_require__(2802);
 var Buffer = (__webpack_require__(2861).Buffer);
 
@@ -77491,398 +77593,6 @@ function bit_rol (num, cnt) {
 module.exports = function md5 (buf) {
   return makeHash(buf, core_md5)
 }
-
-
-/***/ }),
-
-/***/ 3706:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-/* provided dependency */ var Buffer = __webpack_require__(8287)["Buffer"];
-
-var Transform = (__webpack_require__(8310).Transform)
-var inherits = __webpack_require__(6698)
-
-function HashBase (blockSize) {
-  Transform.call(this)
-
-  this._block = new Buffer(blockSize)
-  this._blockSize = blockSize
-  this._blockOffset = 0
-  this._length = [0, 0, 0, 0]
-
-  this._finalized = false
-}
-
-inherits(HashBase, Transform)
-
-HashBase.prototype._transform = function (chunk, encoding, callback) {
-  var error = null
-  try {
-    if (encoding !== 'buffer') chunk = new Buffer(chunk, encoding)
-    this.update(chunk)
-  } catch (err) {
-    error = err
-  }
-
-  callback(error)
-}
-
-HashBase.prototype._flush = function (callback) {
-  var error = null
-  try {
-    this.push(this._digest())
-  } catch (err) {
-    error = err
-  }
-
-  callback(error)
-}
-
-HashBase.prototype.update = function (data, encoding) {
-  if (!Buffer.isBuffer(data) && typeof data !== 'string') throw new TypeError('Data must be a string or a buffer')
-  if (this._finalized) throw new Error('Digest already called')
-  if (!Buffer.isBuffer(data)) data = new Buffer(data, encoding || 'binary')
-
-  // consume data
-  var block = this._block
-  var offset = 0
-  while (this._blockOffset + data.length - offset >= this._blockSize) {
-    for (var i = this._blockOffset; i < this._blockSize;) block[i++] = data[offset++]
-    this._update()
-    this._blockOffset = 0
-  }
-  while (offset < data.length) block[this._blockOffset++] = data[offset++]
-
-  // update length
-  for (var j = 0, carry = data.length * 8; carry > 0; ++j) {
-    this._length[j] += carry
-    carry = (this._length[j] / 0x0100000000) | 0
-    if (carry > 0) this._length[j] -= 0x0100000000 * carry
-  }
-
-  return this
-}
-
-HashBase.prototype._update = function (data) {
-  throw new Error('_update is not implemented')
-}
-
-HashBase.prototype.digest = function (encoding) {
-  if (this._finalized) throw new Error('Digest already called')
-  this._finalized = true
-
-  var digest = this._digest()
-  if (encoding !== undefined) digest = digest.toString(encoding)
-  return digest
-}
-
-HashBase.prototype._digest = function () {
-  throw new Error('_digest is not implemented')
-}
-
-module.exports = HashBase
-
-
-/***/ }),
-
-/***/ 4304:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-/* provided dependency */ var Buffer = __webpack_require__(8287)["Buffer"];
-
-var inherits = __webpack_require__(6698)
-var HashBase = __webpack_require__(3706)
-
-function RIPEMD160 () {
-  HashBase.call(this, 64)
-
-  // state
-  this._a = 0x67452301
-  this._b = 0xefcdab89
-  this._c = 0x98badcfe
-  this._d = 0x10325476
-  this._e = 0xc3d2e1f0
-}
-
-inherits(RIPEMD160, HashBase)
-
-RIPEMD160.prototype._update = function () {
-  var m = new Array(16)
-  for (var i = 0; i < 16; ++i) m[i] = this._block.readInt32LE(i * 4)
-
-  var al = this._a
-  var bl = this._b
-  var cl = this._c
-  var dl = this._d
-  var el = this._e
-
-  // Mj = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-  // K = 0x00000000
-  // Sj = 11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8
-  al = fn1(al, bl, cl, dl, el, m[0], 0x00000000, 11); cl = rotl(cl, 10)
-  el = fn1(el, al, bl, cl, dl, m[1], 0x00000000, 14); bl = rotl(bl, 10)
-  dl = fn1(dl, el, al, bl, cl, m[2], 0x00000000, 15); al = rotl(al, 10)
-  cl = fn1(cl, dl, el, al, bl, m[3], 0x00000000, 12); el = rotl(el, 10)
-  bl = fn1(bl, cl, dl, el, al, m[4], 0x00000000, 5); dl = rotl(dl, 10)
-  al = fn1(al, bl, cl, dl, el, m[5], 0x00000000, 8); cl = rotl(cl, 10)
-  el = fn1(el, al, bl, cl, dl, m[6], 0x00000000, 7); bl = rotl(bl, 10)
-  dl = fn1(dl, el, al, bl, cl, m[7], 0x00000000, 9); al = rotl(al, 10)
-  cl = fn1(cl, dl, el, al, bl, m[8], 0x00000000, 11); el = rotl(el, 10)
-  bl = fn1(bl, cl, dl, el, al, m[9], 0x00000000, 13); dl = rotl(dl, 10)
-  al = fn1(al, bl, cl, dl, el, m[10], 0x00000000, 14); cl = rotl(cl, 10)
-  el = fn1(el, al, bl, cl, dl, m[11], 0x00000000, 15); bl = rotl(bl, 10)
-  dl = fn1(dl, el, al, bl, cl, m[12], 0x00000000, 6); al = rotl(al, 10)
-  cl = fn1(cl, dl, el, al, bl, m[13], 0x00000000, 7); el = rotl(el, 10)
-  bl = fn1(bl, cl, dl, el, al, m[14], 0x00000000, 9); dl = rotl(dl, 10)
-  al = fn1(al, bl, cl, dl, el, m[15], 0x00000000, 8); cl = rotl(cl, 10)
-
-  // Mj = 7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5, 2, 14, 11, 8
-  // K = 0x5a827999
-  // Sj = 7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15, 9, 11, 7, 13, 12
-  el = fn2(el, al, bl, cl, dl, m[7], 0x5a827999, 7); bl = rotl(bl, 10)
-  dl = fn2(dl, el, al, bl, cl, m[4], 0x5a827999, 6); al = rotl(al, 10)
-  cl = fn2(cl, dl, el, al, bl, m[13], 0x5a827999, 8); el = rotl(el, 10)
-  bl = fn2(bl, cl, dl, el, al, m[1], 0x5a827999, 13); dl = rotl(dl, 10)
-  al = fn2(al, bl, cl, dl, el, m[10], 0x5a827999, 11); cl = rotl(cl, 10)
-  el = fn2(el, al, bl, cl, dl, m[6], 0x5a827999, 9); bl = rotl(bl, 10)
-  dl = fn2(dl, el, al, bl, cl, m[15], 0x5a827999, 7); al = rotl(al, 10)
-  cl = fn2(cl, dl, el, al, bl, m[3], 0x5a827999, 15); el = rotl(el, 10)
-  bl = fn2(bl, cl, dl, el, al, m[12], 0x5a827999, 7); dl = rotl(dl, 10)
-  al = fn2(al, bl, cl, dl, el, m[0], 0x5a827999, 12); cl = rotl(cl, 10)
-  el = fn2(el, al, bl, cl, dl, m[9], 0x5a827999, 15); bl = rotl(bl, 10)
-  dl = fn2(dl, el, al, bl, cl, m[5], 0x5a827999, 9); al = rotl(al, 10)
-  cl = fn2(cl, dl, el, al, bl, m[2], 0x5a827999, 11); el = rotl(el, 10)
-  bl = fn2(bl, cl, dl, el, al, m[14], 0x5a827999, 7); dl = rotl(dl, 10)
-  al = fn2(al, bl, cl, dl, el, m[11], 0x5a827999, 13); cl = rotl(cl, 10)
-  el = fn2(el, al, bl, cl, dl, m[8], 0x5a827999, 12); bl = rotl(bl, 10)
-
-  // Mj = 3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12
-  // K = 0x6ed9eba1
-  // Sj = 11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5
-  dl = fn3(dl, el, al, bl, cl, m[3], 0x6ed9eba1, 11); al = rotl(al, 10)
-  cl = fn3(cl, dl, el, al, bl, m[10], 0x6ed9eba1, 13); el = rotl(el, 10)
-  bl = fn3(bl, cl, dl, el, al, m[14], 0x6ed9eba1, 6); dl = rotl(dl, 10)
-  al = fn3(al, bl, cl, dl, el, m[4], 0x6ed9eba1, 7); cl = rotl(cl, 10)
-  el = fn3(el, al, bl, cl, dl, m[9], 0x6ed9eba1, 14); bl = rotl(bl, 10)
-  dl = fn3(dl, el, al, bl, cl, m[15], 0x6ed9eba1, 9); al = rotl(al, 10)
-  cl = fn3(cl, dl, el, al, bl, m[8], 0x6ed9eba1, 13); el = rotl(el, 10)
-  bl = fn3(bl, cl, dl, el, al, m[1], 0x6ed9eba1, 15); dl = rotl(dl, 10)
-  al = fn3(al, bl, cl, dl, el, m[2], 0x6ed9eba1, 14); cl = rotl(cl, 10)
-  el = fn3(el, al, bl, cl, dl, m[7], 0x6ed9eba1, 8); bl = rotl(bl, 10)
-  dl = fn3(dl, el, al, bl, cl, m[0], 0x6ed9eba1, 13); al = rotl(al, 10)
-  cl = fn3(cl, dl, el, al, bl, m[6], 0x6ed9eba1, 6); el = rotl(el, 10)
-  bl = fn3(bl, cl, dl, el, al, m[13], 0x6ed9eba1, 5); dl = rotl(dl, 10)
-  al = fn3(al, bl, cl, dl, el, m[11], 0x6ed9eba1, 12); cl = rotl(cl, 10)
-  el = fn3(el, al, bl, cl, dl, m[5], 0x6ed9eba1, 7); bl = rotl(bl, 10)
-  dl = fn3(dl, el, al, bl, cl, m[12], 0x6ed9eba1, 5); al = rotl(al, 10)
-
-  // Mj = 1, 9, 11, 10, 0, 8, 12, 4, 13, 3, 7, 15, 14, 5, 6, 2
-  // K = 0x8f1bbcdc
-  // Sj = 11, 12, 14, 15, 14, 15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12
-  cl = fn4(cl, dl, el, al, bl, m[1], 0x8f1bbcdc, 11); el = rotl(el, 10)
-  bl = fn4(bl, cl, dl, el, al, m[9], 0x8f1bbcdc, 12); dl = rotl(dl, 10)
-  al = fn4(al, bl, cl, dl, el, m[11], 0x8f1bbcdc, 14); cl = rotl(cl, 10)
-  el = fn4(el, al, bl, cl, dl, m[10], 0x8f1bbcdc, 15); bl = rotl(bl, 10)
-  dl = fn4(dl, el, al, bl, cl, m[0], 0x8f1bbcdc, 14); al = rotl(al, 10)
-  cl = fn4(cl, dl, el, al, bl, m[8], 0x8f1bbcdc, 15); el = rotl(el, 10)
-  bl = fn4(bl, cl, dl, el, al, m[12], 0x8f1bbcdc, 9); dl = rotl(dl, 10)
-  al = fn4(al, bl, cl, dl, el, m[4], 0x8f1bbcdc, 8); cl = rotl(cl, 10)
-  el = fn4(el, al, bl, cl, dl, m[13], 0x8f1bbcdc, 9); bl = rotl(bl, 10)
-  dl = fn4(dl, el, al, bl, cl, m[3], 0x8f1bbcdc, 14); al = rotl(al, 10)
-  cl = fn4(cl, dl, el, al, bl, m[7], 0x8f1bbcdc, 5); el = rotl(el, 10)
-  bl = fn4(bl, cl, dl, el, al, m[15], 0x8f1bbcdc, 6); dl = rotl(dl, 10)
-  al = fn4(al, bl, cl, dl, el, m[14], 0x8f1bbcdc, 8); cl = rotl(cl, 10)
-  el = fn4(el, al, bl, cl, dl, m[5], 0x8f1bbcdc, 6); bl = rotl(bl, 10)
-  dl = fn4(dl, el, al, bl, cl, m[6], 0x8f1bbcdc, 5); al = rotl(al, 10)
-  cl = fn4(cl, dl, el, al, bl, m[2], 0x8f1bbcdc, 12); el = rotl(el, 10)
-
-  // Mj = 4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13
-  // K = 0xa953fd4e
-  // Sj = 9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6
-  bl = fn5(bl, cl, dl, el, al, m[4], 0xa953fd4e, 9); dl = rotl(dl, 10)
-  al = fn5(al, bl, cl, dl, el, m[0], 0xa953fd4e, 15); cl = rotl(cl, 10)
-  el = fn5(el, al, bl, cl, dl, m[5], 0xa953fd4e, 5); bl = rotl(bl, 10)
-  dl = fn5(dl, el, al, bl, cl, m[9], 0xa953fd4e, 11); al = rotl(al, 10)
-  cl = fn5(cl, dl, el, al, bl, m[7], 0xa953fd4e, 6); el = rotl(el, 10)
-  bl = fn5(bl, cl, dl, el, al, m[12], 0xa953fd4e, 8); dl = rotl(dl, 10)
-  al = fn5(al, bl, cl, dl, el, m[2], 0xa953fd4e, 13); cl = rotl(cl, 10)
-  el = fn5(el, al, bl, cl, dl, m[10], 0xa953fd4e, 12); bl = rotl(bl, 10)
-  dl = fn5(dl, el, al, bl, cl, m[14], 0xa953fd4e, 5); al = rotl(al, 10)
-  cl = fn5(cl, dl, el, al, bl, m[1], 0xa953fd4e, 12); el = rotl(el, 10)
-  bl = fn5(bl, cl, dl, el, al, m[3], 0xa953fd4e, 13); dl = rotl(dl, 10)
-  al = fn5(al, bl, cl, dl, el, m[8], 0xa953fd4e, 14); cl = rotl(cl, 10)
-  el = fn5(el, al, bl, cl, dl, m[11], 0xa953fd4e, 11); bl = rotl(bl, 10)
-  dl = fn5(dl, el, al, bl, cl, m[6], 0xa953fd4e, 8); al = rotl(al, 10)
-  cl = fn5(cl, dl, el, al, bl, m[15], 0xa953fd4e, 5); el = rotl(el, 10)
-  bl = fn5(bl, cl, dl, el, al, m[13], 0xa953fd4e, 6); dl = rotl(dl, 10)
-
-  var ar = this._a
-  var br = this._b
-  var cr = this._c
-  var dr = this._d
-  var er = this._e
-
-  // M'j = 5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12
-  // K' = 0x50a28be6
-  // S'j = 8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6
-  ar = fn5(ar, br, cr, dr, er, m[5], 0x50a28be6, 8); cr = rotl(cr, 10)
-  er = fn5(er, ar, br, cr, dr, m[14], 0x50a28be6, 9); br = rotl(br, 10)
-  dr = fn5(dr, er, ar, br, cr, m[7], 0x50a28be6, 9); ar = rotl(ar, 10)
-  cr = fn5(cr, dr, er, ar, br, m[0], 0x50a28be6, 11); er = rotl(er, 10)
-  br = fn5(br, cr, dr, er, ar, m[9], 0x50a28be6, 13); dr = rotl(dr, 10)
-  ar = fn5(ar, br, cr, dr, er, m[2], 0x50a28be6, 15); cr = rotl(cr, 10)
-  er = fn5(er, ar, br, cr, dr, m[11], 0x50a28be6, 15); br = rotl(br, 10)
-  dr = fn5(dr, er, ar, br, cr, m[4], 0x50a28be6, 5); ar = rotl(ar, 10)
-  cr = fn5(cr, dr, er, ar, br, m[13], 0x50a28be6, 7); er = rotl(er, 10)
-  br = fn5(br, cr, dr, er, ar, m[6], 0x50a28be6, 7); dr = rotl(dr, 10)
-  ar = fn5(ar, br, cr, dr, er, m[15], 0x50a28be6, 8); cr = rotl(cr, 10)
-  er = fn5(er, ar, br, cr, dr, m[8], 0x50a28be6, 11); br = rotl(br, 10)
-  dr = fn5(dr, er, ar, br, cr, m[1], 0x50a28be6, 14); ar = rotl(ar, 10)
-  cr = fn5(cr, dr, er, ar, br, m[10], 0x50a28be6, 14); er = rotl(er, 10)
-  br = fn5(br, cr, dr, er, ar, m[3], 0x50a28be6, 12); dr = rotl(dr, 10)
-  ar = fn5(ar, br, cr, dr, er, m[12], 0x50a28be6, 6); cr = rotl(cr, 10)
-
-  // M'j = 6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12, 4, 9, 1, 2
-  // K' = 0x5c4dd124
-  // S'j = 9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12, 7, 6, 15, 13, 11
-  er = fn4(er, ar, br, cr, dr, m[6], 0x5c4dd124, 9); br = rotl(br, 10)
-  dr = fn4(dr, er, ar, br, cr, m[11], 0x5c4dd124, 13); ar = rotl(ar, 10)
-  cr = fn4(cr, dr, er, ar, br, m[3], 0x5c4dd124, 15); er = rotl(er, 10)
-  br = fn4(br, cr, dr, er, ar, m[7], 0x5c4dd124, 7); dr = rotl(dr, 10)
-  ar = fn4(ar, br, cr, dr, er, m[0], 0x5c4dd124, 12); cr = rotl(cr, 10)
-  er = fn4(er, ar, br, cr, dr, m[13], 0x5c4dd124, 8); br = rotl(br, 10)
-  dr = fn4(dr, er, ar, br, cr, m[5], 0x5c4dd124, 9); ar = rotl(ar, 10)
-  cr = fn4(cr, dr, er, ar, br, m[10], 0x5c4dd124, 11); er = rotl(er, 10)
-  br = fn4(br, cr, dr, er, ar, m[14], 0x5c4dd124, 7); dr = rotl(dr, 10)
-  ar = fn4(ar, br, cr, dr, er, m[15], 0x5c4dd124, 7); cr = rotl(cr, 10)
-  er = fn4(er, ar, br, cr, dr, m[8], 0x5c4dd124, 12); br = rotl(br, 10)
-  dr = fn4(dr, er, ar, br, cr, m[12], 0x5c4dd124, 7); ar = rotl(ar, 10)
-  cr = fn4(cr, dr, er, ar, br, m[4], 0x5c4dd124, 6); er = rotl(er, 10)
-  br = fn4(br, cr, dr, er, ar, m[9], 0x5c4dd124, 15); dr = rotl(dr, 10)
-  ar = fn4(ar, br, cr, dr, er, m[1], 0x5c4dd124, 13); cr = rotl(cr, 10)
-  er = fn4(er, ar, br, cr, dr, m[2], 0x5c4dd124, 11); br = rotl(br, 10)
-
-  // M'j = 15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13
-  // K' = 0x6d703ef3
-  // S'j = 9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5
-  dr = fn3(dr, er, ar, br, cr, m[15], 0x6d703ef3, 9); ar = rotl(ar, 10)
-  cr = fn3(cr, dr, er, ar, br, m[5], 0x6d703ef3, 7); er = rotl(er, 10)
-  br = fn3(br, cr, dr, er, ar, m[1], 0x6d703ef3, 15); dr = rotl(dr, 10)
-  ar = fn3(ar, br, cr, dr, er, m[3], 0x6d703ef3, 11); cr = rotl(cr, 10)
-  er = fn3(er, ar, br, cr, dr, m[7], 0x6d703ef3, 8); br = rotl(br, 10)
-  dr = fn3(dr, er, ar, br, cr, m[14], 0x6d703ef3, 6); ar = rotl(ar, 10)
-  cr = fn3(cr, dr, er, ar, br, m[6], 0x6d703ef3, 6); er = rotl(er, 10)
-  br = fn3(br, cr, dr, er, ar, m[9], 0x6d703ef3, 14); dr = rotl(dr, 10)
-  ar = fn3(ar, br, cr, dr, er, m[11], 0x6d703ef3, 12); cr = rotl(cr, 10)
-  er = fn3(er, ar, br, cr, dr, m[8], 0x6d703ef3, 13); br = rotl(br, 10)
-  dr = fn3(dr, er, ar, br, cr, m[12], 0x6d703ef3, 5); ar = rotl(ar, 10)
-  cr = fn3(cr, dr, er, ar, br, m[2], 0x6d703ef3, 14); er = rotl(er, 10)
-  br = fn3(br, cr, dr, er, ar, m[10], 0x6d703ef3, 13); dr = rotl(dr, 10)
-  ar = fn3(ar, br, cr, dr, er, m[0], 0x6d703ef3, 13); cr = rotl(cr, 10)
-  er = fn3(er, ar, br, cr, dr, m[4], 0x6d703ef3, 7); br = rotl(br, 10)
-  dr = fn3(dr, er, ar, br, cr, m[13], 0x6d703ef3, 5); ar = rotl(ar, 10)
-
-  // M'j = 8, 6, 4, 1, 3, 11, 15, 0, 5, 12, 2, 13, 9, 7, 10, 14
-  // K' = 0x7a6d76e9
-  // S'j = 15, 5, 8, 11, 14, 14, 6, 14, 6, 9, 12, 9, 12, 5, 15, 8
-  cr = fn2(cr, dr, er, ar, br, m[8], 0x7a6d76e9, 15); er = rotl(er, 10)
-  br = fn2(br, cr, dr, er, ar, m[6], 0x7a6d76e9, 5); dr = rotl(dr, 10)
-  ar = fn2(ar, br, cr, dr, er, m[4], 0x7a6d76e9, 8); cr = rotl(cr, 10)
-  er = fn2(er, ar, br, cr, dr, m[1], 0x7a6d76e9, 11); br = rotl(br, 10)
-  dr = fn2(dr, er, ar, br, cr, m[3], 0x7a6d76e9, 14); ar = rotl(ar, 10)
-  cr = fn2(cr, dr, er, ar, br, m[11], 0x7a6d76e9, 14); er = rotl(er, 10)
-  br = fn2(br, cr, dr, er, ar, m[15], 0x7a6d76e9, 6); dr = rotl(dr, 10)
-  ar = fn2(ar, br, cr, dr, er, m[0], 0x7a6d76e9, 14); cr = rotl(cr, 10)
-  er = fn2(er, ar, br, cr, dr, m[5], 0x7a6d76e9, 6); br = rotl(br, 10)
-  dr = fn2(dr, er, ar, br, cr, m[12], 0x7a6d76e9, 9); ar = rotl(ar, 10)
-  cr = fn2(cr, dr, er, ar, br, m[2], 0x7a6d76e9, 12); er = rotl(er, 10)
-  br = fn2(br, cr, dr, er, ar, m[13], 0x7a6d76e9, 9); dr = rotl(dr, 10)
-  ar = fn2(ar, br, cr, dr, er, m[9], 0x7a6d76e9, 12); cr = rotl(cr, 10)
-  er = fn2(er, ar, br, cr, dr, m[7], 0x7a6d76e9, 5); br = rotl(br, 10)
-  dr = fn2(dr, er, ar, br, cr, m[10], 0x7a6d76e9, 15); ar = rotl(ar, 10)
-  cr = fn2(cr, dr, er, ar, br, m[14], 0x7a6d76e9, 8); er = rotl(er, 10)
-
-  // M'j = 12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11
-  // K' = 0x00000000
-  // S'j = 8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11
-  br = fn1(br, cr, dr, er, ar, m[12], 0x00000000, 8); dr = rotl(dr, 10)
-  ar = fn1(ar, br, cr, dr, er, m[15], 0x00000000, 5); cr = rotl(cr, 10)
-  er = fn1(er, ar, br, cr, dr, m[10], 0x00000000, 12); br = rotl(br, 10)
-  dr = fn1(dr, er, ar, br, cr, m[4], 0x00000000, 9); ar = rotl(ar, 10)
-  cr = fn1(cr, dr, er, ar, br, m[1], 0x00000000, 12); er = rotl(er, 10)
-  br = fn1(br, cr, dr, er, ar, m[5], 0x00000000, 5); dr = rotl(dr, 10)
-  ar = fn1(ar, br, cr, dr, er, m[8], 0x00000000, 14); cr = rotl(cr, 10)
-  er = fn1(er, ar, br, cr, dr, m[7], 0x00000000, 6); br = rotl(br, 10)
-  dr = fn1(dr, er, ar, br, cr, m[6], 0x00000000, 8); ar = rotl(ar, 10)
-  cr = fn1(cr, dr, er, ar, br, m[2], 0x00000000, 13); er = rotl(er, 10)
-  br = fn1(br, cr, dr, er, ar, m[13], 0x00000000, 6); dr = rotl(dr, 10)
-  ar = fn1(ar, br, cr, dr, er, m[14], 0x00000000, 5); cr = rotl(cr, 10)
-  er = fn1(er, ar, br, cr, dr, m[0], 0x00000000, 15); br = rotl(br, 10)
-  dr = fn1(dr, er, ar, br, cr, m[3], 0x00000000, 13); ar = rotl(ar, 10)
-  cr = fn1(cr, dr, er, ar, br, m[9], 0x00000000, 11); er = rotl(er, 10)
-  br = fn1(br, cr, dr, er, ar, m[11], 0x00000000, 11); dr = rotl(dr, 10)
-
-  // change state
-  var t = (this._b + cl + dr) | 0
-  this._b = (this._c + dl + er) | 0
-  this._c = (this._d + el + ar) | 0
-  this._d = (this._e + al + br) | 0
-  this._e = (this._a + bl + cr) | 0
-  this._a = t
-}
-
-RIPEMD160.prototype._digest = function () {
-  // create padding and handle blocks
-  this._block[this._blockOffset++] = 0x80
-  if (this._blockOffset > 56) {
-    this._block.fill(0, this._blockOffset, 64)
-    this._update()
-    this._blockOffset = 0
-  }
-
-  this._block.fill(0, this._blockOffset, 56)
-  this._block.writeUInt32LE(this._length[0], 56)
-  this._block.writeUInt32LE(this._length[1], 60)
-  this._update()
-
-  // produce result
-  var buffer = new Buffer(20)
-  buffer.writeInt32LE(this._a, 0)
-  buffer.writeInt32LE(this._b, 4)
-  buffer.writeInt32LE(this._c, 8)
-  buffer.writeInt32LE(this._d, 12)
-  buffer.writeInt32LE(this._e, 16)
-  return buffer
-}
-
-function rotl (x, n) {
-  return (x << n) | (x >>> (32 - n))
-}
-
-function fn1 (a, b, c, d, e, m, k, s) {
-  return (rotl((a + (b ^ c ^ d) + m + k) | 0, s) + e) | 0
-}
-
-function fn2 (a, b, c, d, e, m, k, s) {
-  return (rotl((a + ((b & c) | ((~b) & d)) + m + k) | 0, s) + e) | 0
-}
-
-function fn3 (a, b, c, d, e, m, k, s) {
-  return (rotl((a + ((b | (~c)) ^ d) + m + k) | 0, s) + e) | 0
-}
-
-function fn4 (a, b, c, d, e, m, k, s) {
-  return (rotl((a + ((b & d) | (c & (~d))) + m + k) | 0, s) + e) | 0
-}
-
-function fn5 (a, b, c, d, e, m, k, s) {
-  return (rotl((a + (b ^ (c | (~d))) + m + k) | 0, s) + e) | 0
-}
-
-module.exports = RIPEMD160
 
 
 /***/ }),
@@ -79033,6 +78743,12 @@ function i2ops (c) {
     // Handle the residue
     if (bitsLeft > 0) {
       this.words[i] = ~this.words[i] & (0x3ffffff >> (26 - bitsLeft));
+      i++;
+    }
+
+    // Clear words above the requested width so the result stays below 2 ** width
+    for (; i < this.length; i++) {
+      this.words[i] = 0;
     }
 
     // And remove leading zeroes
@@ -80126,6 +79842,10 @@ function i2ops (c) {
       this.words[i] = carry;
       this.length++;
     }
+    if (num === 0) {
+      this.length = 1;
+      this._normSign();
+    }
 
     return this;
   };
@@ -80331,6 +80051,11 @@ function i2ops (c) {
     if (r !== 0) {
       var mask = 0x3ffffff ^ ((0x3ffffff >>> r) << r);
       this.words[this.length - 1] &= mask;
+    }
+
+    if (this.length === 0) {
+      this.words[0] = 0;
+      this.length = 1;
     }
 
     return this.strip();
@@ -80659,17 +80384,19 @@ function i2ops (c) {
     // Fast case - exact division
     if (dm.mod.isZero()) return dm.div;
 
-    var mod = dm.div.negative !== 0 ? dm.mod.isub(num) : dm.mod;
+    var mod = dm.mod.abs();
 
-    var half = num.ushrn(1);
-    var r2 = num.andln(1);
+    var half = num.abs().iushrn(1);
+    var r2 = num.words[0] & 1;
     var cmp = mod.cmp(half);
 
     // Round down
     if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
 
-    // Round up
-    return dm.div.negative !== 0 ? dm.div.isubn(1) : dm.div.iaddn(1);
+    // Round up, away from zero
+    var up = new BN(1);
+    up.negative = this.negative ^ num.negative;
+    return dm.div.iadd(up);
   };
 
   BN.prototype.modn = function modn (num) {
@@ -85613,47 +85340,10 @@ var Reflect;
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
+/* provided dependency */ var Buffer = __webpack_require__(8287)["Buffer"];
 
-var Buffer = (__webpack_require__(8287).Buffer)
 var inherits = __webpack_require__(6698)
-var HashBase = __webpack_require__(4729)
-
-var ARRAY16 = new Array(16)
-
-var zl = [
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-  7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5, 2, 14, 11, 8,
-  3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12,
-  1, 9, 11, 10, 0, 8, 12, 4, 13, 3, 7, 15, 14, 5, 6, 2,
-  4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13
-]
-
-var zr = [
-  5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12,
-  6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12, 4, 9, 1, 2,
-  15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13,
-  8, 6, 4, 1, 3, 11, 15, 0, 5, 12, 2, 13, 9, 7, 10, 14,
-  12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11
-]
-
-var sl = [
-  11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8,
-  7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15, 9, 11, 7, 13, 12,
-  11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5,
-  11, 12, 14, 15, 14, 15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12,
-  9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6
-]
-
-var sr = [
-  8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6,
-  9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12, 7, 6, 15, 13, 11,
-  9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5,
-  15, 5, 8, 11, 14, 14, 6, 14, 6, 9, 12, 9, 12, 5, 15, 8,
-  8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11
-]
-
-var hl = [0x00000000, 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xa953fd4e]
-var hr = [0x50a28be6, 0x5c4dd124, 0x6d703ef3, 0x7a6d76e9, 0x00000000]
+var HashBase = __webpack_require__(1147)
 
 function RIPEMD160 () {
   HashBase.call(this, 64)
@@ -85669,56 +85359,222 @@ function RIPEMD160 () {
 inherits(RIPEMD160, HashBase)
 
 RIPEMD160.prototype._update = function () {
-  var words = ARRAY16
-  for (var j = 0; j < 16; ++j) words[j] = this._block.readInt32LE(j * 4)
+  var m = new Array(16)
+  for (var i = 0; i < 16; ++i) m[i] = this._block.readInt32LE(i * 4)
 
-  var al = this._a | 0
-  var bl = this._b | 0
-  var cl = this._c | 0
-  var dl = this._d | 0
-  var el = this._e | 0
+  var al = this._a
+  var bl = this._b
+  var cl = this._c
+  var dl = this._d
+  var el = this._e
 
-  var ar = this._a | 0
-  var br = this._b | 0
-  var cr = this._c | 0
-  var dr = this._d | 0
-  var er = this._e | 0
+  // Mj = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+  // K = 0x00000000
+  // Sj = 11, 14, 15, 12, 5, 8, 7, 9, 11, 13, 14, 15, 6, 7, 9, 8
+  al = fn1(al, bl, cl, dl, el, m[0], 0x00000000, 11); cl = rotl(cl, 10)
+  el = fn1(el, al, bl, cl, dl, m[1], 0x00000000, 14); bl = rotl(bl, 10)
+  dl = fn1(dl, el, al, bl, cl, m[2], 0x00000000, 15); al = rotl(al, 10)
+  cl = fn1(cl, dl, el, al, bl, m[3], 0x00000000, 12); el = rotl(el, 10)
+  bl = fn1(bl, cl, dl, el, al, m[4], 0x00000000, 5); dl = rotl(dl, 10)
+  al = fn1(al, bl, cl, dl, el, m[5], 0x00000000, 8); cl = rotl(cl, 10)
+  el = fn1(el, al, bl, cl, dl, m[6], 0x00000000, 7); bl = rotl(bl, 10)
+  dl = fn1(dl, el, al, bl, cl, m[7], 0x00000000, 9); al = rotl(al, 10)
+  cl = fn1(cl, dl, el, al, bl, m[8], 0x00000000, 11); el = rotl(el, 10)
+  bl = fn1(bl, cl, dl, el, al, m[9], 0x00000000, 13); dl = rotl(dl, 10)
+  al = fn1(al, bl, cl, dl, el, m[10], 0x00000000, 14); cl = rotl(cl, 10)
+  el = fn1(el, al, bl, cl, dl, m[11], 0x00000000, 15); bl = rotl(bl, 10)
+  dl = fn1(dl, el, al, bl, cl, m[12], 0x00000000, 6); al = rotl(al, 10)
+  cl = fn1(cl, dl, el, al, bl, m[13], 0x00000000, 7); el = rotl(el, 10)
+  bl = fn1(bl, cl, dl, el, al, m[14], 0x00000000, 9); dl = rotl(dl, 10)
+  al = fn1(al, bl, cl, dl, el, m[15], 0x00000000, 8); cl = rotl(cl, 10)
 
-  // computation
-  for (var i = 0; i < 80; i += 1) {
-    var tl
-    var tr
-    if (i < 16) {
-      tl = fn1(al, bl, cl, dl, el, words[zl[i]], hl[0], sl[i])
-      tr = fn5(ar, br, cr, dr, er, words[zr[i]], hr[0], sr[i])
-    } else if (i < 32) {
-      tl = fn2(al, bl, cl, dl, el, words[zl[i]], hl[1], sl[i])
-      tr = fn4(ar, br, cr, dr, er, words[zr[i]], hr[1], sr[i])
-    } else if (i < 48) {
-      tl = fn3(al, bl, cl, dl, el, words[zl[i]], hl[2], sl[i])
-      tr = fn3(ar, br, cr, dr, er, words[zr[i]], hr[2], sr[i])
-    } else if (i < 64) {
-      tl = fn4(al, bl, cl, dl, el, words[zl[i]], hl[3], sl[i])
-      tr = fn2(ar, br, cr, dr, er, words[zr[i]], hr[3], sr[i])
-    } else { // if (i<80) {
-      tl = fn5(al, bl, cl, dl, el, words[zl[i]], hl[4], sl[i])
-      tr = fn1(ar, br, cr, dr, er, words[zr[i]], hr[4], sr[i])
-    }
+  // Mj = 7, 4, 13, 1, 10, 6, 15, 3, 12, 0, 9, 5, 2, 14, 11, 8
+  // K = 0x5a827999
+  // Sj = 7, 6, 8, 13, 11, 9, 7, 15, 7, 12, 15, 9, 11, 7, 13, 12
+  el = fn2(el, al, bl, cl, dl, m[7], 0x5a827999, 7); bl = rotl(bl, 10)
+  dl = fn2(dl, el, al, bl, cl, m[4], 0x5a827999, 6); al = rotl(al, 10)
+  cl = fn2(cl, dl, el, al, bl, m[13], 0x5a827999, 8); el = rotl(el, 10)
+  bl = fn2(bl, cl, dl, el, al, m[1], 0x5a827999, 13); dl = rotl(dl, 10)
+  al = fn2(al, bl, cl, dl, el, m[10], 0x5a827999, 11); cl = rotl(cl, 10)
+  el = fn2(el, al, bl, cl, dl, m[6], 0x5a827999, 9); bl = rotl(bl, 10)
+  dl = fn2(dl, el, al, bl, cl, m[15], 0x5a827999, 7); al = rotl(al, 10)
+  cl = fn2(cl, dl, el, al, bl, m[3], 0x5a827999, 15); el = rotl(el, 10)
+  bl = fn2(bl, cl, dl, el, al, m[12], 0x5a827999, 7); dl = rotl(dl, 10)
+  al = fn2(al, bl, cl, dl, el, m[0], 0x5a827999, 12); cl = rotl(cl, 10)
+  el = fn2(el, al, bl, cl, dl, m[9], 0x5a827999, 15); bl = rotl(bl, 10)
+  dl = fn2(dl, el, al, bl, cl, m[5], 0x5a827999, 9); al = rotl(al, 10)
+  cl = fn2(cl, dl, el, al, bl, m[2], 0x5a827999, 11); el = rotl(el, 10)
+  bl = fn2(bl, cl, dl, el, al, m[14], 0x5a827999, 7); dl = rotl(dl, 10)
+  al = fn2(al, bl, cl, dl, el, m[11], 0x5a827999, 13); cl = rotl(cl, 10)
+  el = fn2(el, al, bl, cl, dl, m[8], 0x5a827999, 12); bl = rotl(bl, 10)
 
-    al = el
-    el = dl
-    dl = rotl(cl, 10)
-    cl = bl
-    bl = tl
+  // Mj = 3, 10, 14, 4, 9, 15, 8, 1, 2, 7, 0, 6, 13, 11, 5, 12
+  // K = 0x6ed9eba1
+  // Sj = 11, 13, 6, 7, 14, 9, 13, 15, 14, 8, 13, 6, 5, 12, 7, 5
+  dl = fn3(dl, el, al, bl, cl, m[3], 0x6ed9eba1, 11); al = rotl(al, 10)
+  cl = fn3(cl, dl, el, al, bl, m[10], 0x6ed9eba1, 13); el = rotl(el, 10)
+  bl = fn3(bl, cl, dl, el, al, m[14], 0x6ed9eba1, 6); dl = rotl(dl, 10)
+  al = fn3(al, bl, cl, dl, el, m[4], 0x6ed9eba1, 7); cl = rotl(cl, 10)
+  el = fn3(el, al, bl, cl, dl, m[9], 0x6ed9eba1, 14); bl = rotl(bl, 10)
+  dl = fn3(dl, el, al, bl, cl, m[15], 0x6ed9eba1, 9); al = rotl(al, 10)
+  cl = fn3(cl, dl, el, al, bl, m[8], 0x6ed9eba1, 13); el = rotl(el, 10)
+  bl = fn3(bl, cl, dl, el, al, m[1], 0x6ed9eba1, 15); dl = rotl(dl, 10)
+  al = fn3(al, bl, cl, dl, el, m[2], 0x6ed9eba1, 14); cl = rotl(cl, 10)
+  el = fn3(el, al, bl, cl, dl, m[7], 0x6ed9eba1, 8); bl = rotl(bl, 10)
+  dl = fn3(dl, el, al, bl, cl, m[0], 0x6ed9eba1, 13); al = rotl(al, 10)
+  cl = fn3(cl, dl, el, al, bl, m[6], 0x6ed9eba1, 6); el = rotl(el, 10)
+  bl = fn3(bl, cl, dl, el, al, m[13], 0x6ed9eba1, 5); dl = rotl(dl, 10)
+  al = fn3(al, bl, cl, dl, el, m[11], 0x6ed9eba1, 12); cl = rotl(cl, 10)
+  el = fn3(el, al, bl, cl, dl, m[5], 0x6ed9eba1, 7); bl = rotl(bl, 10)
+  dl = fn3(dl, el, al, bl, cl, m[12], 0x6ed9eba1, 5); al = rotl(al, 10)
 
-    ar = er
-    er = dr
-    dr = rotl(cr, 10)
-    cr = br
-    br = tr
-  }
+  // Mj = 1, 9, 11, 10, 0, 8, 12, 4, 13, 3, 7, 15, 14, 5, 6, 2
+  // K = 0x8f1bbcdc
+  // Sj = 11, 12, 14, 15, 14, 15, 9, 8, 9, 14, 5, 6, 8, 6, 5, 12
+  cl = fn4(cl, dl, el, al, bl, m[1], 0x8f1bbcdc, 11); el = rotl(el, 10)
+  bl = fn4(bl, cl, dl, el, al, m[9], 0x8f1bbcdc, 12); dl = rotl(dl, 10)
+  al = fn4(al, bl, cl, dl, el, m[11], 0x8f1bbcdc, 14); cl = rotl(cl, 10)
+  el = fn4(el, al, bl, cl, dl, m[10], 0x8f1bbcdc, 15); bl = rotl(bl, 10)
+  dl = fn4(dl, el, al, bl, cl, m[0], 0x8f1bbcdc, 14); al = rotl(al, 10)
+  cl = fn4(cl, dl, el, al, bl, m[8], 0x8f1bbcdc, 15); el = rotl(el, 10)
+  bl = fn4(bl, cl, dl, el, al, m[12], 0x8f1bbcdc, 9); dl = rotl(dl, 10)
+  al = fn4(al, bl, cl, dl, el, m[4], 0x8f1bbcdc, 8); cl = rotl(cl, 10)
+  el = fn4(el, al, bl, cl, dl, m[13], 0x8f1bbcdc, 9); bl = rotl(bl, 10)
+  dl = fn4(dl, el, al, bl, cl, m[3], 0x8f1bbcdc, 14); al = rotl(al, 10)
+  cl = fn4(cl, dl, el, al, bl, m[7], 0x8f1bbcdc, 5); el = rotl(el, 10)
+  bl = fn4(bl, cl, dl, el, al, m[15], 0x8f1bbcdc, 6); dl = rotl(dl, 10)
+  al = fn4(al, bl, cl, dl, el, m[14], 0x8f1bbcdc, 8); cl = rotl(cl, 10)
+  el = fn4(el, al, bl, cl, dl, m[5], 0x8f1bbcdc, 6); bl = rotl(bl, 10)
+  dl = fn4(dl, el, al, bl, cl, m[6], 0x8f1bbcdc, 5); al = rotl(al, 10)
+  cl = fn4(cl, dl, el, al, bl, m[2], 0x8f1bbcdc, 12); el = rotl(el, 10)
 
-  // update state
+  // Mj = 4, 0, 5, 9, 7, 12, 2, 10, 14, 1, 3, 8, 11, 6, 15, 13
+  // K = 0xa953fd4e
+  // Sj = 9, 15, 5, 11, 6, 8, 13, 12, 5, 12, 13, 14, 11, 8, 5, 6
+  bl = fn5(bl, cl, dl, el, al, m[4], 0xa953fd4e, 9); dl = rotl(dl, 10)
+  al = fn5(al, bl, cl, dl, el, m[0], 0xa953fd4e, 15); cl = rotl(cl, 10)
+  el = fn5(el, al, bl, cl, dl, m[5], 0xa953fd4e, 5); bl = rotl(bl, 10)
+  dl = fn5(dl, el, al, bl, cl, m[9], 0xa953fd4e, 11); al = rotl(al, 10)
+  cl = fn5(cl, dl, el, al, bl, m[7], 0xa953fd4e, 6); el = rotl(el, 10)
+  bl = fn5(bl, cl, dl, el, al, m[12], 0xa953fd4e, 8); dl = rotl(dl, 10)
+  al = fn5(al, bl, cl, dl, el, m[2], 0xa953fd4e, 13); cl = rotl(cl, 10)
+  el = fn5(el, al, bl, cl, dl, m[10], 0xa953fd4e, 12); bl = rotl(bl, 10)
+  dl = fn5(dl, el, al, bl, cl, m[14], 0xa953fd4e, 5); al = rotl(al, 10)
+  cl = fn5(cl, dl, el, al, bl, m[1], 0xa953fd4e, 12); el = rotl(el, 10)
+  bl = fn5(bl, cl, dl, el, al, m[3], 0xa953fd4e, 13); dl = rotl(dl, 10)
+  al = fn5(al, bl, cl, dl, el, m[8], 0xa953fd4e, 14); cl = rotl(cl, 10)
+  el = fn5(el, al, bl, cl, dl, m[11], 0xa953fd4e, 11); bl = rotl(bl, 10)
+  dl = fn5(dl, el, al, bl, cl, m[6], 0xa953fd4e, 8); al = rotl(al, 10)
+  cl = fn5(cl, dl, el, al, bl, m[15], 0xa953fd4e, 5); el = rotl(el, 10)
+  bl = fn5(bl, cl, dl, el, al, m[13], 0xa953fd4e, 6); dl = rotl(dl, 10)
+
+  var ar = this._a
+  var br = this._b
+  var cr = this._c
+  var dr = this._d
+  var er = this._e
+
+  // M'j = 5, 14, 7, 0, 9, 2, 11, 4, 13, 6, 15, 8, 1, 10, 3, 12
+  // K' = 0x50a28be6
+  // S'j = 8, 9, 9, 11, 13, 15, 15, 5, 7, 7, 8, 11, 14, 14, 12, 6
+  ar = fn5(ar, br, cr, dr, er, m[5], 0x50a28be6, 8); cr = rotl(cr, 10)
+  er = fn5(er, ar, br, cr, dr, m[14], 0x50a28be6, 9); br = rotl(br, 10)
+  dr = fn5(dr, er, ar, br, cr, m[7], 0x50a28be6, 9); ar = rotl(ar, 10)
+  cr = fn5(cr, dr, er, ar, br, m[0], 0x50a28be6, 11); er = rotl(er, 10)
+  br = fn5(br, cr, dr, er, ar, m[9], 0x50a28be6, 13); dr = rotl(dr, 10)
+  ar = fn5(ar, br, cr, dr, er, m[2], 0x50a28be6, 15); cr = rotl(cr, 10)
+  er = fn5(er, ar, br, cr, dr, m[11], 0x50a28be6, 15); br = rotl(br, 10)
+  dr = fn5(dr, er, ar, br, cr, m[4], 0x50a28be6, 5); ar = rotl(ar, 10)
+  cr = fn5(cr, dr, er, ar, br, m[13], 0x50a28be6, 7); er = rotl(er, 10)
+  br = fn5(br, cr, dr, er, ar, m[6], 0x50a28be6, 7); dr = rotl(dr, 10)
+  ar = fn5(ar, br, cr, dr, er, m[15], 0x50a28be6, 8); cr = rotl(cr, 10)
+  er = fn5(er, ar, br, cr, dr, m[8], 0x50a28be6, 11); br = rotl(br, 10)
+  dr = fn5(dr, er, ar, br, cr, m[1], 0x50a28be6, 14); ar = rotl(ar, 10)
+  cr = fn5(cr, dr, er, ar, br, m[10], 0x50a28be6, 14); er = rotl(er, 10)
+  br = fn5(br, cr, dr, er, ar, m[3], 0x50a28be6, 12); dr = rotl(dr, 10)
+  ar = fn5(ar, br, cr, dr, er, m[12], 0x50a28be6, 6); cr = rotl(cr, 10)
+
+  // M'j = 6, 11, 3, 7, 0, 13, 5, 10, 14, 15, 8, 12, 4, 9, 1, 2
+  // K' = 0x5c4dd124
+  // S'j = 9, 13, 15, 7, 12, 8, 9, 11, 7, 7, 12, 7, 6, 15, 13, 11
+  er = fn4(er, ar, br, cr, dr, m[6], 0x5c4dd124, 9); br = rotl(br, 10)
+  dr = fn4(dr, er, ar, br, cr, m[11], 0x5c4dd124, 13); ar = rotl(ar, 10)
+  cr = fn4(cr, dr, er, ar, br, m[3], 0x5c4dd124, 15); er = rotl(er, 10)
+  br = fn4(br, cr, dr, er, ar, m[7], 0x5c4dd124, 7); dr = rotl(dr, 10)
+  ar = fn4(ar, br, cr, dr, er, m[0], 0x5c4dd124, 12); cr = rotl(cr, 10)
+  er = fn4(er, ar, br, cr, dr, m[13], 0x5c4dd124, 8); br = rotl(br, 10)
+  dr = fn4(dr, er, ar, br, cr, m[5], 0x5c4dd124, 9); ar = rotl(ar, 10)
+  cr = fn4(cr, dr, er, ar, br, m[10], 0x5c4dd124, 11); er = rotl(er, 10)
+  br = fn4(br, cr, dr, er, ar, m[14], 0x5c4dd124, 7); dr = rotl(dr, 10)
+  ar = fn4(ar, br, cr, dr, er, m[15], 0x5c4dd124, 7); cr = rotl(cr, 10)
+  er = fn4(er, ar, br, cr, dr, m[8], 0x5c4dd124, 12); br = rotl(br, 10)
+  dr = fn4(dr, er, ar, br, cr, m[12], 0x5c4dd124, 7); ar = rotl(ar, 10)
+  cr = fn4(cr, dr, er, ar, br, m[4], 0x5c4dd124, 6); er = rotl(er, 10)
+  br = fn4(br, cr, dr, er, ar, m[9], 0x5c4dd124, 15); dr = rotl(dr, 10)
+  ar = fn4(ar, br, cr, dr, er, m[1], 0x5c4dd124, 13); cr = rotl(cr, 10)
+  er = fn4(er, ar, br, cr, dr, m[2], 0x5c4dd124, 11); br = rotl(br, 10)
+
+  // M'j = 15, 5, 1, 3, 7, 14, 6, 9, 11, 8, 12, 2, 10, 0, 4, 13
+  // K' = 0x6d703ef3
+  // S'j = 9, 7, 15, 11, 8, 6, 6, 14, 12, 13, 5, 14, 13, 13, 7, 5
+  dr = fn3(dr, er, ar, br, cr, m[15], 0x6d703ef3, 9); ar = rotl(ar, 10)
+  cr = fn3(cr, dr, er, ar, br, m[5], 0x6d703ef3, 7); er = rotl(er, 10)
+  br = fn3(br, cr, dr, er, ar, m[1], 0x6d703ef3, 15); dr = rotl(dr, 10)
+  ar = fn3(ar, br, cr, dr, er, m[3], 0x6d703ef3, 11); cr = rotl(cr, 10)
+  er = fn3(er, ar, br, cr, dr, m[7], 0x6d703ef3, 8); br = rotl(br, 10)
+  dr = fn3(dr, er, ar, br, cr, m[14], 0x6d703ef3, 6); ar = rotl(ar, 10)
+  cr = fn3(cr, dr, er, ar, br, m[6], 0x6d703ef3, 6); er = rotl(er, 10)
+  br = fn3(br, cr, dr, er, ar, m[9], 0x6d703ef3, 14); dr = rotl(dr, 10)
+  ar = fn3(ar, br, cr, dr, er, m[11], 0x6d703ef3, 12); cr = rotl(cr, 10)
+  er = fn3(er, ar, br, cr, dr, m[8], 0x6d703ef3, 13); br = rotl(br, 10)
+  dr = fn3(dr, er, ar, br, cr, m[12], 0x6d703ef3, 5); ar = rotl(ar, 10)
+  cr = fn3(cr, dr, er, ar, br, m[2], 0x6d703ef3, 14); er = rotl(er, 10)
+  br = fn3(br, cr, dr, er, ar, m[10], 0x6d703ef3, 13); dr = rotl(dr, 10)
+  ar = fn3(ar, br, cr, dr, er, m[0], 0x6d703ef3, 13); cr = rotl(cr, 10)
+  er = fn3(er, ar, br, cr, dr, m[4], 0x6d703ef3, 7); br = rotl(br, 10)
+  dr = fn3(dr, er, ar, br, cr, m[13], 0x6d703ef3, 5); ar = rotl(ar, 10)
+
+  // M'j = 8, 6, 4, 1, 3, 11, 15, 0, 5, 12, 2, 13, 9, 7, 10, 14
+  // K' = 0x7a6d76e9
+  // S'j = 15, 5, 8, 11, 14, 14, 6, 14, 6, 9, 12, 9, 12, 5, 15, 8
+  cr = fn2(cr, dr, er, ar, br, m[8], 0x7a6d76e9, 15); er = rotl(er, 10)
+  br = fn2(br, cr, dr, er, ar, m[6], 0x7a6d76e9, 5); dr = rotl(dr, 10)
+  ar = fn2(ar, br, cr, dr, er, m[4], 0x7a6d76e9, 8); cr = rotl(cr, 10)
+  er = fn2(er, ar, br, cr, dr, m[1], 0x7a6d76e9, 11); br = rotl(br, 10)
+  dr = fn2(dr, er, ar, br, cr, m[3], 0x7a6d76e9, 14); ar = rotl(ar, 10)
+  cr = fn2(cr, dr, er, ar, br, m[11], 0x7a6d76e9, 14); er = rotl(er, 10)
+  br = fn2(br, cr, dr, er, ar, m[15], 0x7a6d76e9, 6); dr = rotl(dr, 10)
+  ar = fn2(ar, br, cr, dr, er, m[0], 0x7a6d76e9, 14); cr = rotl(cr, 10)
+  er = fn2(er, ar, br, cr, dr, m[5], 0x7a6d76e9, 6); br = rotl(br, 10)
+  dr = fn2(dr, er, ar, br, cr, m[12], 0x7a6d76e9, 9); ar = rotl(ar, 10)
+  cr = fn2(cr, dr, er, ar, br, m[2], 0x7a6d76e9, 12); er = rotl(er, 10)
+  br = fn2(br, cr, dr, er, ar, m[13], 0x7a6d76e9, 9); dr = rotl(dr, 10)
+  ar = fn2(ar, br, cr, dr, er, m[9], 0x7a6d76e9, 12); cr = rotl(cr, 10)
+  er = fn2(er, ar, br, cr, dr, m[7], 0x7a6d76e9, 5); br = rotl(br, 10)
+  dr = fn2(dr, er, ar, br, cr, m[10], 0x7a6d76e9, 15); ar = rotl(ar, 10)
+  cr = fn2(cr, dr, er, ar, br, m[14], 0x7a6d76e9, 8); er = rotl(er, 10)
+
+  // M'j = 12, 15, 10, 4, 1, 5, 8, 7, 6, 2, 13, 14, 0, 3, 9, 11
+  // K' = 0x00000000
+  // S'j = 8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11
+  br = fn1(br, cr, dr, er, ar, m[12], 0x00000000, 8); dr = rotl(dr, 10)
+  ar = fn1(ar, br, cr, dr, er, m[15], 0x00000000, 5); cr = rotl(cr, 10)
+  er = fn1(er, ar, br, cr, dr, m[10], 0x00000000, 12); br = rotl(br, 10)
+  dr = fn1(dr, er, ar, br, cr, m[4], 0x00000000, 9); ar = rotl(ar, 10)
+  cr = fn1(cr, dr, er, ar, br, m[1], 0x00000000, 12); er = rotl(er, 10)
+  br = fn1(br, cr, dr, er, ar, m[5], 0x00000000, 5); dr = rotl(dr, 10)
+  ar = fn1(ar, br, cr, dr, er, m[8], 0x00000000, 14); cr = rotl(cr, 10)
+  er = fn1(er, ar, br, cr, dr, m[7], 0x00000000, 6); br = rotl(br, 10)
+  dr = fn1(dr, er, ar, br, cr, m[6], 0x00000000, 8); ar = rotl(ar, 10)
+  cr = fn1(cr, dr, er, ar, br, m[2], 0x00000000, 13); er = rotl(er, 10)
+  br = fn1(br, cr, dr, er, ar, m[13], 0x00000000, 6); dr = rotl(dr, 10)
+  ar = fn1(ar, br, cr, dr, er, m[14], 0x00000000, 5); cr = rotl(cr, 10)
+  er = fn1(er, ar, br, cr, dr, m[0], 0x00000000, 15); br = rotl(br, 10)
+  dr = fn1(dr, er, ar, br, cr, m[3], 0x00000000, 13); ar = rotl(ar, 10)
+  cr = fn1(cr, dr, er, ar, br, m[9], 0x00000000, 11); er = rotl(er, 10)
+  br = fn1(br, cr, dr, er, ar, m[11], 0x00000000, 11); dr = rotl(dr, 10)
+
+  // change state
   var t = (this._b + cl + dr) | 0
   this._b = (this._c + dl + er) | 0
   this._c = (this._d + el + ar) | 0
@@ -85742,7 +85598,7 @@ RIPEMD160.prototype._digest = function () {
   this._update()
 
   // produce result
-  var buffer = Buffer.alloc ? Buffer.alloc(20) : new Buffer(20)
+  var buffer = new Buffer(20)
   buffer.writeInt32LE(this._a, 0)
   buffer.writeInt32LE(this._b, 4)
   buffer.writeInt32LE(this._c, 8)
@@ -85776,6 +85632,98 @@ function fn5 (a, b, c, d, e, m, k, s) {
 }
 
 module.exports = RIPEMD160
+
+
+/***/ }),
+
+/***/ 1147:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/* provided dependency */ var Buffer = __webpack_require__(8287)["Buffer"];
+
+var Transform = (__webpack_require__(8310).Transform)
+var inherits = __webpack_require__(6698)
+
+function HashBase (blockSize) {
+  Transform.call(this)
+
+  this._block = new Buffer(blockSize)
+  this._blockSize = blockSize
+  this._blockOffset = 0
+  this._length = [0, 0, 0, 0]
+
+  this._finalized = false
+}
+
+inherits(HashBase, Transform)
+
+HashBase.prototype._transform = function (chunk, encoding, callback) {
+  var error = null
+  try {
+    if (encoding !== 'buffer') chunk = new Buffer(chunk, encoding)
+    this.update(chunk)
+  } catch (err) {
+    error = err
+  }
+
+  callback(error)
+}
+
+HashBase.prototype._flush = function (callback) {
+  var error = null
+  try {
+    this.push(this._digest())
+  } catch (err) {
+    error = err
+  }
+
+  callback(error)
+}
+
+HashBase.prototype.update = function (data, encoding) {
+  if (!Buffer.isBuffer(data) && typeof data !== 'string') throw new TypeError('Data must be a string or a buffer')
+  if (this._finalized) throw new Error('Digest already called')
+  if (!Buffer.isBuffer(data)) data = new Buffer(data, encoding || 'binary')
+
+  // consume data
+  var block = this._block
+  var offset = 0
+  while (this._blockOffset + data.length - offset >= this._blockSize) {
+    for (var i = this._blockOffset; i < this._blockSize;) block[i++] = data[offset++]
+    this._update()
+    this._blockOffset = 0
+  }
+  while (offset < data.length) block[this._blockOffset++] = data[offset++]
+
+  // update length
+  for (var j = 0, carry = data.length * 8; carry > 0; ++j) {
+    this._length[j] += carry
+    carry = (this._length[j] / 0x0100000000) | 0
+    if (carry > 0) this._length[j] -= 0x0100000000 * carry
+  }
+
+  return this
+}
+
+HashBase.prototype._update = function (data) {
+  throw new Error('_update is not implemented')
+}
+
+HashBase.prototype.digest = function (encoding) {
+  if (this._finalized) throw new Error('Digest already called')
+  this._finalized = true
+
+  var digest = this._digest()
+  if (encoding !== undefined) digest = digest.toString(encoding)
+  return digest
+}
+
+HashBase.prototype._digest = function () {
+  throw new Error('_digest is not implemented')
+}
+
+module.exports = HashBase
 
 
 /***/ }),
@@ -99580,1441 +99528,1622 @@ exports.getDefaultSeed = getDefaultSeed;
 /***/ }),
 
 /***/ 5017:
-/***/ ((module, exports) => {
+/***/ (function(module, exports) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;// GENERATED FILE. DO NOT EDIT.
-var Long = (function(exports) {
-  "use strict";
-  
-  Object.defineProperty(exports, "__esModule", {
-    value: true
-  });
-  exports.default = void 0;
-  
-  /**
-   * @license
-   * Copyright 2009 The Closure Library Authors
-   * Copyright 2020 Daniel Wirtz / The long.js Authors.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *     http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   *
-   * SPDX-License-Identifier: Apache-2.0
-   */
-  // WebAssembly optimizations to do native i64 multiplication and divide
-  var wasm = null;
-  
-  try {
-    wasm = new WebAssembly.Instance(new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 13, 2, 96, 0, 1, 127, 96, 4, 127, 127, 127, 127, 1, 127, 3, 7, 6, 0, 1, 1, 1, 1, 1, 6, 6, 1, 127, 1, 65, 0, 11, 7, 50, 6, 3, 109, 117, 108, 0, 1, 5, 100, 105, 118, 95, 115, 0, 2, 5, 100, 105, 118, 95, 117, 0, 3, 5, 114, 101, 109, 95, 115, 0, 4, 5, 114, 101, 109, 95, 117, 0, 5, 8, 103, 101, 116, 95, 104, 105, 103, 104, 0, 0, 10, 191, 1, 6, 4, 0, 35, 0, 11, 36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173, 32, 3, 173, 66, 32, 134, 132, 126, 34, 4, 66, 32, 135, 167, 36, 0, 32, 4, 167, 11, 36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173, 32, 3, 173, 66, 32, 134, 132, 127, 34, 4, 66, 32, 135, 167, 36, 0, 32, 4, 167, 11, 36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173, 32, 3, 173, 66, 32, 134, 132, 128, 34, 4, 66, 32, 135, 167, 36, 0, 32, 4, 167, 11, 36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173, 32, 3, 173, 66, 32, 134, 132, 129, 34, 4, 66, 32, 135, 167, 36, 0, 32, 4, 167, 11, 36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173, 32, 3, 173, 66, 32, 134, 132, 130, 34, 4, 66, 32, 135, 167, 36, 0, 32, 4, 167, 11])), {}).exports;
-  } catch (e) {// no wasm support :(
+(function (global, factory) {
+  function preferDefault(exports) {
+    return exports.default || exports;
   }
-  /**
-   * Constructs a 64 bit two's-complement integer, given its low and high 32 bit values as *signed* integers.
-   *  See the from* functions below for more convenient ways of constructing Longs.
-   * @exports Long
-   * @class A Long class for representing a 64 bit two's-complement integer value.
-   * @param {number} low The low (signed) 32 bits of the long
-   * @param {number} high The high (signed) 32 bits of the long
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @constructor
-   */
-  
-  
-  function Long(low, high, unsigned) {
+  if (true) {
+    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [], __WEBPACK_AMD_DEFINE_RESULT__ = (function () {
+      var exports = {};
+      factory(exports);
+      return preferDefault(exports);
+    }).apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+  } else {}
+})(
+  typeof globalThis !== "undefined"
+    ? globalThis
+    : typeof self !== "undefined"
+      ? self
+      : this,
+  function (_exports) {
+    "use strict";
+
+    Object.defineProperty(_exports, "__esModule", {
+      value: true,
+    });
+    _exports.default = void 0;
     /**
-     * The low 32 bits as a signed value.
-     * @type {number}
+     * @license
+     * Copyright 2009 The Closure Library Authors
+     * Copyright 2020 Daniel Wirtz / The long.js Authors.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     * SPDX-License-Identifier: Apache-2.0
      */
-    this.low = low | 0;
+
+    // WebAssembly optimizations to do native i64 multiplication and divide
+    var wasm = null;
+    try {
+      wasm = new WebAssembly.Instance(
+        new WebAssembly.Module(
+          new Uint8Array([
+            // \0asm
+            0, 97, 115, 109,
+            // version 1
+            1, 0, 0, 0,
+            // section "type"
+            1, 13, 2,
+            // 0, () => i32
+            96, 0, 1, 127,
+            // 1, (i32, i32, i32, i32) => i32
+            96, 4, 127, 127, 127, 127, 1, 127,
+            // section "function"
+            3, 7, 6,
+            // 0, type 0
+            0,
+            // 1, type 1
+            1,
+            // 2, type 1
+            1,
+            // 3, type 1
+            1,
+            // 4, type 1
+            1,
+            // 5, type 1
+            1,
+            // section "global"
+            6, 6, 1,
+            // 0, "high", mutable i32
+            127, 1, 65, 0, 11,
+            // section "export"
+            7, 50, 6,
+            // 0, "mul"
+            3, 109, 117, 108, 0, 1,
+            // 1, "div_s"
+            5, 100, 105, 118, 95, 115, 0, 2,
+            // 2, "div_u"
+            5, 100, 105, 118, 95, 117, 0, 3,
+            // 3, "rem_s"
+            5, 114, 101, 109, 95, 115, 0, 4,
+            // 4, "rem_u"
+            5, 114, 101, 109, 95, 117, 0, 5,
+            // 5, "get_high"
+            8, 103, 101, 116, 95, 104, 105, 103, 104, 0, 0,
+            // section "code"
+            10, 191, 1, 6,
+            // 0, "get_high"
+            4, 0, 35, 0, 11,
+            // 1, "mul"
+            36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173,
+            32, 3, 173, 66, 32, 134, 132, 126, 34, 4, 66, 32, 135, 167, 36, 0,
+            32, 4, 167, 11,
+            // 2, "div_s"
+            36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173,
+            32, 3, 173, 66, 32, 134, 132, 127, 34, 4, 66, 32, 135, 167, 36, 0,
+            32, 4, 167, 11,
+            // 3, "div_u"
+            36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173,
+            32, 3, 173, 66, 32, 134, 132, 128, 34, 4, 66, 32, 135, 167, 36, 0,
+            32, 4, 167, 11,
+            // 4, "rem_s"
+            36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173,
+            32, 3, 173, 66, 32, 134, 132, 129, 34, 4, 66, 32, 135, 167, 36, 0,
+            32, 4, 167, 11,
+            // 5, "rem_u"
+            36, 1, 1, 126, 32, 0, 173, 32, 1, 173, 66, 32, 134, 132, 32, 2, 173,
+            32, 3, 173, 66, 32, 134, 132, 130, 34, 4, 66, 32, 135, 167, 36, 0,
+            32, 4, 167, 11,
+          ]),
+        ),
+        {},
+      ).exports;
+    } catch {
+      // no wasm support :(
+    }
+
     /**
-     * The high 32 bits as a signed value.
-     * @type {number}
+     * Constructs a 64 bit two's-complement integer, given its low and high 32 bit values as *signed* integers.
+     *  See the from* functions below for more convenient ways of constructing Longs.
+     * @exports Long
+     * @class A Long class for representing a 64 bit two's-complement integer value.
+     * @param {number} low The low (signed) 32 bits of the long
+     * @param {number} high The high (signed) 32 bits of the long
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @constructor
      */
-  
-    this.high = high | 0;
+    function Long(low, high, unsigned) {
+      /**
+       * The low 32 bits as a signed value.
+       * @type {number}
+       */
+      this.low = low | 0;
+
+      /**
+       * The high 32 bits as a signed value.
+       * @type {number}
+       */
+      this.high = high | 0;
+
+      /**
+       * Whether unsigned or not.
+       * @type {boolean}
+       */
+      this.unsigned = !!unsigned;
+    }
+
+    // The internal representation of a long is the two given signed, 32-bit values.
+    // We use 32-bit pieces because these are the size of integers on which
+    // Javascript performs bit-operations.  For operations like addition and
+    // multiplication, we split each number into 16 bit pieces, which can easily be
+    // multiplied within Javascript's floating-point representation without overflow
+    // or change in sign.
+    //
+    // In the algorithms below, we frequently reduce the negative case to the
+    // positive case by negating the input(s) and then post-processing the result.
+    // Note that we must ALWAYS check specially whether those values are MIN_VALUE
+    // (-2^63) because -MIN_VALUE == MIN_VALUE (since 2^63 cannot be represented as
+    // a positive number, it overflows back into a negative).  Not handling this
+    // case would often result in infinite recursion.
+    //
+    // Common constant values ZERO, ONE, NEG_ONE, etc. are defined below the from*
+    // methods on which they depend.
+
     /**
-     * Whether unsigned or not.
+     * An indicator used to reliably determine if an object is a Long or not.
      * @type {boolean}
+     * @const
+     * @private
      */
-  
-    this.unsigned = !!unsigned;
-  } // The internal representation of a long is the two given signed, 32-bit values.
-  // We use 32-bit pieces because these are the size of integers on which
-  // Javascript performs bit-operations.  For operations like addition and
-  // multiplication, we split each number into 16 bit pieces, which can easily be
-  // multiplied within Javascript's floating-point representation without overflow
-  // or change in sign.
-  //
-  // In the algorithms below, we frequently reduce the negative case to the
-  // positive case by negating the input(s) and then post-processing the result.
-  // Note that we must ALWAYS check specially whether those values are MIN_VALUE
-  // (-2^63) because -MIN_VALUE == MIN_VALUE (since 2^63 cannot be represented as
-  // a positive number, it overflows back into a negative).  Not handling this
-  // case would often result in infinite recursion.
-  //
-  // Common constant values ZERO, ONE, NEG_ONE, etc. are defined below the from*
-  // methods on which they depend.
-  
-  /**
-   * An indicator used to reliably determine if an object is a Long or not.
-   * @type {boolean}
-   * @const
-   * @private
-   */
-  
-  
-  Long.prototype.__isLong__;
-  Object.defineProperty(Long.prototype, "__isLong__", {
-    value: true
-  });
-  /**
-   * @function
-   * @param {*} obj Object
-   * @returns {boolean}
-   * @inner
-   */
-  
-  function isLong(obj) {
-    return (obj && obj["__isLong__"]) === true;
-  }
-  /**
-   * @function
-   * @param {*} value number
-   * @returns {number}
-   * @inner
-   */
-  
-  
-  function ctz32(value) {
-    var c = Math.clz32(value & -value);
-    return value ? 31 - c : c;
-  }
-  /**
-   * Tests if the specified object is a Long.
-   * @function
-   * @param {*} obj Object
-   * @returns {boolean}
-   */
-  
-  
-  Long.isLong = isLong;
-  /**
-   * A cache of the Long representations of small integer values.
-   * @type {!Object}
-   * @inner
-   */
-  
-  var INT_CACHE = {};
-  /**
-   * A cache of the Long representations of small unsigned integer values.
-   * @type {!Object}
-   * @inner
-   */
-  
-  var UINT_CACHE = {};
-  /**
-   * @param {number} value
-   * @param {boolean=} unsigned
-   * @returns {!Long}
-   * @inner
-   */
-  
-  function fromInt(value, unsigned) {
-    var obj, cachedObj, cache;
-  
-    if (unsigned) {
-      value >>>= 0;
-  
-      if (cache = 0 <= value && value < 256) {
-        cachedObj = UINT_CACHE[value];
-        if (cachedObj) return cachedObj;
-      }
-  
-      obj = fromBits(value, 0, true);
-      if (cache) UINT_CACHE[value] = obj;
-      return obj;
-    } else {
-      value |= 0;
-  
-      if (cache = -128 <= value && value < 128) {
-        cachedObj = INT_CACHE[value];
-        if (cachedObj) return cachedObj;
-      }
-  
-      obj = fromBits(value, value < 0 ? -1 : 0, false);
-      if (cache) INT_CACHE[value] = obj;
-      return obj;
+    Long.prototype.__isLong__;
+    Object.defineProperty(Long.prototype, "__isLong__", {
+      value: true,
+    });
+
+    /**
+     * @function
+     * @param {*} obj Object
+     * @returns {boolean}
+     * @inner
+     */
+    function isLong(obj) {
+      return (obj && obj["__isLong__"]) === true;
     }
-  }
-  /**
-   * Returns a Long representing the given 32 bit integer value.
-   * @function
-   * @param {number} value The 32 bit integer in question
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {!Long} The corresponding Long value
-   */
-  
-  
-  Long.fromInt = fromInt;
-  /**
-   * @param {number} value
-   * @param {boolean=} unsigned
-   * @returns {!Long}
-   * @inner
-   */
-  
-  function fromNumber(value, unsigned) {
-    if (isNaN(value)) return unsigned ? UZERO : ZERO;
-  
-    if (unsigned) {
-      if (value < 0) return UZERO;
-      if (value >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
-    } else {
-      if (value <= -TWO_PWR_63_DBL) return MIN_VALUE;
-      if (value + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
+
+    /**
+     * @function
+     * @param {*} value number
+     * @returns {number}
+     * @inner
+     */
+    function ctz32(value) {
+      var c = Math.clz32(value & -value);
+      return value ? 31 - c : c;
     }
-  
-    if (value < 0) return fromNumber(-value, unsigned).neg();
-    return fromBits(value % TWO_PWR_32_DBL | 0, value / TWO_PWR_32_DBL | 0, unsigned);
-  }
-  /**
-   * Returns a Long representing the given value, provided that it is a finite number. Otherwise, zero is returned.
-   * @function
-   * @param {number} value The number in question
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {!Long} The corresponding Long value
-   */
-  
-  
-  Long.fromNumber = fromNumber;
-  /**
-   * @param {number} lowBits
-   * @param {number} highBits
-   * @param {boolean=} unsigned
-   * @returns {!Long}
-   * @inner
-   */
-  
-  function fromBits(lowBits, highBits, unsigned) {
-    return new Long(lowBits, highBits, unsigned);
-  }
-  /**
-   * Returns a Long representing the 64 bit integer that comes by concatenating the given low and high bits. Each is
-   *  assumed to use 32 bits.
-   * @function
-   * @param {number} lowBits The low 32 bits
-   * @param {number} highBits The high 32 bits
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {!Long} The corresponding Long value
-   */
-  
-  
-  Long.fromBits = fromBits;
-  /**
-   * @function
-   * @param {number} base
-   * @param {number} exponent
-   * @returns {number}
-   * @inner
-   */
-  
-  var pow_dbl = Math.pow; // Used 4 times (4*8 to 15+4)
-  
-  /**
-   * @param {string} str
-   * @param {(boolean|number)=} unsigned
-   * @param {number=} radix
-   * @returns {!Long}
-   * @inner
-   */
-  
-  function fromString(str, unsigned, radix) {
-    if (str.length === 0) throw Error('empty string');
-  
-    if (typeof unsigned === 'number') {
-      // For goog.math.long compatibility
-      radix = unsigned;
-      unsigned = false;
-    } else {
-      unsigned = !!unsigned;
-    }
-  
-    if (str === "NaN" || str === "Infinity" || str === "+Infinity" || str === "-Infinity") return unsigned ? UZERO : ZERO;
-    radix = radix || 10;
-    if (radix < 2 || 36 < radix) throw RangeError('radix');
-    var p;
-    if ((p = str.indexOf('-')) > 0) throw Error('interior hyphen');else if (p === 0) {
-      return fromString(str.substring(1), unsigned, radix).neg();
-    } // Do several (8) digits each time through the loop, so as to
-    // minimize the calls to the very expensive emulated div.
-  
-    var radixToPower = fromNumber(pow_dbl(radix, 8));
-    var result = ZERO;
-  
-    for (var i = 0; i < str.length; i += 8) {
-      var size = Math.min(8, str.length - i),
-          value = parseInt(str.substring(i, i + size), radix);
-  
-      if (size < 8) {
-        var power = fromNumber(pow_dbl(radix, size));
-        result = result.mul(power).add(fromNumber(value));
+
+    /**
+     * Tests if the specified object is a Long.
+     * @function
+     * @param {*} obj Object
+     * @returns {boolean}
+     */
+    Long.isLong = isLong;
+
+    /**
+     * A cache of the Long representations of small integer values.
+     * @type {!Object}
+     * @inner
+     */
+    var INT_CACHE = {};
+
+    /**
+     * A cache of the Long representations of small unsigned integer values.
+     * @type {!Object}
+     * @inner
+     */
+    var UINT_CACHE = {};
+
+    /**
+     * @param {number} value
+     * @param {boolean=} unsigned
+     * @returns {!Long}
+     * @inner
+     */
+    function fromInt(value, unsigned) {
+      var obj, cachedObj, cache;
+      if (unsigned) {
+        value >>>= 0;
+        if ((cache = 0 <= value && value < 256)) {
+          cachedObj = UINT_CACHE[value];
+          if (cachedObj) return cachedObj;
+        }
+        obj = fromBits(value, 0, true);
+        if (cache) UINT_CACHE[value] = obj;
+        return obj;
       } else {
-        result = result.mul(radixToPower);
-        result = result.add(fromNumber(value));
+        value |= 0;
+        if ((cache = -128 <= value && value < 128)) {
+          cachedObj = INT_CACHE[value];
+          if (cachedObj) return cachedObj;
+        }
+        obj = fromBits(value, value < 0 ? -1 : 0, false);
+        if (cache) INT_CACHE[value] = obj;
+        return obj;
       }
     }
-  
-    result.unsigned = unsigned;
-    return result;
-  }
-  /**
-   * Returns a Long representation of the given string, written using the specified radix.
-   * @function
-   * @param {string} str The textual representation of the Long
-   * @param {(boolean|number)=} unsigned Whether unsigned or not, defaults to signed
-   * @param {number=} radix The radix in which the text is written (2-36), defaults to 10
-   * @returns {!Long} The corresponding Long value
-   */
-  
-  
-  Long.fromString = fromString;
-  /**
-   * @function
-   * @param {!Long|number|string|!{low: number, high: number, unsigned: boolean}} val
-   * @param {boolean=} unsigned
-   * @returns {!Long}
-   * @inner
-   */
-  
-  function fromValue(val, unsigned) {
-    if (typeof val === 'number') return fromNumber(val, unsigned);
-    if (typeof val === 'string') return fromString(val, unsigned); // Throws for non-objects, converts non-instanceof Long:
-  
-    return fromBits(val.low, val.high, typeof unsigned === 'boolean' ? unsigned : val.unsigned);
-  }
-  /**
-   * Converts the specified value to a Long using the appropriate from* function for its type.
-   * @function
-   * @param {!Long|number|string|!{low: number, high: number, unsigned: boolean}} val Value
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {!Long}
-   */
-  
-  
-  Long.fromValue = fromValue; // NOTE: the compiler should inline these constant values below and then remove these variables, so there should be
-  // no runtime penalty for these.
-  
-  /**
-   * @type {number}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_16_DBL = 1 << 16;
-  /**
-   * @type {number}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_24_DBL = 1 << 24;
-  /**
-   * @type {number}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_32_DBL = TWO_PWR_16_DBL * TWO_PWR_16_DBL;
-  /**
-   * @type {number}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_64_DBL = TWO_PWR_32_DBL * TWO_PWR_32_DBL;
-  /**
-   * @type {number}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_63_DBL = TWO_PWR_64_DBL / 2;
-  /**
-   * @type {!Long}
-   * @const
-   * @inner
-   */
-  
-  var TWO_PWR_24 = fromInt(TWO_PWR_24_DBL);
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var ZERO = fromInt(0);
-  /**
-   * Signed zero.
-   * @type {!Long}
-   */
-  
-  Long.ZERO = ZERO;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var UZERO = fromInt(0, true);
-  /**
-   * Unsigned zero.
-   * @type {!Long}
-   */
-  
-  Long.UZERO = UZERO;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var ONE = fromInt(1);
-  /**
-   * Signed one.
-   * @type {!Long}
-   */
-  
-  Long.ONE = ONE;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var UONE = fromInt(1, true);
-  /**
-   * Unsigned one.
-   * @type {!Long}
-   */
-  
-  Long.UONE = UONE;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var NEG_ONE = fromInt(-1);
-  /**
-   * Signed negative one.
-   * @type {!Long}
-   */
-  
-  Long.NEG_ONE = NEG_ONE;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var MAX_VALUE = fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0, false);
-  /**
-   * Maximum signed value.
-   * @type {!Long}
-   */
-  
-  Long.MAX_VALUE = MAX_VALUE;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var MAX_UNSIGNED_VALUE = fromBits(0xFFFFFFFF | 0, 0xFFFFFFFF | 0, true);
-  /**
-   * Maximum unsigned value.
-   * @type {!Long}
-   */
-  
-  Long.MAX_UNSIGNED_VALUE = MAX_UNSIGNED_VALUE;
-  /**
-   * @type {!Long}
-   * @inner
-   */
-  
-  var MIN_VALUE = fromBits(0, 0x80000000 | 0, false);
-  /**
-   * Minimum signed value.
-   * @type {!Long}
-   */
-  
-  Long.MIN_VALUE = MIN_VALUE;
-  /**
-   * @alias Long.prototype
-   * @inner
-   */
-  
-  var LongPrototype = Long.prototype;
-  /**
-   * Converts the Long to a 32 bit integer, assuming it is a 32 bit integer.
-   * @this {!Long}
-   * @returns {number}
-   */
-  
-  LongPrototype.toInt = function toInt() {
-    return this.unsigned ? this.low >>> 0 : this.low;
-  };
-  /**
-   * Converts the Long to a the nearest floating-point representation of this value (double, 53 bit mantissa).
-   * @this {!Long}
-   * @returns {number}
-   */
-  
-  
-  LongPrototype.toNumber = function toNumber() {
-    if (this.unsigned) return (this.high >>> 0) * TWO_PWR_32_DBL + (this.low >>> 0);
-    return this.high * TWO_PWR_32_DBL + (this.low >>> 0);
-  };
-  /**
-   * Converts the Long to a string written in the specified radix.
-   * @this {!Long}
-   * @param {number=} radix Radix (2-36), defaults to 10
-   * @returns {string}
-   * @override
-   * @throws {RangeError} If `radix` is out of range
-   */
-  
-  
-  LongPrototype.toString = function toString(radix) {
-    radix = radix || 10;
-    if (radix < 2 || 36 < radix) throw RangeError('radix');
-    if (this.isZero()) return '0';
-  
-    if (this.isNegative()) {
-      // Unsigned Longs are never negative
-      if (this.eq(MIN_VALUE)) {
-        // We need to change the Long value before it can be negated, so we remove
-        // the bottom-most digit in this base and then recurse to do the rest.
-        var radixLong = fromNumber(radix),
+
+    /**
+     * Returns a Long representing the given 32 bit integer value.
+     * @function
+     * @param {number} value The 32 bit integer in question
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {!Long} The corresponding Long value
+     */
+    Long.fromInt = fromInt;
+
+    /**
+     * @param {number} value
+     * @param {boolean=} unsigned
+     * @returns {!Long}
+     * @inner
+     */
+    function fromNumber(value, unsigned) {
+      if (isNaN(value)) return unsigned ? UZERO : ZERO;
+      if (unsigned) {
+        if (value < 0) return UZERO;
+        if (value >= TWO_PWR_64_DBL) return MAX_UNSIGNED_VALUE;
+      } else {
+        if (value <= -TWO_PWR_63_DBL) return MIN_VALUE;
+        if (value + 1 >= TWO_PWR_63_DBL) return MAX_VALUE;
+      }
+      if (value < 0) return fromNumber(-value, unsigned).neg();
+      return fromBits(
+        value % TWO_PWR_32_DBL | 0,
+        (value / TWO_PWR_32_DBL) | 0,
+        unsigned,
+      );
+    }
+
+    /**
+     * Returns a Long representing the given value, provided that it is a finite number. Otherwise, zero is returned.
+     * @function
+     * @param {number} value The number in question
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {!Long} The corresponding Long value
+     */
+    Long.fromNumber = fromNumber;
+
+    /**
+     * @param {number} lowBits
+     * @param {number} highBits
+     * @param {boolean=} unsigned
+     * @returns {!Long}
+     * @inner
+     */
+    function fromBits(lowBits, highBits, unsigned) {
+      return new Long(lowBits, highBits, unsigned);
+    }
+
+    /**
+     * Returns a Long representing the 64 bit integer that comes by concatenating the given low and high bits. Each is
+     *  assumed to use 32 bits.
+     * @function
+     * @param {number} lowBits The low 32 bits
+     * @param {number} highBits The high 32 bits
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {!Long} The corresponding Long value
+     */
+    Long.fromBits = fromBits;
+
+    /**
+     * @function
+     * @param {number} base
+     * @param {number} exponent
+     * @returns {number}
+     * @inner
+     */
+    var pow_dbl = Math.pow; // Used 4 times (4*8 to 15+4)
+
+    /**
+     * @param {string} str
+     * @param {(boolean|number)=} unsigned
+     * @param {number=} radix
+     * @returns {!Long}
+     * @inner
+     */
+    function fromString(str, unsigned, radix) {
+      if (str.length === 0) throw Error("empty string");
+      if (typeof unsigned === "number") {
+        // For goog.math.long compatibility
+        radix = unsigned;
+        unsigned = false;
+      } else {
+        unsigned = !!unsigned;
+      }
+      if (
+        str === "NaN" ||
+        str === "Infinity" ||
+        str === "+Infinity" ||
+        str === "-Infinity"
+      )
+        return unsigned ? UZERO : ZERO;
+      radix = radix || 10;
+      if (radix < 2 || 36 < radix) throw RangeError("radix");
+      var p;
+      if ((p = str.indexOf("-")) > 0) throw Error("interior hyphen");
+      else if (p === 0) {
+        return fromString(str.substring(1), unsigned, radix).neg();
+      }
+
+      // Do several (8) digits each time through the loop, so as to
+      // minimize the calls to the very expensive emulated div.
+      var radixToPower = fromNumber(pow_dbl(radix, 8));
+      var result = ZERO;
+      for (var i = 0; i < str.length; i += 8) {
+        var size = Math.min(8, str.length - i),
+          value = parseInt(str.substring(i, i + size), radix);
+        if (size < 8) {
+          var power = fromNumber(pow_dbl(radix, size));
+          result = result.mul(power).add(fromNumber(value));
+        } else {
+          result = result.mul(radixToPower);
+          result = result.add(fromNumber(value));
+        }
+      }
+      result.unsigned = unsigned;
+      return result;
+    }
+
+    /**
+     * Returns a Long representation of the given string, written using the specified radix.
+     * @function
+     * @param {string} str The textual representation of the Long
+     * @param {(boolean|number)=} unsigned Whether unsigned or not, defaults to signed
+     * @param {number=} radix The radix in which the text is written (2-36), defaults to 10
+     * @returns {!Long} The corresponding Long value
+     */
+    Long.fromString = fromString;
+
+    /**
+     * @function
+     * @param {!Long|number|string|!{low: number, high: number, unsigned: boolean}} val
+     * @param {boolean=} unsigned
+     * @returns {!Long}
+     * @inner
+     */
+    function fromValue(val, unsigned) {
+      if (typeof val === "number") return fromNumber(val, unsigned);
+      if (typeof val === "string") return fromString(val, unsigned);
+      // Throws for non-objects, converts non-instanceof Long:
+      return fromBits(
+        val.low,
+        val.high,
+        typeof unsigned === "boolean" ? unsigned : val.unsigned,
+      );
+    }
+
+    /**
+     * Converts the specified value to a Long using the appropriate from* function for its type.
+     * @function
+     * @param {!Long|number|bigint|string|!{low: number, high: number, unsigned: boolean}} val Value
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {!Long}
+     */
+    Long.fromValue = fromValue;
+
+    // NOTE: the compiler should inline these constant values below and then remove these variables, so there should be
+    // no runtime penalty for these.
+
+    /**
+     * @type {number}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_16_DBL = 1 << 16;
+
+    /**
+     * @type {number}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_24_DBL = 1 << 24;
+
+    /**
+     * @type {number}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_32_DBL = TWO_PWR_16_DBL * TWO_PWR_16_DBL;
+
+    /**
+     * @type {number}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_64_DBL = TWO_PWR_32_DBL * TWO_PWR_32_DBL;
+
+    /**
+     * @type {number}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_63_DBL = TWO_PWR_64_DBL / 2;
+
+    /**
+     * @type {!Long}
+     * @const
+     * @inner
+     */
+    var TWO_PWR_24 = fromInt(TWO_PWR_24_DBL);
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var ZERO = fromInt(0);
+
+    /**
+     * Signed zero.
+     * @type {!Long}
+     */
+    Long.ZERO = ZERO;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var UZERO = fromInt(0, true);
+
+    /**
+     * Unsigned zero.
+     * @type {!Long}
+     */
+    Long.UZERO = UZERO;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var ONE = fromInt(1);
+
+    /**
+     * Signed one.
+     * @type {!Long}
+     */
+    Long.ONE = ONE;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var UONE = fromInt(1, true);
+
+    /**
+     * Unsigned one.
+     * @type {!Long}
+     */
+    Long.UONE = UONE;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var NEG_ONE = fromInt(-1);
+
+    /**
+     * Signed negative one.
+     * @type {!Long}
+     */
+    Long.NEG_ONE = NEG_ONE;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var MAX_VALUE = fromBits(0xffffffff | 0, 0x7fffffff | 0, false);
+
+    /**
+     * Maximum signed value.
+     * @type {!Long}
+     */
+    Long.MAX_VALUE = MAX_VALUE;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var MAX_UNSIGNED_VALUE = fromBits(0xffffffff | 0, 0xffffffff | 0, true);
+
+    /**
+     * Maximum unsigned value.
+     * @type {!Long}
+     */
+    Long.MAX_UNSIGNED_VALUE = MAX_UNSIGNED_VALUE;
+
+    /**
+     * @type {!Long}
+     * @inner
+     */
+    var MIN_VALUE = fromBits(0, 0x80000000 | 0, false);
+
+    /**
+     * Minimum signed value.
+     * @type {!Long}
+     */
+    Long.MIN_VALUE = MIN_VALUE;
+
+    /**
+     * @alias Long.prototype
+     * @inner
+     */
+    var LongPrototype = Long.prototype;
+
+    /**
+     * Converts the Long to a 32 bit integer, assuming it is a 32 bit integer.
+     * @this {!Long}
+     * @returns {number}
+     */
+    LongPrototype.toInt = function toInt() {
+      return this.unsigned ? this.low >>> 0 : this.low;
+    };
+
+    /**
+     * Converts the Long to a the nearest floating-point representation of this value (double, 53 bit mantissa).
+     * @this {!Long}
+     * @returns {number}
+     */
+    LongPrototype.toNumber = function toNumber() {
+      if (this.unsigned)
+        return (this.high >>> 0) * TWO_PWR_32_DBL + (this.low >>> 0);
+      return this.high * TWO_PWR_32_DBL + (this.low >>> 0);
+    };
+
+    /**
+     * Converts the Long to a string written in the specified radix.
+     * @this {!Long}
+     * @param {number=} radix Radix (2-36), defaults to 10
+     * @returns {string}
+     * @override
+     * @throws {RangeError} If `radix` is out of range
+     */
+    LongPrototype.toString = function toString(radix) {
+      radix = radix || 10;
+      if (radix < 2 || 36 < radix) throw RangeError("radix");
+      if (this.isZero()) return "0";
+      if (this.isNegative()) {
+        // Unsigned Longs are never negative
+        if (this.eq(MIN_VALUE)) {
+          // We need to change the Long value before it can be negated, so we remove
+          // the bottom-most digit in this base and then recurse to do the rest.
+          var radixLong = fromNumber(radix),
             div = this.div(radixLong),
             rem1 = div.mul(radixLong).sub(this);
-        return div.toString(radix) + rem1.toInt().toString(radix);
-      } else return '-' + this.neg().toString(radix);
-    } // Do several (6) digits each time through the loop, so as to
-    // minimize the calls to the very expensive emulated div.
-  
-  
-    var radixToPower = fromNumber(pow_dbl(radix, 6), this.unsigned),
+          return div.toString(radix) + rem1.toInt().toString(radix);
+        } else return "-" + this.neg().toString(radix);
+      }
+
+      // Do several (6) digits each time through the loop, so as to
+      // minimize the calls to the very expensive emulated div.
+      var radixToPower = fromNumber(pow_dbl(radix, 6), this.unsigned),
         rem = this;
-    var result = '';
-  
-    while (true) {
-      var remDiv = rem.div(radixToPower),
+      var result = "";
+      while (true) {
+        var remDiv = rem.div(radixToPower),
           intval = rem.sub(remDiv.mul(radixToPower)).toInt() >>> 0,
           digits = intval.toString(radix);
-      rem = remDiv;
-      if (rem.isZero()) return digits + result;else {
-        while (digits.length < 6) digits = '0' + digits;
-  
-        result = '' + digits + result;
-      }
-    }
-  };
-  /**
-   * Gets the high 32 bits as a signed integer.
-   * @this {!Long}
-   * @returns {number} Signed high bits
-   */
-  
-  
-  LongPrototype.getHighBits = function getHighBits() {
-    return this.high;
-  };
-  /**
-   * Gets the high 32 bits as an unsigned integer.
-   * @this {!Long}
-   * @returns {number} Unsigned high bits
-   */
-  
-  
-  LongPrototype.getHighBitsUnsigned = function getHighBitsUnsigned() {
-    return this.high >>> 0;
-  };
-  /**
-   * Gets the low 32 bits as a signed integer.
-   * @this {!Long}
-   * @returns {number} Signed low bits
-   */
-  
-  
-  LongPrototype.getLowBits = function getLowBits() {
-    return this.low;
-  };
-  /**
-   * Gets the low 32 bits as an unsigned integer.
-   * @this {!Long}
-   * @returns {number} Unsigned low bits
-   */
-  
-  
-  LongPrototype.getLowBitsUnsigned = function getLowBitsUnsigned() {
-    return this.low >>> 0;
-  };
-  /**
-   * Gets the number of bits needed to represent the absolute value of this Long.
-   * @this {!Long}
-   * @returns {number}
-   */
-  
-  
-  LongPrototype.getNumBitsAbs = function getNumBitsAbs() {
-    if (this.isNegative()) // Unsigned Longs are never negative
-      return this.eq(MIN_VALUE) ? 64 : this.neg().getNumBitsAbs();
-    var val = this.high != 0 ? this.high : this.low;
-  
-    for (var bit = 31; bit > 0; bit--) if ((val & 1 << bit) != 0) break;
-  
-    return this.high != 0 ? bit + 33 : bit + 1;
-  };
-  /**
-   * Tests if this Long's value equals zero.
-   * @this {!Long}
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.isZero = function isZero() {
-    return this.high === 0 && this.low === 0;
-  };
-  /**
-   * Tests if this Long's value equals zero. This is an alias of {@link Long#isZero}.
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.eqz = LongPrototype.isZero;
-  /**
-   * Tests if this Long's value is negative.
-   * @this {!Long}
-   * @returns {boolean}
-   */
-  
-  LongPrototype.isNegative = function isNegative() {
-    return !this.unsigned && this.high < 0;
-  };
-  /**
-   * Tests if this Long's value is positive or zero.
-   * @this {!Long}
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.isPositive = function isPositive() {
-    return this.unsigned || this.high >= 0;
-  };
-  /**
-   * Tests if this Long's value is odd.
-   * @this {!Long}
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.isOdd = function isOdd() {
-    return (this.low & 1) === 1;
-  };
-  /**
-   * Tests if this Long's value is even.
-   * @this {!Long}
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.isEven = function isEven() {
-    return (this.low & 1) === 0;
-  };
-  /**
-   * Tests if this Long's value equals the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.equals = function equals(other) {
-    if (!isLong(other)) other = fromValue(other);
-    if (this.unsigned !== other.unsigned && this.high >>> 31 === 1 && other.high >>> 31 === 1) return false;
-    return this.high === other.high && this.low === other.low;
-  };
-  /**
-   * Tests if this Long's value equals the specified's. This is an alias of {@link Long#equals}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.eq = LongPrototype.equals;
-  /**
-   * Tests if this Long's value differs from the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.notEquals = function notEquals(other) {
-    return !this.eq(
-    /* validates */
-    other);
-  };
-  /**
-   * Tests if this Long's value differs from the specified's. This is an alias of {@link Long#notEquals}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.neq = LongPrototype.notEquals;
-  /**
-   * Tests if this Long's value differs from the specified's. This is an alias of {@link Long#notEquals}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.ne = LongPrototype.notEquals;
-  /**
-   * Tests if this Long's value is less than the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.lessThan = function lessThan(other) {
-    return this.comp(
-    /* validates */
-    other) < 0;
-  };
-  /**
-   * Tests if this Long's value is less than the specified's. This is an alias of {@link Long#lessThan}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.lt = LongPrototype.lessThan;
-  /**
-   * Tests if this Long's value is less than or equal the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.lessThanOrEqual = function lessThanOrEqual(other) {
-    return this.comp(
-    /* validates */
-    other) <= 0;
-  };
-  /**
-   * Tests if this Long's value is less than or equal the specified's. This is an alias of {@link Long#lessThanOrEqual}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.lte = LongPrototype.lessThanOrEqual;
-  /**
-   * Tests if this Long's value is less than or equal the specified's. This is an alias of {@link Long#lessThanOrEqual}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.le = LongPrototype.lessThanOrEqual;
-  /**
-   * Tests if this Long's value is greater than the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.greaterThan = function greaterThan(other) {
-    return this.comp(
-    /* validates */
-    other) > 0;
-  };
-  /**
-   * Tests if this Long's value is greater than the specified's. This is an alias of {@link Long#greaterThan}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.gt = LongPrototype.greaterThan;
-  /**
-   * Tests if this Long's value is greater than or equal the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.greaterThanOrEqual = function greaterThanOrEqual(other) {
-    return this.comp(
-    /* validates */
-    other) >= 0;
-  };
-  /**
-   * Tests if this Long's value is greater than or equal the specified's. This is an alias of {@link Long#greaterThanOrEqual}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  
-  LongPrototype.gte = LongPrototype.greaterThanOrEqual;
-  /**
-   * Tests if this Long's value is greater than or equal the specified's. This is an alias of {@link Long#greaterThanOrEqual}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {boolean}
-   */
-  
-  LongPrototype.ge = LongPrototype.greaterThanOrEqual;
-  /**
-   * Compares this Long's value with the specified's.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other value
-   * @returns {number} 0 if they are the same, 1 if the this is greater and -1
-   *  if the given one is greater
-   */
-  
-  LongPrototype.compare = function compare(other) {
-    if (!isLong(other)) other = fromValue(other);
-    if (this.eq(other)) return 0;
-    var thisNeg = this.isNegative(),
-        otherNeg = other.isNegative();
-    if (thisNeg && !otherNeg) return -1;
-    if (!thisNeg && otherNeg) return 1; // At this point the sign bits are the same
-  
-    if (!this.unsigned) return this.sub(other).isNegative() ? -1 : 1; // Both are positive if at least one is unsigned
-  
-    return other.high >>> 0 > this.high >>> 0 || other.high === this.high && other.low >>> 0 > this.low >>> 0 ? -1 : 1;
-  };
-  /**
-   * Compares this Long's value with the specified's. This is an alias of {@link Long#compare}.
-   * @function
-   * @param {!Long|number|string} other Other value
-   * @returns {number} 0 if they are the same, 1 if the this is greater and -1
-   *  if the given one is greater
-   */
-  
-  
-  LongPrototype.comp = LongPrototype.compare;
-  /**
-   * Negates this Long's value.
-   * @this {!Long}
-   * @returns {!Long} Negated Long
-   */
-  
-  LongPrototype.negate = function negate() {
-    if (!this.unsigned && this.eq(MIN_VALUE)) return MIN_VALUE;
-    return this.not().add(ONE);
-  };
-  /**
-   * Negates this Long's value. This is an alias of {@link Long#negate}.
-   * @function
-   * @returns {!Long} Negated Long
-   */
-  
-  
-  LongPrototype.neg = LongPrototype.negate;
-  /**
-   * Returns the sum of this and the specified Long.
-   * @this {!Long}
-   * @param {!Long|number|string} addend Addend
-   * @returns {!Long} Sum
-   */
-  
-  LongPrototype.add = function add(addend) {
-    if (!isLong(addend)) addend = fromValue(addend); // Divide each number into 4 chunks of 16 bits, and then sum the chunks.
-  
-    var a48 = this.high >>> 16;
-    var a32 = this.high & 0xFFFF;
-    var a16 = this.low >>> 16;
-    var a00 = this.low & 0xFFFF;
-    var b48 = addend.high >>> 16;
-    var b32 = addend.high & 0xFFFF;
-    var b16 = addend.low >>> 16;
-    var b00 = addend.low & 0xFFFF;
-    var c48 = 0,
-        c32 = 0,
-        c16 = 0,
-        c00 = 0;
-    c00 += a00 + b00;
-    c16 += c00 >>> 16;
-    c00 &= 0xFFFF;
-    c16 += a16 + b16;
-    c32 += c16 >>> 16;
-    c16 &= 0xFFFF;
-    c32 += a32 + b32;
-    c48 += c32 >>> 16;
-    c32 &= 0xFFFF;
-    c48 += a48 + b48;
-    c48 &= 0xFFFF;
-    return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
-  };
-  /**
-   * Returns the difference of this and the specified Long.
-   * @this {!Long}
-   * @param {!Long|number|string} subtrahend Subtrahend
-   * @returns {!Long} Difference
-   */
-  
-  
-  LongPrototype.subtract = function subtract(subtrahend) {
-    if (!isLong(subtrahend)) subtrahend = fromValue(subtrahend);
-    return this.add(subtrahend.neg());
-  };
-  /**
-   * Returns the difference of this and the specified Long. This is an alias of {@link Long#subtract}.
-   * @function
-   * @param {!Long|number|string} subtrahend Subtrahend
-   * @returns {!Long} Difference
-   */
-  
-  
-  LongPrototype.sub = LongPrototype.subtract;
-  /**
-   * Returns the product of this and the specified Long.
-   * @this {!Long}
-   * @param {!Long|number|string} multiplier Multiplier
-   * @returns {!Long} Product
-   */
-  
-  LongPrototype.multiply = function multiply(multiplier) {
-    if (this.isZero()) return this;
-    if (!isLong(multiplier)) multiplier = fromValue(multiplier); // use wasm support if present
-  
-    if (wasm) {
-      var low = wasm["mul"](this.low, this.high, multiplier.low, multiplier.high);
-      return fromBits(low, wasm["get_high"](), this.unsigned);
-    }
-  
-    if (multiplier.isZero()) return this.unsigned ? UZERO : ZERO;
-    if (this.eq(MIN_VALUE)) return multiplier.isOdd() ? MIN_VALUE : ZERO;
-    if (multiplier.eq(MIN_VALUE)) return this.isOdd() ? MIN_VALUE : ZERO;
-  
-    if (this.isNegative()) {
-      if (multiplier.isNegative()) return this.neg().mul(multiplier.neg());else return this.neg().mul(multiplier).neg();
-    } else if (multiplier.isNegative()) return this.mul(multiplier.neg()).neg(); // If both longs are small, use float multiplication
-  
-  
-    if (this.lt(TWO_PWR_24) && multiplier.lt(TWO_PWR_24)) return fromNumber(this.toNumber() * multiplier.toNumber(), this.unsigned); // Divide each long into 4 chunks of 16 bits, and then add up 4x4 products.
-    // We can skip products that would overflow.
-  
-    var a48 = this.high >>> 16;
-    var a32 = this.high & 0xFFFF;
-    var a16 = this.low >>> 16;
-    var a00 = this.low & 0xFFFF;
-    var b48 = multiplier.high >>> 16;
-    var b32 = multiplier.high & 0xFFFF;
-    var b16 = multiplier.low >>> 16;
-    var b00 = multiplier.low & 0xFFFF;
-    var c48 = 0,
-        c32 = 0,
-        c16 = 0,
-        c00 = 0;
-    c00 += a00 * b00;
-    c16 += c00 >>> 16;
-    c00 &= 0xFFFF;
-    c16 += a16 * b00;
-    c32 += c16 >>> 16;
-    c16 &= 0xFFFF;
-    c16 += a00 * b16;
-    c32 += c16 >>> 16;
-    c16 &= 0xFFFF;
-    c32 += a32 * b00;
-    c48 += c32 >>> 16;
-    c32 &= 0xFFFF;
-    c32 += a16 * b16;
-    c48 += c32 >>> 16;
-    c32 &= 0xFFFF;
-    c32 += a00 * b32;
-    c48 += c32 >>> 16;
-    c32 &= 0xFFFF;
-    c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
-    c48 &= 0xFFFF;
-    return fromBits(c16 << 16 | c00, c48 << 16 | c32, this.unsigned);
-  };
-  /**
-   * Returns the product of this and the specified Long. This is an alias of {@link Long#multiply}.
-   * @function
-   * @param {!Long|number|string} multiplier Multiplier
-   * @returns {!Long} Product
-   */
-  
-  
-  LongPrototype.mul = LongPrototype.multiply;
-  /**
-   * Returns this Long divided by the specified. The result is signed if this Long is signed or
-   *  unsigned if this Long is unsigned.
-   * @this {!Long}
-   * @param {!Long|number|string} divisor Divisor
-   * @returns {!Long} Quotient
-   */
-  
-  LongPrototype.divide = function divide(divisor) {
-    if (!isLong(divisor)) divisor = fromValue(divisor);
-    if (divisor.isZero()) throw Error('division by zero'); // use wasm support if present
-  
-    if (wasm) {
-      // guard against signed division overflow: the largest
-      // negative number / -1 would be 1 larger than the largest
-      // positive number, due to two's complement.
-      if (!this.unsigned && this.high === -0x80000000 && divisor.low === -1 && divisor.high === -1) {
-        // be consistent with non-wasm code path
-        return this;
-      }
-  
-      var low = (this.unsigned ? wasm["div_u"] : wasm["div_s"])(this.low, this.high, divisor.low, divisor.high);
-      return fromBits(low, wasm["get_high"](), this.unsigned);
-    }
-  
-    if (this.isZero()) return this.unsigned ? UZERO : ZERO;
-    var approx, rem, res;
-  
-    if (!this.unsigned) {
-      // This section is only relevant for signed longs and is derived from the
-      // closure library as a whole.
-      if (this.eq(MIN_VALUE)) {
-        if (divisor.eq(ONE) || divisor.eq(NEG_ONE)) return MIN_VALUE; // recall that -MIN_VALUE == MIN_VALUE
-        else if (divisor.eq(MIN_VALUE)) return ONE;else {
-          // At this point, we have |other| >= 2, so |this/other| < |MIN_VALUE|.
-          var halfThis = this.shr(1);
-          approx = halfThis.div(divisor).shl(1);
-  
-          if (approx.eq(ZERO)) {
-            return divisor.isNegative() ? ONE : NEG_ONE;
-          } else {
-            rem = this.sub(divisor.mul(approx));
-            res = approx.add(rem.div(divisor));
-            return res;
-          }
+        rem = remDiv;
+        if (rem.isZero()) return digits + result;
+        else {
+          while (digits.length < 6) digits = "0" + digits;
+          result = "" + digits + result;
         }
-      } else if (divisor.eq(MIN_VALUE)) return this.unsigned ? UZERO : ZERO;
-  
+      }
+    };
+
+    /**
+     * Gets the high 32 bits as a signed integer.
+     * @this {!Long}
+     * @returns {number} Signed high bits
+     */
+    LongPrototype.getHighBits = function getHighBits() {
+      return this.high;
+    };
+
+    /**
+     * Gets the high 32 bits as an unsigned integer.
+     * @this {!Long}
+     * @returns {number} Unsigned high bits
+     */
+    LongPrototype.getHighBitsUnsigned = function getHighBitsUnsigned() {
+      return this.high >>> 0;
+    };
+
+    /**
+     * Gets the low 32 bits as a signed integer.
+     * @this {!Long}
+     * @returns {number} Signed low bits
+     */
+    LongPrototype.getLowBits = function getLowBits() {
+      return this.low;
+    };
+
+    /**
+     * Gets the low 32 bits as an unsigned integer.
+     * @this {!Long}
+     * @returns {number} Unsigned low bits
+     */
+    LongPrototype.getLowBitsUnsigned = function getLowBitsUnsigned() {
+      return this.low >>> 0;
+    };
+
+    /**
+     * Gets the number of bits needed to represent the absolute value of this Long.
+     * @this {!Long}
+     * @returns {number}
+     */
+    LongPrototype.getNumBitsAbs = function getNumBitsAbs() {
+      if (this.isNegative())
+        // Unsigned Longs are never negative
+        return this.eq(MIN_VALUE) ? 64 : this.neg().getNumBitsAbs();
+      var val = this.high != 0 ? this.high : this.low;
+      for (var bit = 31; bit > 0; bit--) if ((val & (1 << bit)) != 0) break;
+      return this.high != 0 ? bit + 33 : bit + 1;
+    };
+
+    /**
+     * Tests if this Long can be safely represented as a JavaScript number.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isSafeInteger = function isSafeInteger() {
+      // 2^53-1 is the maximum safe value
+      var top11Bits = this.high >> 21;
+      // [0, 2^53-1]
+      if (!top11Bits) return true;
+      // > 2^53-1
+      if (this.unsigned) return false;
+      // [-2^53, -1] except -2^53
+      return top11Bits === -1 && !(this.low === 0 && this.high === -0x200000);
+    };
+
+    /**
+     * Tests if this Long's value equals zero.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isZero = function isZero() {
+      return this.high === 0 && this.low === 0;
+    };
+
+    /**
+     * Tests if this Long's value equals zero. This is an alias of {@link Long#isZero}.
+     * @returns {boolean}
+     */
+    LongPrototype.eqz = LongPrototype.isZero;
+
+    /**
+     * Tests if this Long's value is negative.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isNegative = function isNegative() {
+      return !this.unsigned && this.high < 0;
+    };
+
+    /**
+     * Tests if this Long's value is positive or zero.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isPositive = function isPositive() {
+      return this.unsigned || this.high >= 0;
+    };
+
+    /**
+     * Tests if this Long's value is odd.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isOdd = function isOdd() {
+      return (this.low & 1) === 1;
+    };
+
+    /**
+     * Tests if this Long's value is even.
+     * @this {!Long}
+     * @returns {boolean}
+     */
+    LongPrototype.isEven = function isEven() {
+      return (this.low & 1) === 0;
+    };
+
+    /**
+     * Tests if this Long's value equals the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.equals = function equals(other) {
+      if (!isLong(other)) other = fromValue(other);
+      if (
+        this.unsigned !== other.unsigned &&
+        this.high >>> 31 === 1 &&
+        other.high >>> 31 === 1
+      )
+        return false;
+      return this.high === other.high && this.low === other.low;
+    };
+
+    /**
+     * Tests if this Long's value equals the specified's. This is an alias of {@link Long#equals}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.eq = LongPrototype.equals;
+
+    /**
+     * Tests if this Long's value differs from the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.notEquals = function notEquals(other) {
+      return !this.eq(/* validates */ other);
+    };
+
+    /**
+     * Tests if this Long's value differs from the specified's. This is an alias of {@link Long#notEquals}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.neq = LongPrototype.notEquals;
+
+    /**
+     * Tests if this Long's value differs from the specified's. This is an alias of {@link Long#notEquals}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.ne = LongPrototype.notEquals;
+
+    /**
+     * Tests if this Long's value is less than the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.lessThan = function lessThan(other) {
+      return this.comp(/* validates */ other) < 0;
+    };
+
+    /**
+     * Tests if this Long's value is less than the specified's. This is an alias of {@link Long#lessThan}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.lt = LongPrototype.lessThan;
+
+    /**
+     * Tests if this Long's value is less than or equal the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.lessThanOrEqual = function lessThanOrEqual(other) {
+      return this.comp(/* validates */ other) <= 0;
+    };
+
+    /**
+     * Tests if this Long's value is less than or equal the specified's. This is an alias of {@link Long#lessThanOrEqual}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.lte = LongPrototype.lessThanOrEqual;
+
+    /**
+     * Tests if this Long's value is less than or equal the specified's. This is an alias of {@link Long#lessThanOrEqual}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.le = LongPrototype.lessThanOrEqual;
+
+    /**
+     * Tests if this Long's value is greater than the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.greaterThan = function greaterThan(other) {
+      return this.comp(/* validates */ other) > 0;
+    };
+
+    /**
+     * Tests if this Long's value is greater than the specified's. This is an alias of {@link Long#greaterThan}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.gt = LongPrototype.greaterThan;
+
+    /**
+     * Tests if this Long's value is greater than or equal the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.greaterThanOrEqual = function greaterThanOrEqual(other) {
+      return this.comp(/* validates */ other) >= 0;
+    };
+
+    /**
+     * Tests if this Long's value is greater than or equal the specified's. This is an alias of {@link Long#greaterThanOrEqual}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.gte = LongPrototype.greaterThanOrEqual;
+
+    /**
+     * Tests if this Long's value is greater than or equal the specified's. This is an alias of {@link Long#greaterThanOrEqual}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {boolean}
+     */
+    LongPrototype.ge = LongPrototype.greaterThanOrEqual;
+
+    /**
+     * Compares this Long's value with the specified's.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {number} 0 if they are the same, 1 if the this is greater and -1
+     *  if the given one is greater
+     */
+    LongPrototype.compare = function compare(other) {
+      if (!isLong(other)) other = fromValue(other);
+      if (this.eq(other)) return 0;
+      var thisNeg = this.isNegative(),
+        otherNeg = other.isNegative();
+      if (thisNeg && !otherNeg) return -1;
+      if (!thisNeg && otherNeg) return 1;
+      // At this point the sign bits are the same
+      if (!this.unsigned) return this.sub(other).isNegative() ? -1 : 1;
+      // Both are positive if at least one is unsigned
+      return other.high >>> 0 > this.high >>> 0 ||
+        (other.high === this.high && other.low >>> 0 > this.low >>> 0)
+        ? -1
+        : 1;
+    };
+
+    /**
+     * Compares this Long's value with the specified's. This is an alias of {@link Long#compare}.
+     * @function
+     * @param {!Long|number|bigint|string} other Other value
+     * @returns {number} 0 if they are the same, 1 if the this is greater and -1
+     *  if the given one is greater
+     */
+    LongPrototype.comp = LongPrototype.compare;
+
+    /**
+     * Negates this Long's value.
+     * @this {!Long}
+     * @returns {!Long} Negated Long
+     */
+    LongPrototype.negate = function negate() {
+      if (!this.unsigned && this.eq(MIN_VALUE)) return MIN_VALUE;
+      return this.not().add(ONE);
+    };
+
+    /**
+     * Negates this Long's value. This is an alias of {@link Long#negate}.
+     * @function
+     * @returns {!Long} Negated Long
+     */
+    LongPrototype.neg = LongPrototype.negate;
+
+    /**
+     * Returns the sum of this and the specified Long.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} addend Addend
+     * @returns {!Long} Sum
+     */
+    LongPrototype.add = function add(addend) {
+      if (!isLong(addend)) addend = fromValue(addend);
+
+      // Divide each number into 4 chunks of 16 bits, and then sum the chunks.
+
+      var a48 = this.high >>> 16;
+      var a32 = this.high & 0xffff;
+      var a16 = this.low >>> 16;
+      var a00 = this.low & 0xffff;
+      var b48 = addend.high >>> 16;
+      var b32 = addend.high & 0xffff;
+      var b16 = addend.low >>> 16;
+      var b00 = addend.low & 0xffff;
+      var c48 = 0,
+        c32 = 0,
+        c16 = 0,
+        c00 = 0;
+      c00 += a00 + b00;
+      c16 += c00 >>> 16;
+      c00 &= 0xffff;
+      c16 += a16 + b16;
+      c32 += c16 >>> 16;
+      c16 &= 0xffff;
+      c32 += a32 + b32;
+      c48 += c32 >>> 16;
+      c32 &= 0xffff;
+      c48 += a48 + b48;
+      c48 &= 0xffff;
+      return fromBits((c16 << 16) | c00, (c48 << 16) | c32, this.unsigned);
+    };
+
+    /**
+     * Returns the difference of this and the specified Long.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} subtrahend Subtrahend
+     * @returns {!Long} Difference
+     */
+    LongPrototype.subtract = function subtract(subtrahend) {
+      if (!isLong(subtrahend)) subtrahend = fromValue(subtrahend);
+      return this.add(subtrahend.neg());
+    };
+
+    /**
+     * Returns the difference of this and the specified Long. This is an alias of {@link Long#subtract}.
+     * @function
+     * @param {!Long|number|bigint|string} subtrahend Subtrahend
+     * @returns {!Long} Difference
+     */
+    LongPrototype.sub = LongPrototype.subtract;
+
+    /**
+     * Returns the product of this and the specified Long.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} multiplier Multiplier
+     * @returns {!Long} Product
+     */
+    LongPrototype.multiply = function multiply(multiplier) {
+      if (this.isZero()) return this;
+      if (!isLong(multiplier)) multiplier = fromValue(multiplier);
+
+      // use wasm support if present
+      if (wasm) {
+        var low = wasm["mul"](
+          this.low,
+          this.high,
+          multiplier.low,
+          multiplier.high,
+        );
+        return fromBits(low, wasm["get_high"](), this.unsigned);
+      }
+      if (multiplier.isZero()) return this.unsigned ? UZERO : ZERO;
+      if (this.eq(MIN_VALUE)) return multiplier.isOdd() ? MIN_VALUE : ZERO;
+      if (multiplier.eq(MIN_VALUE)) return this.isOdd() ? MIN_VALUE : ZERO;
       if (this.isNegative()) {
-        if (divisor.isNegative()) return this.neg().div(divisor.neg());
-        return this.neg().div(divisor).neg();
-      } else if (divisor.isNegative()) return this.div(divisor.neg()).neg();
-  
-      res = ZERO;
-    } else {
-      // The algorithm below has not been made for unsigned longs. It's therefore
-      // required to take special care of the MSB prior to running it.
-      if (!divisor.unsigned) divisor = divisor.toUnsigned();
-      if (divisor.gt(this)) return UZERO;
-      if (divisor.gt(this.shru(1))) // 15 >>> 1 = 7 ; with divisor = 8 ; true
-        return UONE;
-      res = UZERO;
-    } // Repeat the following until the remainder is less than other:  find a
-    // floating-point that approximates remainder / other *from below*, add this
-    // into the result, and subtract it from the remainder.  It is critical that
-    // the approximate value is less than or equal to the real value so that the
-    // remainder never becomes negative.
-  
-  
-    rem = this;
-  
-    while (rem.gte(divisor)) {
-      // Approximate the result of division. This may be a little greater or
-      // smaller than the actual value.
-      approx = Math.max(1, Math.floor(rem.toNumber() / divisor.toNumber())); // We will tweak the approximate result by changing it in the 48-th digit or
-      // the smallest non-fractional digit, whichever is larger.
-  
-      var log2 = Math.ceil(Math.log(approx) / Math.LN2),
+        if (multiplier.isNegative()) return this.neg().mul(multiplier.neg());
+        else return this.neg().mul(multiplier).neg();
+      } else if (multiplier.isNegative())
+        return this.mul(multiplier.neg()).neg();
+
+      // If both longs are small, use float multiplication
+      if (this.lt(TWO_PWR_24) && multiplier.lt(TWO_PWR_24))
+        return fromNumber(
+          this.toNumber() * multiplier.toNumber(),
+          this.unsigned,
+        );
+
+      // Divide each long into 4 chunks of 16 bits, and then add up 4x4 products.
+      // We can skip products that would overflow.
+
+      var a48 = this.high >>> 16;
+      var a32 = this.high & 0xffff;
+      var a16 = this.low >>> 16;
+      var a00 = this.low & 0xffff;
+      var b48 = multiplier.high >>> 16;
+      var b32 = multiplier.high & 0xffff;
+      var b16 = multiplier.low >>> 16;
+      var b00 = multiplier.low & 0xffff;
+      var c48 = 0,
+        c32 = 0,
+        c16 = 0,
+        c00 = 0;
+      c00 += a00 * b00;
+      c16 += c00 >>> 16;
+      c00 &= 0xffff;
+      c16 += a16 * b00;
+      c32 += c16 >>> 16;
+      c16 &= 0xffff;
+      c16 += a00 * b16;
+      c32 += c16 >>> 16;
+      c16 &= 0xffff;
+      c32 += a32 * b00;
+      c48 += c32 >>> 16;
+      c32 &= 0xffff;
+      c32 += a16 * b16;
+      c48 += c32 >>> 16;
+      c32 &= 0xffff;
+      c32 += a00 * b32;
+      c48 += c32 >>> 16;
+      c32 &= 0xffff;
+      c48 += a48 * b00 + a32 * b16 + a16 * b32 + a00 * b48;
+      c48 &= 0xffff;
+      return fromBits((c16 << 16) | c00, (c48 << 16) | c32, this.unsigned);
+    };
+
+    /**
+     * Returns the product of this and the specified Long. This is an alias of {@link Long#multiply}.
+     * @function
+     * @param {!Long|number|bigint|string} multiplier Multiplier
+     * @returns {!Long} Product
+     */
+    LongPrototype.mul = LongPrototype.multiply;
+
+    /**
+     * Returns this Long divided by the specified. The result is signed if this Long is signed or
+     *  unsigned if this Long is unsigned.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} divisor Divisor
+     * @returns {!Long} Quotient
+     */
+    LongPrototype.divide = function divide(divisor) {
+      if (!isLong(divisor)) divisor = fromValue(divisor);
+      if (divisor.isZero()) throw Error("division by zero");
+
+      // use wasm support if present
+      if (wasm) {
+        // guard against signed division overflow: the largest
+        // negative number / -1 would be 1 larger than the largest
+        // positive number, due to two's complement.
+        if (
+          !this.unsigned &&
+          this.high === -0x80000000 &&
+          divisor.low === -1 &&
+          divisor.high === -1
+        ) {
+          // be consistent with non-wasm code path
+          return this;
+        }
+        var low = (this.unsigned ? wasm["div_u"] : wasm["div_s"])(
+          this.low,
+          this.high,
+          divisor.low,
+          divisor.high,
+        );
+        return fromBits(low, wasm["get_high"](), this.unsigned);
+      }
+      if (this.isZero()) return this.unsigned ? UZERO : ZERO;
+      var approx, rem, res;
+      if (!this.unsigned) {
+        // This section is only relevant for signed longs and is derived from the
+        // closure library as a whole.
+        if (this.eq(MIN_VALUE)) {
+          if (divisor.eq(ONE) || divisor.eq(NEG_ONE))
+            return MIN_VALUE; // recall that -MIN_VALUE == MIN_VALUE
+          else if (divisor.eq(MIN_VALUE)) return ONE;
+          else {
+            // At this point, we have |other| >= 2, so |this/other| < |MIN_VALUE|.
+            var halfThis = this.shr(1);
+            approx = halfThis.div(divisor).shl(1);
+            if (approx.eq(ZERO)) {
+              return divisor.isNegative() ? ONE : NEG_ONE;
+            } else {
+              rem = this.sub(divisor.mul(approx));
+              res = approx.add(rem.div(divisor));
+              return res;
+            }
+          }
+        } else if (divisor.eq(MIN_VALUE)) return this.unsigned ? UZERO : ZERO;
+        if (this.isNegative()) {
+          if (divisor.isNegative()) return this.neg().div(divisor.neg());
+          return this.neg().div(divisor).neg();
+        } else if (divisor.isNegative()) return this.div(divisor.neg()).neg();
+        res = ZERO;
+      } else {
+        // The algorithm below has not been made for unsigned longs. It's therefore
+        // required to take special care of the MSB prior to running it.
+        if (!divisor.unsigned) divisor = divisor.toUnsigned();
+        if (divisor.gt(this)) return UZERO;
+        if (divisor.gt(this.shru(1)))
+          // 15 >>> 1 = 7 ; with divisor = 8 ; true
+          return UONE;
+        res = UZERO;
+      }
+
+      // Repeat the following until the remainder is less than other:  find a
+      // floating-point that approximates remainder / other *from below*, add this
+      // into the result, and subtract it from the remainder.  It is critical that
+      // the approximate value is less than or equal to the real value so that the
+      // remainder never becomes negative.
+      rem = this;
+      while (rem.gte(divisor)) {
+        // Approximate the result of division. This may be a little greater or
+        // smaller than the actual value.
+        approx = Math.max(1, Math.floor(rem.toNumber() / divisor.toNumber()));
+
+        // We will tweak the approximate result by changing it in the 48-th digit or
+        // the smallest non-fractional digit, whichever is larger.
+        var log2 = Math.ceil(Math.log(approx) / Math.LN2),
           delta = log2 <= 48 ? 1 : pow_dbl(2, log2 - 48),
           // Decrease the approximation until it is smaller than the remainder.  Note
-      // that if it is too large, the product overflows and is negative.
-      approxRes = fromNumber(approx),
+          // that if it is too large, the product overflows and is negative.
+          approxRes = fromNumber(approx),
           approxRem = approxRes.mul(divisor);
-  
-      while (approxRem.isNegative() || approxRem.gt(rem)) {
-        approx -= delta;
-        approxRes = fromNumber(approx, this.unsigned);
-        approxRem = approxRes.mul(divisor);
-      } // We know the answer can't be zero... and actually, zero would cause
-      // infinite recursion since we would make no progress.
-  
-  
-      if (approxRes.isZero()) approxRes = ONE;
-      res = res.add(approxRes);
-      rem = rem.sub(approxRem);
-    }
-  
-    return res;
-  };
-  /**
-   * Returns this Long divided by the specified. This is an alias of {@link Long#divide}.
-   * @function
-   * @param {!Long|number|string} divisor Divisor
-   * @returns {!Long} Quotient
-   */
-  
-  
-  LongPrototype.div = LongPrototype.divide;
-  /**
-   * Returns this Long modulo the specified.
-   * @this {!Long}
-   * @param {!Long|number|string} divisor Divisor
-   * @returns {!Long} Remainder
-   */
-  
-  LongPrototype.modulo = function modulo(divisor) {
-    if (!isLong(divisor)) divisor = fromValue(divisor); // use wasm support if present
-  
-    if (wasm) {
-      var low = (this.unsigned ? wasm["rem_u"] : wasm["rem_s"])(this.low, this.high, divisor.low, divisor.high);
-      return fromBits(low, wasm["get_high"](), this.unsigned);
-    }
-  
-    return this.sub(this.div(divisor).mul(divisor));
-  };
-  /**
-   * Returns this Long modulo the specified. This is an alias of {@link Long#modulo}.
-   * @function
-   * @param {!Long|number|string} divisor Divisor
-   * @returns {!Long} Remainder
-   */
-  
-  
-  LongPrototype.mod = LongPrototype.modulo;
-  /**
-   * Returns this Long modulo the specified. This is an alias of {@link Long#modulo}.
-   * @function
-   * @param {!Long|number|string} divisor Divisor
-   * @returns {!Long} Remainder
-   */
-  
-  LongPrototype.rem = LongPrototype.modulo;
-  /**
-   * Returns the bitwise NOT of this Long.
-   * @this {!Long}
-   * @returns {!Long}
-   */
-  
-  LongPrototype.not = function not() {
-    return fromBits(~this.low, ~this.high, this.unsigned);
-  };
-  /**
-   * Returns count leading zeros of this Long.
-   * @this {!Long}
-   * @returns {!number}
-   */
-  
-  
-  LongPrototype.countLeadingZeros = function countLeadingZeros() {
-    return this.high ? Math.clz32(this.high) : Math.clz32(this.low) + 32;
-  };
-  /**
-   * Returns count leading zeros. This is an alias of {@link Long#countLeadingZeros}.
-   * @function
-   * @param {!Long}
-   * @returns {!number}
-   */
-  
-  
-  LongPrototype.clz = LongPrototype.countLeadingZeros;
-  /**
-   * Returns count trailing zeros of this Long.
-   * @this {!Long}
-   * @returns {!number}
-   */
-  
-  LongPrototype.countTrailingZeros = function countTrailingZeros() {
-    return this.low ? ctz32(this.low) : ctz32(this.high) + 32;
-  };
-  /**
-   * Returns count trailing zeros. This is an alias of {@link Long#countTrailingZeros}.
-   * @function
-   * @param {!Long}
-   * @returns {!number}
-   */
-  
-  
-  LongPrototype.ctz = LongPrototype.countTrailingZeros;
-  /**
-   * Returns the bitwise AND of this Long and the specified.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other Long
-   * @returns {!Long}
-   */
-  
-  LongPrototype.and = function and(other) {
-    if (!isLong(other)) other = fromValue(other);
-    return fromBits(this.low & other.low, this.high & other.high, this.unsigned);
-  };
-  /**
-   * Returns the bitwise OR of this Long and the specified.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other Long
-   * @returns {!Long}
-   */
-  
-  
-  LongPrototype.or = function or(other) {
-    if (!isLong(other)) other = fromValue(other);
-    return fromBits(this.low | other.low, this.high | other.high, this.unsigned);
-  };
-  /**
-   * Returns the bitwise XOR of this Long and the given one.
-   * @this {!Long}
-   * @param {!Long|number|string} other Other Long
-   * @returns {!Long}
-   */
-  
-  
-  LongPrototype.xor = function xor(other) {
-    if (!isLong(other)) other = fromValue(other);
-    return fromBits(this.low ^ other.low, this.high ^ other.high, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits shifted to the left by the given amount.
-   * @this {!Long}
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  
-  LongPrototype.shiftLeft = function shiftLeft(numBits) {
-    if (isLong(numBits)) numBits = numBits.toInt();
-    if ((numBits &= 63) === 0) return this;else if (numBits < 32) return fromBits(this.low << numBits, this.high << numBits | this.low >>> 32 - numBits, this.unsigned);else return fromBits(0, this.low << numBits - 32, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits shifted to the left by the given amount. This is an alias of {@link Long#shiftLeft}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  
-  LongPrototype.shl = LongPrototype.shiftLeft;
-  /**
-   * Returns this Long with bits arithmetically shifted to the right by the given amount.
-   * @this {!Long}
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  LongPrototype.shiftRight = function shiftRight(numBits) {
-    if (isLong(numBits)) numBits = numBits.toInt();
-    if ((numBits &= 63) === 0) return this;else if (numBits < 32) return fromBits(this.low >>> numBits | this.high << 32 - numBits, this.high >> numBits, this.unsigned);else return fromBits(this.high >> numBits - 32, this.high >= 0 ? 0 : -1, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits arithmetically shifted to the right by the given amount. This is an alias of {@link Long#shiftRight}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  
-  LongPrototype.shr = LongPrototype.shiftRight;
-  /**
-   * Returns this Long with bits logically shifted to the right by the given amount.
-   * @this {!Long}
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  LongPrototype.shiftRightUnsigned = function shiftRightUnsigned(numBits) {
-    if (isLong(numBits)) numBits = numBits.toInt();
-    if ((numBits &= 63) === 0) return this;
-    if (numBits < 32) return fromBits(this.low >>> numBits | this.high << 32 - numBits, this.high >>> numBits, this.unsigned);
-    if (numBits === 32) return fromBits(this.high, 0, this.unsigned);
-    return fromBits(this.high >>> numBits - 32, 0, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits logically shifted to the right by the given amount. This is an alias of {@link Long#shiftRightUnsigned}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  
-  LongPrototype.shru = LongPrototype.shiftRightUnsigned;
-  /**
-   * Returns this Long with bits logically shifted to the right by the given amount. This is an alias of {@link Long#shiftRightUnsigned}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Shifted Long
-   */
-  
-  LongPrototype.shr_u = LongPrototype.shiftRightUnsigned;
-  /**
-   * Returns this Long with bits rotated to the left by the given amount.
-   * @this {!Long}
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Rotated Long
-   */
-  
-  LongPrototype.rotateLeft = function rotateLeft(numBits) {
-    var b;
-    if (isLong(numBits)) numBits = numBits.toInt();
-    if ((numBits &= 63) === 0) return this;
-    if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
-  
-    if (numBits < 32) {
+        while (approxRem.isNegative() || approxRem.gt(rem)) {
+          approx -= delta;
+          approxRes = fromNumber(approx, this.unsigned);
+          approxRem = approxRes.mul(divisor);
+        }
+
+        // We know the answer can't be zero... and actually, zero would cause
+        // infinite recursion since we would make no progress.
+        if (approxRes.isZero()) approxRes = ONE;
+        res = res.add(approxRes);
+        rem = rem.sub(approxRem);
+      }
+      return res;
+    };
+
+    /**
+     * Returns this Long divided by the specified. This is an alias of {@link Long#divide}.
+     * @function
+     * @param {!Long|number|bigint|string} divisor Divisor
+     * @returns {!Long} Quotient
+     */
+    LongPrototype.div = LongPrototype.divide;
+
+    /**
+     * Returns this Long modulo the specified.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} divisor Divisor
+     * @returns {!Long} Remainder
+     */
+    LongPrototype.modulo = function modulo(divisor) {
+      if (!isLong(divisor)) divisor = fromValue(divisor);
+
+      // use wasm support if present
+      if (wasm) {
+        var low = (this.unsigned ? wasm["rem_u"] : wasm["rem_s"])(
+          this.low,
+          this.high,
+          divisor.low,
+          divisor.high,
+        );
+        return fromBits(low, wasm["get_high"](), this.unsigned);
+      }
+      return this.sub(this.div(divisor).mul(divisor));
+    };
+
+    /**
+     * Returns this Long modulo the specified. This is an alias of {@link Long#modulo}.
+     * @function
+     * @param {!Long|number|bigint|string} divisor Divisor
+     * @returns {!Long} Remainder
+     */
+    LongPrototype.mod = LongPrototype.modulo;
+
+    /**
+     * Returns this Long modulo the specified. This is an alias of {@link Long#modulo}.
+     * @function
+     * @param {!Long|number|bigint|string} divisor Divisor
+     * @returns {!Long} Remainder
+     */
+    LongPrototype.rem = LongPrototype.modulo;
+
+    /**
+     * Returns the bitwise NOT of this Long.
+     * @this {!Long}
+     * @returns {!Long}
+     */
+    LongPrototype.not = function not() {
+      return fromBits(~this.low, ~this.high, this.unsigned);
+    };
+
+    /**
+     * Returns count leading zeros of this Long.
+     * @this {!Long}
+     * @returns {!number}
+     */
+    LongPrototype.countLeadingZeros = function countLeadingZeros() {
+      return this.high ? Math.clz32(this.high) : Math.clz32(this.low) + 32;
+    };
+
+    /**
+     * Returns count leading zeros. This is an alias of {@link Long#countLeadingZeros}.
+     * @function
+     * @param {!Long}
+     * @returns {!number}
+     */
+    LongPrototype.clz = LongPrototype.countLeadingZeros;
+
+    /**
+     * Returns count trailing zeros of this Long.
+     * @this {!Long}
+     * @returns {!number}
+     */
+    LongPrototype.countTrailingZeros = function countTrailingZeros() {
+      return this.low ? ctz32(this.low) : ctz32(this.high) + 32;
+    };
+
+    /**
+     * Returns count trailing zeros. This is an alias of {@link Long#countTrailingZeros}.
+     * @function
+     * @param {!Long}
+     * @returns {!number}
+     */
+    LongPrototype.ctz = LongPrototype.countTrailingZeros;
+
+    /**
+     * Returns the bitwise AND of this Long and the specified.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other Long
+     * @returns {!Long}
+     */
+    LongPrototype.and = function and(other) {
+      if (!isLong(other)) other = fromValue(other);
+      return fromBits(
+        this.low & other.low,
+        this.high & other.high,
+        this.unsigned,
+      );
+    };
+
+    /**
+     * Returns the bitwise OR of this Long and the specified.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other Long
+     * @returns {!Long}
+     */
+    LongPrototype.or = function or(other) {
+      if (!isLong(other)) other = fromValue(other);
+      return fromBits(
+        this.low | other.low,
+        this.high | other.high,
+        this.unsigned,
+      );
+    };
+
+    /**
+     * Returns the bitwise XOR of this Long and the given one.
+     * @this {!Long}
+     * @param {!Long|number|bigint|string} other Other Long
+     * @returns {!Long}
+     */
+    LongPrototype.xor = function xor(other) {
+      if (!isLong(other)) other = fromValue(other);
+      return fromBits(
+        this.low ^ other.low,
+        this.high ^ other.high,
+        this.unsigned,
+      );
+    };
+
+    /**
+     * Returns this Long with bits shifted to the left by the given amount.
+     * @this {!Long}
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shiftLeft = function shiftLeft(numBits) {
+      if (isLong(numBits)) numBits = numBits.toInt();
+      if ((numBits &= 63) === 0) return this;
+      else if (numBits < 32)
+        return fromBits(
+          this.low << numBits,
+          (this.high << numBits) | (this.low >>> (32 - numBits)),
+          this.unsigned,
+        );
+      else return fromBits(0, this.low << (numBits - 32), this.unsigned);
+    };
+
+    /**
+     * Returns this Long with bits shifted to the left by the given amount. This is an alias of {@link Long#shiftLeft}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shl = LongPrototype.shiftLeft;
+
+    /**
+     * Returns this Long with bits arithmetically shifted to the right by the given amount.
+     * @this {!Long}
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shiftRight = function shiftRight(numBits) {
+      if (isLong(numBits)) numBits = numBits.toInt();
+      if ((numBits &= 63) === 0) return this;
+      else if (numBits < 32)
+        return fromBits(
+          (this.low >>> numBits) | (this.high << (32 - numBits)),
+          this.high >> numBits,
+          this.unsigned,
+        );
+      else
+        return fromBits(
+          this.high >> (numBits - 32),
+          this.high >= 0 ? 0 : -1,
+          this.unsigned,
+        );
+    };
+
+    /**
+     * Returns this Long with bits arithmetically shifted to the right by the given amount. This is an alias of {@link Long#shiftRight}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shr = LongPrototype.shiftRight;
+
+    /**
+     * Returns this Long with bits logically shifted to the right by the given amount.
+     * @this {!Long}
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shiftRightUnsigned = function shiftRightUnsigned(numBits) {
+      if (isLong(numBits)) numBits = numBits.toInt();
+      if ((numBits &= 63) === 0) return this;
+      if (numBits < 32)
+        return fromBits(
+          (this.low >>> numBits) | (this.high << (32 - numBits)),
+          this.high >>> numBits,
+          this.unsigned,
+        );
+      if (numBits === 32) return fromBits(this.high, 0, this.unsigned);
+      return fromBits(this.high >>> (numBits - 32), 0, this.unsigned);
+    };
+
+    /**
+     * Returns this Long with bits logically shifted to the right by the given amount. This is an alias of {@link Long#shiftRightUnsigned}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shru = LongPrototype.shiftRightUnsigned;
+
+    /**
+     * Returns this Long with bits logically shifted to the right by the given amount. This is an alias of {@link Long#shiftRightUnsigned}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Shifted Long
+     */
+    LongPrototype.shr_u = LongPrototype.shiftRightUnsigned;
+
+    /**
+     * Returns this Long with bits rotated to the left by the given amount.
+     * @this {!Long}
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Rotated Long
+     */
+    LongPrototype.rotateLeft = function rotateLeft(numBits) {
+      var b;
+      if (isLong(numBits)) numBits = numBits.toInt();
+      if ((numBits &= 63) === 0) return this;
+      if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+      if (numBits < 32) {
+        b = 32 - numBits;
+        return fromBits(
+          (this.low << numBits) | (this.high >>> b),
+          (this.high << numBits) | (this.low >>> b),
+          this.unsigned,
+        );
+      }
+      numBits -= 32;
       b = 32 - numBits;
-      return fromBits(this.low << numBits | this.high >>> b, this.high << numBits | this.low >>> b, this.unsigned);
-    }
-  
-    numBits -= 32;
-    b = 32 - numBits;
-    return fromBits(this.high << numBits | this.low >>> b, this.low << numBits | this.high >>> b, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits rotated to the left by the given amount. This is an alias of {@link Long#rotateLeft}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Rotated Long
-   */
-  
-  
-  LongPrototype.rotl = LongPrototype.rotateLeft;
-  /**
-   * Returns this Long with bits rotated to the right by the given amount.
-   * @this {!Long}
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Rotated Long
-   */
-  
-  LongPrototype.rotateRight = function rotateRight(numBits) {
-    var b;
-    if (isLong(numBits)) numBits = numBits.toInt();
-    if ((numBits &= 63) === 0) return this;
-    if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
-  
-    if (numBits < 32) {
+      return fromBits(
+        (this.high << numBits) | (this.low >>> b),
+        (this.low << numBits) | (this.high >>> b),
+        this.unsigned,
+      );
+    };
+    /**
+     * Returns this Long with bits rotated to the left by the given amount. This is an alias of {@link Long#rotateLeft}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Rotated Long
+     */
+    LongPrototype.rotl = LongPrototype.rotateLeft;
+
+    /**
+     * Returns this Long with bits rotated to the right by the given amount.
+     * @this {!Long}
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Rotated Long
+     */
+    LongPrototype.rotateRight = function rotateRight(numBits) {
+      var b;
+      if (isLong(numBits)) numBits = numBits.toInt();
+      if ((numBits &= 63) === 0) return this;
+      if (numBits === 32) return fromBits(this.high, this.low, this.unsigned);
+      if (numBits < 32) {
+        b = 32 - numBits;
+        return fromBits(
+          (this.high << b) | (this.low >>> numBits),
+          (this.low << b) | (this.high >>> numBits),
+          this.unsigned,
+        );
+      }
+      numBits -= 32;
       b = 32 - numBits;
-      return fromBits(this.high << b | this.low >>> numBits, this.low << b | this.high >>> numBits, this.unsigned);
+      return fromBits(
+        (this.low << b) | (this.high >>> numBits),
+        (this.high << b) | (this.low >>> numBits),
+        this.unsigned,
+      );
+    };
+    /**
+     * Returns this Long with bits rotated to the right by the given amount. This is an alias of {@link Long#rotateRight}.
+     * @function
+     * @param {number|!Long} numBits Number of bits
+     * @returns {!Long} Rotated Long
+     */
+    LongPrototype.rotr = LongPrototype.rotateRight;
+
+    /**
+     * Converts this Long to signed.
+     * @this {!Long}
+     * @returns {!Long} Signed long
+     */
+    LongPrototype.toSigned = function toSigned() {
+      if (!this.unsigned) return this;
+      return fromBits(this.low, this.high, false);
+    };
+
+    /**
+     * Converts this Long to unsigned.
+     * @this {!Long}
+     * @returns {!Long} Unsigned long
+     */
+    LongPrototype.toUnsigned = function toUnsigned() {
+      if (this.unsigned) return this;
+      return fromBits(this.low, this.high, true);
+    };
+
+    /**
+     * Converts this Long to its byte representation.
+     * @param {boolean=} le Whether little or big endian, defaults to big endian
+     * @this {!Long}
+     * @returns {!Array.<number>} Byte representation
+     */
+    LongPrototype.toBytes = function toBytes(le) {
+      return le ? this.toBytesLE() : this.toBytesBE();
+    };
+
+    /**
+     * Converts this Long to its little endian byte representation.
+     * @this {!Long}
+     * @returns {!Array.<number>} Little endian byte representation
+     */
+    LongPrototype.toBytesLE = function toBytesLE() {
+      var hi = this.high,
+        lo = this.low;
+      return [
+        lo & 0xff,
+        (lo >>> 8) & 0xff,
+        (lo >>> 16) & 0xff,
+        lo >>> 24,
+        hi & 0xff,
+        (hi >>> 8) & 0xff,
+        (hi >>> 16) & 0xff,
+        hi >>> 24,
+      ];
+    };
+
+    /**
+     * Converts this Long to its big endian byte representation.
+     * @this {!Long}
+     * @returns {!Array.<number>} Big endian byte representation
+     */
+    LongPrototype.toBytesBE = function toBytesBE() {
+      var hi = this.high,
+        lo = this.low;
+      return [
+        hi >>> 24,
+        (hi >>> 16) & 0xff,
+        (hi >>> 8) & 0xff,
+        hi & 0xff,
+        lo >>> 24,
+        (lo >>> 16) & 0xff,
+        (lo >>> 8) & 0xff,
+        lo & 0xff,
+      ];
+    };
+
+    /**
+     * Creates a Long from its byte representation.
+     * @param {!Array.<number>} bytes Byte representation
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @param {boolean=} le Whether little or big endian, defaults to big endian
+     * @returns {Long} The corresponding Long value
+     */
+    Long.fromBytes = function fromBytes(bytes, unsigned, le) {
+      return le
+        ? Long.fromBytesLE(bytes, unsigned)
+        : Long.fromBytesBE(bytes, unsigned);
+    };
+
+    /**
+     * Creates a Long from its little endian byte representation.
+     * @param {!Array.<number>} bytes Little endian byte representation
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {Long} The corresponding Long value
+     */
+    Long.fromBytesLE = function fromBytesLE(bytes, unsigned) {
+      return new Long(
+        bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24),
+        bytes[4] | (bytes[5] << 8) | (bytes[6] << 16) | (bytes[7] << 24),
+        unsigned,
+      );
+    };
+
+    /**
+     * Creates a Long from its big endian byte representation.
+     * @param {!Array.<number>} bytes Big endian byte representation
+     * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+     * @returns {Long} The corresponding Long value
+     */
+    Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
+      return new Long(
+        (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7],
+        (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3],
+        unsigned,
+      );
+    };
+
+    // Support conversion to/from BigInt where available
+    if (typeof BigInt === "function") {
+      /**
+       * Returns a Long representing the given big integer.
+       * @function
+       * @param {number} value The big integer value
+       * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
+       * @returns {!Long} The corresponding Long value
+       */
+      Long.fromBigInt = function fromBigInt(value, unsigned) {
+        var lowBits = Number(BigInt.asIntN(32, value));
+        var highBits = Number(BigInt.asIntN(32, value >> BigInt(32)));
+        return fromBits(lowBits, highBits, unsigned);
+      };
+
+      // Override
+      Long.fromValue = function fromValueWithBigInt(value, unsigned) {
+        if (typeof value === "bigint") return Long.fromBigInt(value, unsigned);
+        return fromValue(value, unsigned);
+      };
+
+      /**
+       * Converts the Long to its big integer representation.
+       * @this {!Long}
+       * @returns {bigint}
+       */
+      LongPrototype.toBigInt = function toBigInt() {
+        var lowBigInt = BigInt(this.low >>> 0);
+        var highBigInt = BigInt(this.unsigned ? this.high >>> 0 : this.high);
+        return (highBigInt << BigInt(32)) | lowBigInt;
+      };
     }
-  
-    numBits -= 32;
-    b = 32 - numBits;
-    return fromBits(this.low << b | this.high >>> numBits, this.high << b | this.low >>> numBits, this.unsigned);
-  };
-  /**
-   * Returns this Long with bits rotated to the right by the given amount. This is an alias of {@link Long#rotateRight}.
-   * @function
-   * @param {number|!Long} numBits Number of bits
-   * @returns {!Long} Rotated Long
-   */
-  
-  
-  LongPrototype.rotr = LongPrototype.rotateRight;
-  /**
-   * Converts this Long to signed.
-   * @this {!Long}
-   * @returns {!Long} Signed long
-   */
-  
-  LongPrototype.toSigned = function toSigned() {
-    if (!this.unsigned) return this;
-    return fromBits(this.low, this.high, false);
-  };
-  /**
-   * Converts this Long to unsigned.
-   * @this {!Long}
-   * @returns {!Long} Unsigned long
-   */
-  
-  
-  LongPrototype.toUnsigned = function toUnsigned() {
-    if (this.unsigned) return this;
-    return fromBits(this.low, this.high, true);
-  };
-  /**
-   * Converts this Long to its byte representation.
-   * @param {boolean=} le Whether little or big endian, defaults to big endian
-   * @this {!Long}
-   * @returns {!Array.<number>} Byte representation
-   */
-  
-  
-  LongPrototype.toBytes = function toBytes(le) {
-    return le ? this.toBytesLE() : this.toBytesBE();
-  };
-  /**
-   * Converts this Long to its little endian byte representation.
-   * @this {!Long}
-   * @returns {!Array.<number>} Little endian byte representation
-   */
-  
-  
-  LongPrototype.toBytesLE = function toBytesLE() {
-    var hi = this.high,
-        lo = this.low;
-    return [lo & 0xff, lo >>> 8 & 0xff, lo >>> 16 & 0xff, lo >>> 24, hi & 0xff, hi >>> 8 & 0xff, hi >>> 16 & 0xff, hi >>> 24];
-  };
-  /**
-   * Converts this Long to its big endian byte representation.
-   * @this {!Long}
-   * @returns {!Array.<number>} Big endian byte representation
-   */
-  
-  
-  LongPrototype.toBytesBE = function toBytesBE() {
-    var hi = this.high,
-        lo = this.low;
-    return [hi >>> 24, hi >>> 16 & 0xff, hi >>> 8 & 0xff, hi & 0xff, lo >>> 24, lo >>> 16 & 0xff, lo >>> 8 & 0xff, lo & 0xff];
-  };
-  /**
-   * Creates a Long from its byte representation.
-   * @param {!Array.<number>} bytes Byte representation
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @param {boolean=} le Whether little or big endian, defaults to big endian
-   * @returns {Long} The corresponding Long value
-   */
-  
-  
-  Long.fromBytes = function fromBytes(bytes, unsigned, le) {
-    return le ? Long.fromBytesLE(bytes, unsigned) : Long.fromBytesBE(bytes, unsigned);
-  };
-  /**
-   * Creates a Long from its little endian byte representation.
-   * @param {!Array.<number>} bytes Little endian byte representation
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {Long} The corresponding Long value
-   */
-  
-  
-  Long.fromBytesLE = function fromBytesLE(bytes, unsigned) {
-    return new Long(bytes[0] | bytes[1] << 8 | bytes[2] << 16 | bytes[3] << 24, bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24, unsigned);
-  };
-  /**
-   * Creates a Long from its big endian byte representation.
-   * @param {!Array.<number>} bytes Big endian byte representation
-   * @param {boolean=} unsigned Whether unsigned or not, defaults to signed
-   * @returns {Long} The corresponding Long value
-   */
-  
-  
-  Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
-    return new Long(bytes[4] << 24 | bytes[5] << 16 | bytes[6] << 8 | bytes[7], bytes[0] << 24 | bytes[1] << 16 | bytes[2] << 8 | bytes[3], unsigned);
-  };
-  
-  var _default = Long;
-  exports.default = _default;
-  return "default" in exports ? exports.default : exports;
-})({});
-if (true) !(__WEBPACK_AMD_DEFINE_ARRAY__ = [], __WEBPACK_AMD_DEFINE_RESULT__ = (function() { return Long; }).apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-else {}
+    var _default = (_exports.default = Long);
+  },
+);
 
 
 /***/ }),
@@ -101376,9 +101505,9 @@ __webpack_require__.d(client_utils_certificate_namespaceObject, {
 });
 
 // NAMESPACE OBJECT: ./src/lib/utils/bloom.ts
-var client_bloom_namespaceObject = {};
-__webpack_require__.r(client_bloom_namespaceObject);
-__webpack_require__.d(client_bloom_namespaceObject, {
+var client_utils_bloom_namespaceObject = {};
+__webpack_require__.r(client_utils_bloom_namespaceObject);
+__webpack_require__.d(client_utils_bloom_namespaceObject, {
   BloomFilter: () => (client_api.BloomFilter),
   deserializeBloomFilter: () => (client_deserializeBloomFilter),
   serializeBloomFilter: () => (client_serializeBloomFilter)
@@ -106222,15 +106351,28 @@ function client_EncodeBase64URL(data) {
   output = output.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return output;
 }
+
+/**
+ * Default upper bound on decompressed output for the generic inflate helpers.
+ * Untrusted input must never be inflated without a bound; callers with a
+ * legitimate need for a larger output may override `maxOutputLength` explicitly.
+ */
+const client_DEFAULT_MAX_INFLATE_BYTES = 64 * 1024 * 1024;
 function client_ZlibInflate(data, options) {
-  return client_bufferToArrayBuffer(client_lib_default().inflateSync(client_node_modules_buffer.Buffer.from(data), options));
+  return client_bufferToArrayBuffer(client_lib_default().inflateSync(client_node_modules_buffer.Buffer.from(data), {
+    maxOutputLength: client_DEFAULT_MAX_INFLATE_BYTES,
+    ...options
+  }));
 }
 function client_ZlibDeflate(data, options) {
   return client_bufferToArrayBuffer(client_lib_default().deflateSync(client_node_modules_buffer.Buffer.from(data), options));
 }
 async function client_ZlibInflateAsync(data) {
   let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-  const buffer = await client_inflateAsync(client_node_modules_buffer.Buffer.from(data), options);
+  const buffer = await client_inflateAsync(client_node_modules_buffer.Buffer.from(data), {
+    maxOutputLength: client_DEFAULT_MAX_INFLATE_BYTES,
+    ...options
+  });
   return client_bufferToArrayBuffer(buffer);
 }
 async function client_ZlibDeflateAsync(data) {
@@ -113208,6 +113350,12 @@ function client_asn1_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new T
 function client_asn1_classPrivateFieldGet(s, a) { return s.get(client_asn1_assertClassBrand(s, a)); }
 function client_asn1_classPrivateFieldSet(s, a, r) { return s.set(client_asn1_assertClassBrand(s, a), r), r; }
 function client_asn1_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function src_client_slicedToArray(r, e) { return src_client_arrayWithHoles(r) || src_client_iterableToArrayLimit(r, e) || src_client_unsupportedIterableToArray(r, e) || src_client_nonIterableRest(); }
+function src_client_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function src_client_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return src_client_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? src_client_arrayLikeToArray(r, a) : void 0; } }
+function src_client_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function src_client_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function src_client_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
 
 
@@ -113522,7 +113670,10 @@ function client_isValidSequenceSchema(input, schema) {
   if (input.length !== schema.length) {
     return false;
   }
-  for (const [i, val] of input.entries()) {
+  for (const _ref of input.entries()) {
+    var _ref2 = src_client_slicedToArray(_ref, 2);
+    const i = _ref2[0];
+    const val = _ref2[1];
     if (schema[i] === undefined || !schema[i](val)) {
       return false;
     }
@@ -113751,6 +113902,23 @@ function client_jsJStoASN1(input, allowUndefined) {
   }
   throw new Error(`Unsupported JavaScript type ${typeof input} ${JSON.stringify(input)}`);
 }
+
+/**
+ * Convert an asn1js UTCTime/GeneralizedTime into a UTC Date.
+ *
+ * asn1js parses the 4-digit year correctly into the instance's `year`
+ * field but its own toDate() feeds that year into Date.UTC(), which
+ * applies the ECMAScript 2-digit-year legacy rule (years 0-99 become
+ * 1900-1999). Rebuilding the Date via setUTCFullYear() bypasses that
+ * remap; for years >= 100 the result is identical to toDate().
+ */
+function client_asn1TimeToUTCDate(data) {
+  const millisecond = data instanceof client_GeneralizedTime ? data.millisecond : 0;
+  const date = new Date(0);
+  date.setUTCFullYear(data.year, data.month - 1, data.day);
+  date.setUTCHours(data.hour, data.minute, data.second, millisecond);
+  return date;
+}
 function client_jsASN1toJS(input) {
   var _data$constructor;
   /**
@@ -113796,7 +113964,7 @@ function client_jsASN1toJS(input) {
   } else if (data instanceof client_Integer) {
     return client_jsIntegerToBigInt(data);
   } else if (data instanceof client_GeneralizedTime || data instanceof client_UTCTime) {
-    const date = data.toDate();
+    const date = client_asn1TimeToUTCDate(data);
     let kind;
     if (data instanceof client_GeneralizedTime) {
       kind = 'general';
@@ -113989,12 +114157,10 @@ if (client_asn1_napi_rs !== undefined) {
     client_asn1lib.ASN1IntegerToBigInt = client_asn1_napi_rs.ASN1IntegerToBigInt;
   }
 }
-const {
-  ASN1toJS: client_ASN1toJS,
-  JStoASN1: client_JStoASN1,
-  ASN1IntegerToBigInt: client_ASN1IntegerToBigInt,
-  ASN1BigIntToBuffer: client_ASN1BigIntToBuffer
-} = client_asn1lib;
+const client_ASN1toJS = client_asn1lib.ASN1toJS,
+  client_JStoASN1 = client_asn1lib.JStoASN1,
+  client_ASN1IntegerToBigInt = client_asn1lib.ASN1IntegerToBigInt,
+  client_ASN1BigIntToBuffer = client_asn1lib.ASN1BigIntToBuffer;
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 var client_schema = /*#__PURE__*/new WeakMap();
@@ -115562,7 +115728,7 @@ function client_getDefaultConfig(network) {
       {
         initialTrustedAccount = 'keeta_aabmvemiol5wrs67e4rfiyibopwav4e77sleiqaqvbdprbuxrifn7fgg4cchhia';
         publishAidURL = `https://publish-aid.${network}.network.api.keeta.com/api/publish`;
-        const reps = ['keeta_aabi4bd3f7jrt67mxcq44ozj65bh4bp2mygmrkedxggu2rxwn2ztuw3b6exivbq', 'keeta_aabf7dz5asq2n2lrldct33x2ww65cophxp7egfiixbb7tbyat5r3kcbcez7ftpi', 'keeta_aab3cxegizwhtim3zlyuwjhiqd5ikkhxg42smhwc3wx6yn7ep2t6lwo6emvw4wa', 'keeta_aabznoicrzvte6ql5rxbgugmfrjqubbnjuo5l6ivopowy4rpkqgs5fco3oaezcq'];
+        const reps = ['keeta_aabi4bd3f7jrt67mxcq44ozj65bh4bp2mygmrkedxggu2rxwn2ztuw3b6exivbq', 'keeta_aabf7dz5asq2n2lrldct33x2ww65cophxp7egfiixbb7tbyat5r3kcbcez7ftpi'];
         for (let index = 0; index < reps.length; index++) {
           const repID = index + 1;
           const repKey = reps[index];
@@ -115713,6 +115879,12 @@ function client_lib_permissions_toPrimitive(t, r) { if ("object" != typeof t || 
 function client_permissions_classPrivateFieldSet(s, a, r) { return s.set(client_permissions_assertClassBrand(s, a), r), r; }
 function client_permissions_classPrivateFieldGet(s, a) { return s.get(client_permissions_assertClassBrand(s, a)); }
 function client_permissions_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function client_permissions_slicedToArray(r, e) { return client_permissions_arrayWithHoles(r) || client_permissions_iterableToArrayLimit(r, e) || client_permissions_unsupportedIterableToArray(r, e) || client_permissions_nonIterableRest(); }
+function client_permissions_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_permissions_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_permissions_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_permissions_arrayLikeToArray(r, a) : void 0; } }
+function client_permissions_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_permissions_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_permissions_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
 
 
@@ -115912,7 +116084,10 @@ class client_PermissionSetHolder {
   }
   computeFlagsFromOffsetSet(offsets) {
     const newFlags = [];
-    for (const [flagName, offset] of Object.entries(offsets)) {
+    for (const _ref of Object.entries(offsets)) {
+      var _ref2 = client_permissions_slicedToArray(_ref, 2);
+      const flagName = _ref2[0];
+      const offset = _ref2[1];
       const has = this.storage.get(offset);
       if (has !== true) {
         continue;
@@ -115985,9 +116160,7 @@ class src_client_BaseSet extends client_PermissionSetHolder {
       }
       return false;
     }
-    const {
-      keyType
-    } = account;
+    const keyType = account.keyType;
     switch (flagGroup) {
       case src_client_BaseSet.BasePermissionGroup.NONIDENTIFIER:
         // Multisig addresses can sign anywhere a keyed account can.
@@ -116034,7 +116207,10 @@ function client_computeOffsetArrayFromFlags(flags) {
 }
 function client_updateStorageFromFlags(updatedFlags) {
   client_assertBaseFlagNames(updatedFlags);
-  for (const [flagName, offset] of Object.entries(client_permissions_classPrivateFieldGet(client_offsets, this))) {
+  for (const _ref3 of Object.entries(client_permissions_classPrivateFieldGet(client_offsets, this))) {
+    var _ref4 = client_permissions_slicedToArray(_ref3, 2);
+    const flagName = _ref4[0];
+    const offset = _ref4[1];
     this.storage.set(offset, updatedFlags.includes(client_assertBaseFlag(flagName)));
   }
 }
@@ -116144,9 +116320,7 @@ class src_client_ExternalSet extends client_PermissionSetHolder {
 }
 client_ExternalSet = src_client_ExternalSet;
 function client_validateWithinMaxLength(validation) {
-  const {
-    maxExternalOffset
-  } = validation.permissions;
+  const maxExternalOffset = validation.permissions.maxExternalOffset;
   if (this.storage.size >= maxExternalOffset) {
     throw new src_client_KeetaNetPermissionsError('PERMISSIONS_EXTERNAL_OFFSET_TOO_LARGE', `External permissions can only have up to ${maxExternalOffset} flags set and tried to set ${this.storage.size}`);
   }
@@ -116297,7 +116471,7 @@ function client_block_toPrimitive(t, r) { if ("object" != typeof t || !t) return
 
 
 const client_BlockErrorType = 'BLOCK';
-const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PRINCIPAL', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SIGNATURE_PARAMETER_DIFFERS', 'SIGNATURE_REQUIRED', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS'];
+const client_BlockErrorCodes = ['AMOUNT_BELOW_ZERO', 'CANNOT_FORWARD_TO_SELF', 'CANNOT_SEND_NON_TOKEN', 'CERTIFICATE_SUBJECT_MISMATCH', 'EXACT_TRUE_WHEN_FORWARDING', 'EXTERNAL_INVALID', 'EXTERNAL_MISSING', 'EXTERNAL_TOO_LONG', 'GENERAL_FIELD_INVALID', 'IDENTIFIER_INVALID', 'IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'INTERMEDIATE_CERTIFICATES_ONLY_ADD', 'INVALID_ACCOUNT_TYPE', 'INVALID_CERTIFICATE_VALUE', 'INVALID_CREATE_IDENTIFIER_ARGS', 'INVALID_IDEMPOTENT_FORMAT', 'INVALID_IDEMPOTENT_LENGTH', 'INVALID_MULTISIG_QUORUM', 'INVALID_MULTISIG_SIGNER_COUNT', 'INVALID_MULTISIG_SIGNER_DEPTH', 'INVALID_MULTISIG_SIGNER_DUPLICATE', 'INVALID_PRINCIPAL', 'INVALID_PURPOSE_VALIDATION', 'INVALID_SIGNATURE', 'INVALID_SIGNER', 'INVALID_TYPE', 'INVALID_VERSION', 'NO_ADMIN_ON_TARGET', 'NO_DELEGATE_ADMIN', 'NO_DUPLICATE_CERTIFICATE_OPERATION', 'NO_IDENTIFIER_OP', 'NO_MODIFY_PERMISSION_DUPE', 'NO_MULTIPLE_SET_REP', 'NO_MULTISIG_OP', 'NO_OPERATIONS', 'NO_TOKEN_OP', 'ONLY_IDENTIFIER_OP', 'ONLY_TOKEN_OP', 'PERMISSIONS_INVALID_DEFAULT', 'PERMISSIONS_INVALID_ENTITY', 'PERMISSIONS_INVALID_PRINCIPAL', 'PERMISSIONS_INVALID_TARGET', 'PREVIOUS_SELF', 'SIGNATURE_PARAMETER_DIFFERS', 'SIGNATURE_REQUIRED', 'SUPPLY_INVALID', 'TOKEN_RECEIVE_DIFFERS'];
 const client_FullBlockErrorCodes = client_BlockErrorCodes.map(code => `${client_BlockErrorType}_${code}`);
 class src_client_KeetaNetBlockError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -116332,6 +116506,12 @@ client_certificate_defineProperty(src_client_KeetaNetCertificateError, "isInstan
 ;// ./src/lib/utils/certificate.ts
 /* provided dependency */ var client_certificate_Buffer = __webpack_require__(8287)["Buffer"];
 var client_CertificateHash, client_CertificateBundle, client_Certificate;
+function client_certificate_slicedToArray(r, e) { return client_certificate_arrayWithHoles(r) || client_certificate_iterableToArrayLimit(r, e) || client_certificate_unsupportedIterableToArray(r, e) || client_certificate_nonIterableRest(); }
+function client_certificate_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_certificate_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_certificate_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_certificate_arrayLikeToArray(r, a) : void 0; } }
+function client_certificate_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_certificate_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_certificate_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_certificate_classPrivateMethodInitSpec(e, a) { client_certificate_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_utils_certificate_defineProperty(e, r, t) { return (r = client_utils_certificate_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_utils_certificate_toPropertyKey(t) { var i = client_utils_certificate_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
@@ -116677,27 +116857,26 @@ class client_CertificateBuilder {
    */
   async buildDER(params) {
     const finalParams = this.getFinalParams(params);
-    const {
-      oid: signatureAlgorithmOID,
-      hashData: hashData
-    } = function () {
-      const hashName = client_CertificateBuilder.hashName(finalParams, 'signature');
-      switch (finalParams.issuer.keyType) {
-        case client_AccountKeyAlgorithm.ECDSA_SECP256K1:
-        case client_AccountKeyAlgorithm.ECDSA_SECP256R1:
-          return {
-            oid: `${hashName}WithEcDSA`,
-            hashData: true
-          };
-        case client_AccountKeyAlgorithm.ED25519:
-          return {
-            oid: 'ed25519',
-            hashData: false
-          };
-        default:
-          client_assertNever(finalParams.issuer.keyType);
-      }
-    }();
+    const _ref = function () {
+        const hashName = client_CertificateBuilder.hashName(finalParams, 'signature');
+        switch (finalParams.issuer.keyType) {
+          case client_AccountKeyAlgorithm.ECDSA_SECP256K1:
+          case client_AccountKeyAlgorithm.ECDSA_SECP256R1:
+            return {
+              oid: `${hashName}WithEcDSA`,
+              hashData: true
+            };
+          case client_AccountKeyAlgorithm.ED25519:
+            return {
+              oid: 'ed25519',
+              hashData: false
+            };
+          default:
+            client_assertNever(finalParams.issuer.keyType);
+        }
+      }(),
+      signatureAlgorithmOID = _ref.oid,
+      hashData = _ref.hashData;
 
     /*
      * Compute the Subject and Issuer DNs
@@ -117018,7 +117197,17 @@ class src_client_Certificate {
     client_certificate_classPrivateFieldSet(client_raw2, this, data.getDER());
     const parts = data.getASN1();
     const tbsCertificate = parts[0];
-    const [version, serialNumber, signatureAlgorithmSigned, _issuer, [notBefore, notAfter], subject, subjectPublicKey, _extensions] = tbsCertificate;
+    const _tbsCertificate = client_certificate_slicedToArray(tbsCertificate, 8),
+      version = _tbsCertificate[0],
+      serialNumber = _tbsCertificate[1],
+      signatureAlgorithmSigned = _tbsCertificate[2],
+      _issuer = _tbsCertificate[3],
+      _tbsCertificate$ = client_certificate_slicedToArray(_tbsCertificate[4], 2),
+      notBefore = _tbsCertificate$[0],
+      notAfter = _tbsCertificate$[1],
+      subject = _tbsCertificate[5],
+      subjectPublicKey = _tbsCertificate[6],
+      _extensions = _tbsCertificate[7];
     if (version.contains !== 2n) {
       throw new src_client_KeetaNetCertificateError('CERTIFICATE_INVALID_VERSION', 'Only X509v3 certificates are supported');
     }
@@ -117174,7 +117363,11 @@ class src_client_Certificate {
       account = account.subjectPublicKey;
     }
     const data = new client_BufferStorageASN1(client_certificate_classPrivateFieldGet(client_raw2, this), client_CertificateSchemaInternal);
-    const [tbsCertificate, signatureAlgorithmObject, signatureObject] = data.getASN1();
+    const _data$getASN = data.getASN1(),
+      _data$getASN2 = client_certificate_slicedToArray(_data$getASN, 3),
+      tbsCertificate = _data$getASN2[0],
+      signatureAlgorithmObject = _data$getASN2[1],
+      signatureObject = _data$getASN2[2];
     const signatureAlgorithm = signatureAlgorithmObject[0].oid;
     const tbsCertificateToVerify = new client_BufferStorageASN1(tbsCertificate).getDER();
     let compatibleKeyTypes;
@@ -117257,7 +117450,10 @@ class src_client_Certificate {
           reason: `Missing basicConstraints in certificate: ${certificate.subject}`
         };
       }
-      const [isCA, pathLenConstraint] = basicConstraints !== null && basicConstraints !== void 0 ? basicConstraints : [false, undefined];
+      const _ref2 = basicConstraints !== null && basicConstraints !== void 0 ? basicConstraints : [false, undefined],
+        _ref3 = client_certificate_slicedToArray(_ref2, 2),
+        isCA = _ref3[0],
+        pathLenConstraint = _ref3[1];
 
       // Root and intermediates should be a CA
       if (!isLeaf && !isCA) {
@@ -117279,7 +117475,10 @@ class src_client_Certificate {
       // Skip constraint checks if self-signed
       if (!certificate.isSelfSigned()) {
         // Validate against all existing constraints
-        for (const [issuer, remainingDepth] of depthByIssuer.entries()) {
+        for (const _ref4 of depthByIssuer.entries()) {
+          var _ref5 = client_certificate_slicedToArray(_ref4, 2);
+          const issuer = _ref5[0];
+          const remainingDepth = _ref5[1];
           if (remainingDepth < 0n) {
             return {
               valid: false,
@@ -117650,9 +117849,13 @@ function client_processExtensionsInternal(extensions, processedSet, handleExtens
     let id;
     let value;
     if (extension.length === 3) {
-      [id,, value] = extension;
+      var _extension = client_certificate_slicedToArray(extension, 3);
+      id = _extension[0];
+      value = _extension[2];
     } else {
-      [id, value] = extension;
+      var _extension2 = client_certificate_slicedToArray(extension, 2);
+      id = _extension2[0];
+      value = _extension2[1];
     }
     if (processedSet.has(id.oid)) {
       continue;
@@ -117781,9 +117984,12 @@ function client_assertAllCriticalExtensionsProcessed() {
     let id;
     let critical = false;
     if (extension.length === 3) {
-      [id, critical] = extension;
+      var _extension3 = client_certificate_slicedToArray(extension, 2);
+      id = _extension3[0];
+      critical = _extension3[1];
     } else {
-      [id] = extension;
+      var _extension4 = client_certificate_slicedToArray(extension, 1);
+      id = _extension4[0];
     }
     if (critical && !client_certificate_classPrivateFieldGet(client_extensionsProcessed, this).has(id.oid)) {
       throw new src_client_KeetaNetCertificateError('CERTIFICATE_EXTENSION_NOT_PROCESSED', `Critical extension ${id.oid} not processed`);
@@ -117939,7 +118145,7 @@ function client_ledger_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_LedgerErrorType = 'LEDGER';
-const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'BLOCK_EXPIRED', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'INVALID_ACL_ROW_TYPE', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'TEMP_VOTE_INCLUDES_SELF', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS', 'CERTIFICATE_NOT_FOUND',
+const client_LedgerBaseErrorCodes = ['BLOCK_ALREADY_EXISTS', 'BLOCK_EXPIRED', 'TRANSACTION_ABORTED', 'INVALID_CHAIN', 'INVALID_NETWORK', 'INVALID_SUBNET', 'INVALID_PERMISSIONS', 'INVALID_OWNER_COUNT', 'INVALID_BALANCE', 'INVALID_SET_REP', 'INVALID_ACL_ROW_TYPE', 'INVALID_DATE', 'OPERATION_NOT_SUPPORTED', 'NOT_EMPTY', 'PREVIOUS_ALREADY_USED', 'PREVIOUS_NOT_SEEN', 'SUCCESSOR_VOTE_EXISTS', 'INSUFFICIENT_VOTING_WEIGHT', 'INVALID_ACCOUNT_INFO_KEY', 'RECEIVE_NOT_MET', 'DUPLICATE_VOTE_FOUND', 'CANNOT_EXCHANGE_PERM_VOTE', 'TEMP_VOTE_INCLUDES_SELF', 'BLOCKS_DIFFER_FROM_VOTED_ON', 'NO_PERM_WITHOUT_SELF_TEMP', 'DUPLICATE_VOTE_ISSUER_FOUND', 'OTHER', 'MISSING_BLOCKS', 'CERTIFICATE_NOT_FOUND',
 // Fee Errors
 'FEE_AMOUNT_MISMATCH', 'FEE_TOKEN_MISMATCH', 'FEE_MISSING', 'MISSING_REQUIRED_FEE_BLOCK', 'MULTIPLE_FEE_BLOCK', 'VOTE_WITH_QUOTE', 'QUOTE_MISMATCH', 'REQUIRED_FEE_MISMATCH'];
 
@@ -118050,6 +118256,12 @@ class src_client_KeetaNetLedgerIdempotentKeyError extends src_client_KeetaNetErr
 client_KeetaNetLedgerIdempotentKeyError = src_client_KeetaNetLedgerIdempotentKeyError;
 client_ledger_defineProperty(src_client_KeetaNetLedgerIdempotentKeyError, "isInstance", client_checkableGenerator(client_KeetaNetLedgerIdempotentKeyError));
 ;// ./src/lib/ledger/common.ts
+function client_common_slicedToArray(r, e) { return client_common_arrayWithHoles(r) || client_common_iterableToArrayLimit(r, e) || client_common_unsupportedIterableToArray(r, e) || client_common_nonIterableRest(); }
+function client_common_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_common_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_common_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_common_arrayLikeToArray(r, a) : void 0; } }
+function client_common_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_common_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_common_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_common_classPrivateMethodInitSpec(e, a) { client_common_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_common_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
 function client_common_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
@@ -118071,11 +118283,9 @@ function client_areACLPrincipalEqual(a, b) {
   }
 }
 function client_findPermissionMatch(lookingFor, entries) {
-  const {
-    principal,
-    entity,
-    target
-  } = lookingFor;
+  const principal = lookingFor.principal,
+    entity = lookingFor.entity,
+    target = lookingFor.target;
   let foundRow;
   for (const entry of entries) {
     // If principals do not match, we can skip
@@ -118102,9 +118312,7 @@ function client_findPermissionMatch(lookingFor, entries) {
   return foundRow;
 }
 function client_validateSupply(amount, network) {
-  const {
-    maxValue
-  } = client_getValidation(network).accountInfoFieldRules['supply'];
+  const maxValue = client_getValidation(network).accountInfoFieldRules['supply'].maxValue;
   if (amount > maxValue) {
     throw new src_client_KeetaNetBlockError('BLOCK_SUPPLY_INVALID', `supply does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`);
   }
@@ -118120,17 +118328,13 @@ function client_validateNumericValue(value, block, fieldName, context) {
   throw new src_client_KeetaNetBlockError('BLOCK_AMOUNT_BELOW_ZERO', `${fieldName !== null && fieldName !== void 0 ? fieldName : 'value'} cannot be negative`);
 }
 function client_validateBlockSignerCount(amount, network) {
-  const {
-    maxValue
-  } = client_getValidation(network).accountInfoFieldRules['blockSignerCount'];
+  const maxValue = client_getValidation(network).accountInfoFieldRules['blockSignerCount'].maxValue;
   if (amount > maxValue || amount < 1n) {
     throw new src_client_KeetaNetBlockError('BLOCK_INVALID_MULTISIG_SIGNER_COUNT', `signer count does not fit proper format -- GOT: '${amount}' MaxValue: ${maxValue}`);
   }
 }
 function client_validateBlockSignerDepth(depth, network) {
-  const {
-    maxValue
-  } = client_getValidation(network).accountInfoFieldRules['blockSignerDepth'];
+  const maxValue = client_getValidation(network).accountInfoFieldRules['blockSignerDepth'].maxValue;
   if (depth > maxValue) {
     throw new src_client_KeetaNetBlockError('BLOCK_INVALID_MULTISIG_SIGNER_DEPTH', `signer depth does not fit proper format -- GOT: '${depth}' MaxValue: ${maxValue}`);
   }
@@ -118166,13 +118370,15 @@ function client_canDelegate(keyType) {
  * Compute effects on the ledger from block effects
  */
 async function client_computeLedgerEffect(options, effects, storageProvider, network, transaction) {
-  const {
-    getFinalNumericValues = false,
-    computePermissions = false,
-    computeWeights = false,
-    checkRangeConstraints = false,
-    baseToken
-  } = options;
+  const _options$getFinalNume = options.getFinalNumericValues,
+    getFinalNumericValues = _options$getFinalNume === void 0 ? false : _options$getFinalNume,
+    _options$computePermi = options.computePermissions,
+    computePermissions = _options$computePermi === void 0 ? false : _options$computePermi,
+    _options$computeWeigh = options.computeWeights,
+    computeWeights = _options$computeWeigh === void 0 ? false : _options$computeWeigh,
+    _options$checkRangeCo = options.checkRangeConstraints,
+    checkRangeConstraints = _options$checkRangeCo === void 0 ? false : _options$checkRangeCo,
+    baseToken = options.baseToken;
   const getBalancePromises = {};
   const getPreviousBalance = async (account, token) => {
     const accountPubKey = client_lib_account.toPublicKeyString(account);
@@ -118274,9 +118480,7 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
     }
     if (effect.type !== 'CERTIFICATE') {
       var _fields$supply, _effects$accountPubKe;
-      const {
-        account
-      } = effect;
+      const account = effect.account;
 
       // Always fetch the supply from accountInfo if it's changing so we can validate the effect
       if (((_fields$supply = fields.supply) !== null && _fields$supply !== void 0 ? _fields$supply : []).length > 0 && (checkRangeConstraints || getFinalNumericValues)) {
@@ -118299,10 +118503,8 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
           if (balanceUpdate.isReceive) {
             continue;
           }
-          const {
-            set,
-            value
-          } = balanceUpdate;
+          const set = balanceUpdate.set,
+            value = balanceUpdate.value;
           const token = client_lib_account.fromPublicKeyString(tokenPubKey).assertKeyType(client_AccountKeyAlgorithm.TOKEN);
           if (rollingChanges[tokenPubKey] === undefined) {
             rollingChanges[tokenPubKey] = 0n;
@@ -118414,9 +118616,8 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         change: 0n
       };
       if (checkRangeConstraints || getFinalNumericValues) {
-        const {
-          supply
-        } = await getAccountInfo(token);
+        const _await$getAccountInfo = await getAccountInfo(token),
+          supply = _await$getAccountInfo.supply;
         newEntry.final = supply;
       }
     }
@@ -118516,11 +118717,9 @@ async function client_computeLedgerEffect(options, effects, storageProvider, net
         if (effect.type !== 'ACCOUNT') {
           throw new Error('Only accounts can have balance changes');
         }
-        const {
-          isReceive,
-          value,
-          otherAccount
-        } = balanceUpdate;
+        const isReceive = balanceUpdate.isReceive,
+          value = balanceUpdate.value,
+          otherAccount = balanceUpdate.otherAccount;
         if (isReceive) {
           const receiveFromPubKey = otherAccount.publicKeyString.get();
           const previousEntry = getBalanceEntry(effect.account, tokenAcct);
@@ -118668,20 +118867,16 @@ class client_LedgerStorageBase {
   }
   async getBlockHeights(transaction, toFetch) {
     const response = await Promise.all(toFetch.map(async _ref => {
-      let {
-        blockHash,
-        account
-      } = _ref;
+      let blockHash = _ref.blockHash,
+        account = _ref.account;
       return [blockHash.toString(), await this.getBlockHeight(transaction, blockHash, account)];
     }));
     return Object.fromEntries(response);
   }
   async getAccountsBlockHeightInfo(transaction, toFetch) {
     const response = await Promise.all(toFetch.map(async _ref2 => {
-      let {
-        blockHash,
-        account
-      } = _ref2;
+      let blockHash = _ref2.blockHash,
+        account = _ref2.account;
       if (blockHash === undefined) {
         const block = await this.getHeadBlock(transaction, account, 'main');
         if (block !== null) {
@@ -118705,7 +118900,9 @@ class client_LedgerStorageBase {
   async getHeadBlockHashes(transaction, accounts) {
     const received = await this.getHeadBlocks(transaction, accounts.toArray(), 'both');
     return Object.fromEntries(Object.entries(received).map(function (_ref3) {
-      let [account, value] = _ref3;
+      let _ref4 = client_common_slicedToArray(_ref3, 2),
+        account = _ref4[0],
+        value = _ref4[1];
       if (value) {
         return [account, value.hash];
       } else {
@@ -118725,7 +118922,10 @@ class client_LedgerStorageBase {
     const allBlockHeights = await this.getBlockHeights(transaction, allBlockHeightsToFetch);
 
     // Check if any blocks already exist on the ledger that would cause this staple to fail and exit early
-    for (const [blockHash, blockHeight] of Object.entries(allBlockHeights)) {
+    for (const _ref5 of Object.entries(allBlockHeights)) {
+      var _ref6 = client_common_slicedToArray(_ref5, 2);
+      const blockHash = _ref6[0];
+      const blockHeight = _ref6[1];
       if (blockHeight !== null) {
         throw new KeetaNetLedgerError('LEDGER_BLOCK_ALREADY_EXISTS', `Block Already Exists: ${blockHash.toString()}`);
       }
@@ -118883,6 +119083,9 @@ class client_LedgerStorageBase {
       throw new Error('momentBits should be less than totalLength');
     }
     const timestamp = BigInt(moment.valueOf()) >> timestampFuzz;
+    if (timestamp < 0n) {
+      throw new KeetaNetLedgerError('LEDGER_INVALID_DATE', 'date cannot be negative');
+    }
     const mask = (1n << length + timestampFuzz) - 1n;
     const upperBits = timestamp + (optimistic ? 1n : 0n) << length + timestampFuzz;
     const lowerBits = bufferToBigInt(randomData) & mask;
@@ -118942,6 +119145,12 @@ function client_operations_assertClassBrand(e, t, n) { if ("function" == typeof 
 function client_operations_defineProperty(e, r, t) { return (r = client_operations_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_operations_toPropertyKey(t) { var i = client_operations_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
 function client_operations_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function client_operations_slicedToArray(r, e) { return client_operations_arrayWithHoles(r) || client_operations_iterableToArrayLimit(r, e) || client_operations_unsupportedIterableToArray(r, e) || client_operations_nonIterableRest(); }
+function client_operations_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_operations_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_operations_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_operations_arrayLikeToArray(r, a) : void 0; } }
+function client_operations_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_operations_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_operations_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
 
 
@@ -119299,7 +119508,9 @@ const client_BlockOperationASN1SchemaBase = {
  */
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const client_BlockOperationASN1Schema = Object.fromEntries(Object.entries(client_BlockOperationASN1SchemaBase).map(function (_ref) {
-  let [key, value] = _ref;
+  let _ref2 = client_operations_slicedToArray(_ref, 2),
+    key = _ref2[0],
+    value = _ref2[1];
   /* Because we are iterating over BlockOperationASN1SchemaBase, we know that key is a key of BlockOperationASN1SchemaBase */
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   const keyValidated = key;
@@ -119391,9 +119602,7 @@ class src_client_BlockOperationSEND extends src_client_BlockOperation {
     return client_operations_classPrivateFieldGet(client_amount, this);
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     const account = block.account;
     client_validateNumericValue(this.amount, block, 'amount');
 
@@ -119499,9 +119708,7 @@ class src_client_BlockOperationRECEIVE extends src_client_BlockOperation {
     return client_operations_classPrivateFieldGet(client_amount2, this);
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     const account = block.account;
     client_validateNumericValue(this.amount, block, 'amount');
     if (account.isToken()) {
@@ -119589,9 +119796,7 @@ class src_client_BlockOperationTOKEN_ADMIN_MODIFY_BALANCE extends src_client_Blo
     return client_operations_classPrivateFieldGet(client_amount3, this);
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     client_validateNumericValue(client_operations_classPrivateFieldGet(client_amount3, this), block, 'amount');
     if (block.account.keyType === client_AccountKeyAlgorithm.TOKEN) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_TOKEN_OP', 'You cannot use TOKEN_ADMIN_MODIFY_BALANCE on a token account');
@@ -119633,9 +119838,7 @@ class src_client_BlockOperationSET_REP extends src_client_BlockOperation {
     return client_operations_classPrivateFieldGet(client_to2, this);
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     if (!client_canDelegate(block.account.keyType)) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_IDENTIFIER_OP', `${client_AccountKeyAlgorithm[block.account.keyType]} accounts cannot use SET_REP`);
     }
@@ -119695,10 +119898,8 @@ class src_client_BlockOperationCREATE_IDENTIFIER extends src_client_BlockOperati
     return client_operations_classPrivateFieldGet(client_createArguments, this);
   }
   validate(context) {
-    const {
-      block,
-      operationIndex
-    } = context;
+    const block = context.block,
+      operationIndex = context.operationIndex;
     if (block.account.isIdentifier()) {
       throw new src_client_KeetaNetBlockError('BLOCK_NO_TOKEN_OP', 'Tokens cannot create other tokens');
     }
@@ -119720,10 +119921,9 @@ class src_client_BlockOperationCREATE_IDENTIFIER extends src_client_BlockOperati
         throw new src_client_KeetaNetBlockError('BLOCK_INVALID_CREATE_IDENTIFIER_ARGS', 'Invalid create arguments for key type');
       }
       if (client_operations_classPrivateFieldGet(client_createArguments, this).type === client_AccountKeyAlgorithm.MULTISIG) {
-        const {
-          signers,
-          quorum
-        } = client_operations_classPrivateFieldGet(client_createArguments, this);
+        const _classPrivateFieldGet2 = client_operations_classPrivateFieldGet(client_createArguments, this),
+          signers = _classPrivateFieldGet2.signers,
+          quorum = _classPrivateFieldGet2.quorum;
         client_validateBlockSignerCount(BigInt(signers.length), block.network);
         const signerSet = new client_lib_account.Set(signers);
         if (signerSet.size !== signers.length) {
@@ -119835,17 +120035,13 @@ class src_client_BlockOperationSET_INFO extends src_client_BlockOperation {
     client_operations_assertClassBrand(client_BlockOperationSET_INFO_brand, this, client_validateNameDesc).call(this, 'description', client_operations_classPrivateFieldGet(client_description, this), context.block.network);
     client_operations_assertClassBrand(client_BlockOperationSET_INFO_brand, this, client_validateNameDesc).call(this, 'metadata', client_operations_classPrivateFieldGet(client_metadata, this), context.block.network);
     const defaultPermission = this.defaultPermission;
-    const {
-      block
-    } = context;
+    const block = context.block;
     if (block.account.isIdentifier()) {
       if (!defaultPermission) {
         throw new src_client_KeetaNetBlockError('BLOCK_IDENTIFIER_NEED_DEFAULT_PERMISSIONS', 'Identifier accounts need default permissions in SET_INFO');
       }
-      const {
-        base,
-        external
-      } = defaultPermission;
+      const base = defaultPermission.base,
+        external = defaultPermission.external;
 
       // XXX:TODO do we want this
       if (external.bigint !== 0n) {
@@ -119877,11 +120073,10 @@ class src_client_BlockOperationSET_INFO extends src_client_BlockOperation {
 }
 client_BlockOperationSET_INFO = src_client_BlockOperationSET_INFO;
 function client_validateNameDesc(field, value, network) {
-  const {
-    regex,
-    maxLength,
-    canBeEmpty
-  } = client_getValidation(network).accountInfoFieldRules[field];
+  const _getValidation$accoun = client_getValidation(network).accountInfoFieldRules[field],
+    regex = _getValidation$accoun.regex,
+    maxLength = _getValidation$accoun.maxLength,
+    canBeEmpty = _getValidation$accoun.canBeEmpty;
   if (canBeEmpty && value === '') {
     return;
   }
@@ -119943,9 +120138,7 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
     return Number(client_operations_classPrivateFieldGet(client_method2, this));
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     if (this.permissions === null) {
       if (this.method !== client_AdjustMethod.SET) {
         throw new Error('Method must be SET when permissions = null');
@@ -119957,9 +120150,7 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
           throw new src_client_KeetaNetBlockError('BLOCK_ONLY_IDENTIFIER_OP', 'Cannot set/modify owners of non-identifier accounts');
         }
       }
-      const {
-        base
-      } = this.permissions;
+      const base = this.permissions.base;
       const baseFlagsString = `[${base.flags.join(',')}]`;
       if (client_lib_account.isInstance(this.principal)) {
         if (!base.checkAccountMatchesGroup('principal', this.principal)) {
@@ -119992,11 +120183,9 @@ class src_client_BlockOperationMODIFY_PERMISSIONS extends src_client_BlockOperat
       if (operation.type !== client_OperationType.MODIFY_PERMISSIONS) {
         continue;
       }
-      const {
-        principal,
-        target,
-        method
-      } = operation;
+      const principal = operation.principal,
+        target = operation.target,
+        method = operation.method;
       let principalKey;
       if (client_lib_account.isInstance(principal)) {
         principalKey = principal.publicKeyString.get();
@@ -120088,9 +120277,7 @@ class src_client_BlockOperationTOKEN_ADMIN_SUPPLY extends src_client_BlockOperat
     return Number(client_operations_classPrivateFieldGet(client_method3, this));
   }
   validate(context) {
-    const {
-      block
-    } = context;
+    const block = context.block;
     client_validateNumericValue(client_operations_classPrivateFieldGet(client_amount4, this), block, 'amount');
     if (block.account.keyType !== client_AccountKeyAlgorithm.TOKEN) {
       throw new src_client_KeetaNetBlockError('BLOCK_ONLY_TOKEN_OP', 'Only token accounts can use TOKEN_ADMIN_SUPPLY');
@@ -120176,14 +120363,14 @@ class client_BlockOperationMANAGE_CERTIFICATE extends src_client_BlockOperation 
   }
   validate(context) {
     if (this.method === client_lib_block.AdjustMethod.ADD) {
-      var _classPrivateFieldGet2;
+      var _classPrivateFieldGet3;
       if (src_client_CertificateHash.isInstance(client_operations_classPrivateFieldGet(client_certificateOrHash, this))) {
         throw new src_client_KeetaNetBlockError('BLOCK_INVALID_CERTIFICATE_VALUE', 'Cannot add a certificate by hash, you must provide the full certificate');
       }
       if (!context.block.account.comparePublicKey(client_operations_classPrivateFieldGet(client_certificateOrHash, this).subjectPublicKey)) {
         throw new src_client_KeetaNetBlockError('BLOCK_CERTIFICATE_SUBJECT_MISMATCH', 'This certificate subject does not match the block account');
       }
-      const intermediateCertificates = (_classPrivateFieldGet2 = client_operations_classPrivateFieldGet(client_intermediateCertificates, this)) !== null && _classPrivateFieldGet2 !== void 0 ? _classPrivateFieldGet2 : null;
+      const intermediateCertificates = (_classPrivateFieldGet3 = client_operations_classPrivateFieldGet(client_intermediateCertificates, this)) !== null && _classPrivateFieldGet3 !== void 0 ? _classPrivateFieldGet3 : null;
       if (intermediateCertificates !== null) {
         const intermediateSet = new Set(intermediateCertificates.getCertificates());
         client_operations_classPrivateFieldGet(client_certificateOrHash, this).assertCanConstructValidGraph(intermediateSet);
@@ -120324,10 +120511,8 @@ function client_ExportBlockOperations(operations) {
     // We want to be able to read any key on the operation, so we need to cast it to any
     const unTypedEntry = entry;
     for (const operationSchema of operationSchemas) {
-      const {
-        name: key,
-        schema
-      } = operationSchema;
+      const key = operationSchema.name,
+        schema = operationSchema.schema;
       let valueToWrite = unTypedEntry[key];
       if (valueToWrite === undefined) {
         if (typeof schema === 'object' && schema && !('optional' in schema)) {
@@ -120420,6 +120605,12 @@ function client_ImportOperationsASN1(input, network) {
 ;// ./src/lib/block/index.ts
 /* provided dependency */ var client_block_Buffer = __webpack_require__(8287)["Buffer"];
 var client_BlockHash, client_PossiblyUnsignedBlock, client_UnsignedBlock, client_Block, client_BlockBuilder;
+function client_block_slicedToArray(r, e) { return client_block_arrayWithHoles(r) || client_block_iterableToArrayLimit(r, e) || client_block_unsupportedIterableToArray(r, e) || client_block_nonIterableRest(); }
+function client_block_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_block_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_block_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_block_arrayLikeToArray(r, a) : void 0; } }
+function client_block_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_block_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_block_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_block_classPrivateMethodInitSpec(e, a) { client_block_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_block_classPrivateFieldInitSpec(e, t, a) { client_block_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_block_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -121086,17 +121277,16 @@ class src_client_PossiblyUnsignedBlock {
         /*
         * Map input to our values
         */
-        const {
-          version,
-          idempotent,
-          date,
-          previous,
-          network,
-          subnet,
-          account,
-          operations,
-          signer
-        } = client_MapV1InputValues(input);
+        const _MapV1InputValues = client_MapV1InputValues(input),
+          version = _MapV1InputValues.version,
+          idempotent = _MapV1InputValues.idempotent,
+          date = _MapV1InputValues.date,
+          previous = _MapV1InputValues.previous,
+          network = _MapV1InputValues.network,
+          subnet = _MapV1InputValues.subnet,
+          account = _MapV1InputValues.account,
+          operations = _MapV1InputValues.operations,
+          signer = _MapV1InputValues.signer;
         this.version = version;
         this.purpose = client_BlockPurpose.GENERIC;
         this.idempotent = idempotent;
@@ -121130,18 +121320,17 @@ class src_client_PossiblyUnsignedBlock {
         /*
         * Map input to our values
         */
-        const {
-          version,
-          idempotent,
-          date,
-          previous,
-          network,
-          subnet,
-          account,
-          operations,
-          signer,
-          purpose
-        } = client_MapV2InputValues(input);
+        const _MapV2InputValues = client_MapV2InputValues(input),
+          version = _MapV2InputValues.version,
+          idempotent = _MapV2InputValues.idempotent,
+          date = _MapV2InputValues.date,
+          previous = _MapV2InputValues.previous,
+          network = _MapV2InputValues.network,
+          subnet = _MapV2InputValues.subnet,
+          account = _MapV2InputValues.account,
+          operations = _MapV2InputValues.operations,
+          signer = _MapV2InputValues.signer,
+          purpose = _MapV2InputValues.purpose;
         this.version = version;
         this.purpose = purpose;
         this.idempotent = idempotent;
@@ -121350,6 +121539,14 @@ function client_validateOperationsPurpose() {
    * Do not allow blocks to contain invalid constructions
    */
 
+  /*
+   * Signer authorization is derived per operation, so a block with no operations
+   * carries no authorization requirement while still mutating chain state (head,
+   * history, idempotent key). Requiring at least one operation closes that gap.
+   */
+  if (this.operations.length === 0) {
+    throw new src_client_KeetaNetBlockError('BLOCK_NO_OPERATIONS', 'A block must contain at least one operation');
+  }
   const context = {
     block: this,
     operationIndex: 0
@@ -121372,7 +121569,10 @@ function client_validateSignerField() {
   while (queue.length > 0) {
     // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const [depth, cur] = queue.shift();
+    const _ref = queue.shift(),
+      _ref2 = client_block_slicedToArray(_ref, 2),
+      depth = _ref2[0],
+      cur = _ref2[1];
     client_validateBlockSignerDepth(depth, this.network);
     if (Array.isArray(cur)) {
       client_validateBlockSignerCount(BigInt(cur[1].length), this.network);
@@ -122855,9 +123055,8 @@ class src_client_ECDSASECP256K1KeyPair extends client_ECDSAKeyPair {
       client_account_classPrivateFieldSet(client_privateKeyInternalValue, this, new Uint8Array(client_account_classPrivateFieldGet(client_privateKey, this).get()));
     }
     const toSign = new Uint8Array(data);
-    const {
-      signature
-    } = client_elliptic_default().ecdsaSign(toSign, client_account_classPrivateFieldGet(client_privateKeyInternalValue, this));
+    const _SECP256K1$ecdsaSign = client_elliptic_default().ecdsaSign(toSign, client_account_classPrivateFieldGet(client_privateKeyInternalValue, this)),
+      signature = _SECP256K1$ecdsaSign.signature;
     const signatureDER = client_elliptic_default().signatureExport(signature);
     if (options.forCert) {
       const signatureDERBuffer = new src_client_BufferStorage(signatureDER, signatureDER.length);
@@ -124097,6 +124296,12 @@ class src_client_KeetaNetVoteError extends src_client_KeetaNetErrorBase {
 client_KeetaNetVoteError = src_client_KeetaNetVoteError;
 client_vote_defineProperty(src_client_KeetaNetVoteError, "isInstance", client_checkableGenerator(client_KeetaNetVoteError));
 ;// ./src/lib/ledger/effects.ts
+function client_effects_slicedToArray(r, e) { return client_effects_arrayWithHoles(r) || client_effects_iterableToArrayLimit(r, e) || client_effects_unsupportedIterableToArray(r, e) || client_effects_nonIterableRest(); }
+function client_effects_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_effects_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_effects_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_effects_arrayLikeToArray(r, a) : void 0; } }
+function client_effects_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_effects_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_effects_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
 
 
@@ -124232,9 +124437,8 @@ function client_touchStateFields(state, toTouch) {
   };
 }
 function client_addPermission(state, addition) {
-  const {
-    value
-  } = client_touchStateFields(state, addition.principal);
+  const _touchStateFields = client_touchStateFields(state, addition.principal),
+    value = _touchStateFields.value;
   if (value.fields.permissions === undefined) {
     value.fields.permissions = [];
   }
@@ -124243,18 +124447,15 @@ function client_addPermission(state, addition) {
 }
 function client_addPermissionRequirement(state, requirement) {
   var _principalFields$fiel, _principalFields$fiel2;
-  const {
-    value: principalFields
-  } = client_touchStateFields(state, requirement.principal);
+  const _touchStateFields2 = client_touchStateFields(state, requirement.principal),
+    principalFields = _touchStateFields2.value;
   const alreadyAdded = (_principalFields$fiel = principalFields.fields.permissions) !== null && _principalFields$fiel !== void 0 ? _principalFields$fiel : [];
   const foundAddedMatch = alreadyAdded.find(function (_ref) {
     var _requirement$target;
-    let {
-      entity,
-      target,
-      permissions,
-      method
-    } = _ref;
+    let entity = _ref.entity,
+      target = _ref.target,
+      permissions = _ref.permissions,
+      method = _ref.method;
     /*
      * Only a grant that adds or sets a permission can satisfy a requirement. A
      * SUBTRACT records the removed flag in `permissions`, so ignoring the method
@@ -124318,14 +124519,12 @@ function client_updateMinSignerSetLength(state, multisigAccount, count) {
 }
 function client_modifyBalanceInState(balanceState) {
   var _accountBalanceInfo$t;
-  const {
-    state,
-    account,
-    token,
-    method,
-    amount,
-    otherAccount
-  } = balanceState;
+  const state = balanceState.state,
+    account = balanceState.account,
+    token = balanceState.token,
+    method = balanceState.method,
+    amount = balanceState.amount,
+    otherAccount = balanceState.otherAccount;
   const accountPubKey = account.publicKeyString.get();
   const tokenPubKey = token.publicKeyString.get();
   if (state.accounts[accountPubKey] === undefined) {
@@ -124923,10 +125122,9 @@ function client_computeEffectOfBlocks(blocks, ledger) {
   if (!ledger) {
     onlyReturnTouched = true;
     const initialTrustedAccount = client_lib_account.fromSeed(client_lib_account.generateRandomSeed(), 0);
-    const {
-      baseToken,
-      networkAddress
-    } = client_lib_account.generateBaseAddresses(0n);
+    const _Account$generateBase = client_lib_account.generateBaseAddresses(0n),
+      baseToken = _Account$generateBase.baseToken,
+      networkAddress = _Account$generateBase.networkAddress;
     ledger = {
       initialTrustedAccount,
       baseToken,
@@ -124996,7 +125194,10 @@ function client_computeEffectOfBlocks(blocks, ledger) {
           while (signerFieldQueue.length > 0) {
             // We can assume that the signerFieldQueue is not empty here since the loop condition checks it
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const [multisig, signers] = signerFieldQueue.shift();
+            const _ref2 = signerFieldQueue.shift(),
+              _ref3 = client_effects_slicedToArray(_ref2, 2),
+              multisig = _ref3[0],
+              signers = _ref3[1];
             client_updateMinSignerSetLength(accumulatedEffects, multisig, BigInt(signers.length));
             for (const signer of signers) {
               let principal;
@@ -125057,6 +125258,12 @@ function client_computeEffectOfBlocks(blocks, ledger) {
 /* provided dependency */ var client_vote_Buffer = __webpack_require__(8287)["Buffer"];
 var client_VoteHash, client_VoteBlockHash, client_VoteLikeBase, client_PossiblyExpiredVote, client_Vote, client_VoteQuote, client_VoteStapleHash, client_VoteBlockBundle, client_VoteStaple, client_BaseVoteBuilder, client_VoteBuilder, client_VoteQuoteBuilder;
 function client_vote_classPrivateGetter(s, r, a) { return a(client_vote_assertClassBrand(s, r)); }
+function client_vote_slicedToArray(r, e) { return client_vote_arrayWithHoles(r) || client_vote_iterableToArrayLimit(r, e) || client_vote_unsupportedIterableToArray(r, e) || client_vote_nonIterableRest(); }
+function client_vote_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_vote_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_vote_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_vote_arrayLikeToArray(r, a) : void 0; } }
+function client_vote_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_vote_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_vote_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_vote_classPrivateMethodInitSpec(e, a) { client_vote_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_vote_classPrivateFieldInitSpec(e, t, a) { client_vote_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_vote_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -125084,6 +125291,42 @@ function client_lib_vote_toPrimitive(t, r) { if ("object" != typeof t || !t) ret
 
 
 
+
+/**
+ * Upper bound on the decompressed size of an untrusted, peer/API-supplied vote
+ * staple. Vote staples arrive base64-encoded and zlib-compressed from
+ * unauthenticated sources (P2P 'add' messages and the HTTP publish/p2p routes),
+ * so decompressing without a cap lets a small input expand by up to ~1000x and
+ * exhaust process memory. This bound is intentionally generous relative to any
+ * legitimate staple; tune it down toward the real protocol maximum if known.
+ */
+const client_MAX_VOTE_STAPLE_DECOMPRESSED_BYTES = 64 * 1024 * 1024;
+
+/**
+ * Cheap check for a zlib (RFC 1950) header so we only attempt to inflate input
+ * that actually claims to be zlib-compressed, rather than always trying and
+ * relying on a thrown error to fall back. A zlib stream begins with a two-byte
+ * header whose low nibble of the first byte is the deflate compression method
+ * (8) and whose 16-bit big-endian value is a multiple of 31. Vote staples are
+ * only ever compressed with `zlib.deflateSync` (which emits this header), while
+ * an uncompressed staple is raw ASN.1 BER beginning with a SEQUENCE tag (0x30),
+ * so this reliably distinguishes the two without risking a false negative on a
+ * legitimate compressed staple.
+ */
+function client_hasZlibHeader(data) {
+  if (data.length < 2) {
+    return false;
+  }
+  const cmf = data[0];
+  const flg = data[1];
+  if ((cmf & 0x0f) !== 8) {
+    return false;
+  }
+  if ((cmf << 8 | flg) % 31 !== 0) {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Representation of the expected fee for this vote
@@ -125386,7 +125629,10 @@ class client_VoteBlockHashMap {
     const keyMap = client_vote_classPrivateFieldGet(client_keyMap, this);
     const valueMap = client_vote_classPrivateFieldGet(client_valueMap, this);
     return function* () {
-      for (const [lookupKey, value] of valueMap.entries()) {
+      for (const _ref of valueMap.entries()) {
+        var _ref2 = client_vote_slicedToArray(_ref, 2);
+        const lookupKey = _ref2[0];
+        const value = _ref2[1];
         const key = keyMap.get(lookupKey);
         if (key === undefined) {
           throw new Error('Map changed while iterating !');
@@ -125529,11 +125775,10 @@ class src_client_VoteLikeBase {
     if (voteJSON.fee !== undefined) {
       voteBuilder.addFee(voteJSON.fee);
     }
-    const {
-      voteData,
-      tbsCertificate,
-      signatureInfo
-    } = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom);
+    const _voteBuilder$generate = voteBuilder.generateVoteData(BigInt(voteJSON.serial), validTo, validFrom),
+      voteData = _voteBuilder$generate.voteData,
+      tbsCertificate = _voteBuilder$generate.tbsCertificate,
+      signatureInfo = _voteBuilder$generate.signatureInfo;
     const vote = voteBuilder.createVote(voteData, tbsCertificate, signatureInfo, signatureStorage);
 
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -126247,10 +126492,8 @@ class src_client_VoteBlockBundle {
     if (!staple.votes || !staple.blocks) {
       return false;
     }
-    const {
-      votes,
-      blocks
-    } = staple;
+    const votes = staple.votes,
+      blocks = staple.blocks;
     if (!Array.isArray(votes) || !Array.isArray(blocks)) {
       return false;
     }
@@ -126334,11 +126577,35 @@ class src_client_VoteBlockBundle {
 
     /**
      * Decompress the buffer
+     *
+     * Inspect the zlib header first so we only inflate input that claims to
+     * be zlib-compressed; input without a zlib header is the already-raw
+     * (uncompressed) ASN.1 staple and is used as-is.
      */
-    try {
-      client_vote_classPrivateFieldSet(client_value, this, client_bufferToArrayBuffer(client_lib_default().inflateSync(client_vote_Buffer.from(votesStapled))));
-      client_vote_classPrivateFieldSet(client_valueCompressed, this, votesStapled);
-    } catch {
+    const votesStapledBuffer = client_vote_Buffer.from(votesStapled);
+    if (client_hasZlibHeader(votesStapledBuffer)) {
+      try {
+        client_vote_classPrivateFieldSet(client_value, this, client_bufferToArrayBuffer(client_lib_default().inflateSync(votesStapledBuffer, {
+          maxOutputLength: client_MAX_VOTE_STAPLE_DECOMPRESSED_BYTES
+        })));
+        client_vote_classPrivateFieldSet(client_valueCompressed, this, votesStapled);
+      } catch (inflateError) {
+        /*
+         * If the decompression bound was exceeded (ERR_BUFFER_TOO_LARGE) the
+         * input is an oversized/hostile payload; reject it loudly rather than
+         * silently falling through and treating the bytes as uncompressed.
+         * Any other inflate failure means the header looked like zlib but the
+         * stream is not actually valid; those bytes are already bounded by the
+         * transport/body limits and are used as-is. Use a property check
+         * rather than instanceof so it is robust across realms (e.g. Node vs
+         * test environments).
+         */
+        if (inflateError !== null && typeof inflateError === 'object' && 'code' in inflateError && inflateError.code === 'ERR_BUFFER_TOO_LARGE') {
+          throw inflateError;
+        }
+        client_vote_classPrivateFieldSet(client_value, this, votesStapled);
+      }
+    } else {
       client_vote_classPrivateFieldSet(client_value, this, votesStapled);
     }
 
@@ -126511,9 +126778,8 @@ class src_client_VoteBlockBundle {
     if (client_vote_classPrivateFieldGet(client_touchedAccounts, this) !== undefined) {
       return client_vote_classPrivateFieldGet(client_touchedAccounts, this);
     }
-    const {
-      touched
-    } = client_computeEffectOfBlocks(this.blocks);
+    const _computeEffectOfBlock = client_computeEffectOfBlocks(this.blocks),
+      touched = _computeEffectOfBlock.touched;
     client_vote_classPrivateFieldSet(client_touchedAccounts, this, touched);
     return client_vote_classPrivateFieldGet(client_touchedAccounts, this);
   }
@@ -126530,7 +126796,9 @@ function client_get_blocksAndVotesRaw(_this) {
   if (data.length !== 2) {
     throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
   }
-  const [blocksRaw, votesRaw] = data;
+  const _data = client_vote_slicedToArray(data, 2),
+    blocksRaw = _data[0],
+    votesRaw = _data[1];
   if (!Array.isArray(blocksRaw) || !Array.isArray(votesRaw)) {
     throw new src_client_KeetaNetVoteError('VOTE_MALFORMED_STAPLE', 'Vote staple must contain exactly 2 elements (votes, and blocks)');
   }
@@ -126905,11 +127173,10 @@ class src_client_BaseVoteBuilder {
     if (this.quote && client_vote_classPrivateFieldGet(client_fee, this) === undefined) {
       throw new src_client_KeetaNetVoteError('VOTE_FEE_QUOTE_MISSING_FEES', 'internal error: requested quote but no fees provided');
     }
-    const {
-      voteData,
-      tbsCertificate,
-      signatureInfo
-    } = this.generateVoteData(serial, validTo, validFrom);
+    const _this$generateVoteDat = this.generateVoteData(serial, validTo, validFrom),
+      voteData = _this$generateVoteDat.voteData,
+      tbsCertificate = _this$generateVoteDat.tbsCertificate,
+      signatureInfo = _this$generateVoteDat.signatureInfo;
     const signature = await client_vote_classPrivateFieldGet(client_account, this).sign(voteData, {
       raw: true,
       forCert: true
@@ -127254,6 +127521,12 @@ const client_assertLogTargetLevel = (() => {
   };
 })();
 ;// ./src/lib/log/target_console.ts
+function client_target_console_slicedToArray(r, e) { return client_target_console_arrayWithHoles(r) || client_target_console_iterableToArrayLimit(r, e) || client_target_console_unsupportedIterableToArray(r, e) || client_target_console_nonIterableRest(); }
+function client_target_console_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_target_console_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_target_console_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_target_console_arrayLikeToArray(r, a) : void 0; } }
+function client_target_console_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_target_console_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_target_console_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_target_console_classPrivateFieldInitSpec(e, t, a) { client_target_console_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_target_console_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
 function client_target_console_classPrivateFieldGet(s, a) { return s.get(client_target_console_assertClassBrand(s, a)); }
@@ -127296,7 +127569,9 @@ class client_LogTargetConsole {
       }
       const requestID = log.options.currentRequestInfo.id;
       const contextPrefix = this.context ? Object.entries(this.context).map(_ref => {
-        let [k, v] = _ref;
+        let _ref2 = client_target_console_slicedToArray(_ref, 2),
+          k = _ref2[0],
+          v = _ref2[1];
         return `${k}=${v}`;
       }).join(' ') + ' ' : '';
       client_target_console_classPrivateFieldGet(client_console, this)[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from}:`, ...log.args);
@@ -127474,50 +127749,45 @@ class client_Log {
     for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
       args[_key] = arguments[_key];
     }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    const _assertClassBrand$cal = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args),
+      options = _assertClassBrand$cal.options,
+      from = _assertClassBrand$cal.from;
     client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
   }
   info() {
     for (var _len2 = arguments.length, args = new Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
       args[_key2] = arguments[_key2];
     }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    const _assertClassBrand$cal2 = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args),
+      options = _assertClassBrand$cal2.options,
+      from = _assertClassBrand$cal2.from;
     client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'INFO', options, from, ...args);
   }
   debug() {
     for (var _len3 = arguments.length, args = new Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
       args[_key3] = arguments[_key3];
     }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    const _assertClassBrand$cal3 = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args),
+      options = _assertClassBrand$cal3.options,
+      from = _assertClassBrand$cal3.from;
     client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'DEBUG', options, from, ...args);
   }
   warn() {
     for (var _len4 = arguments.length, args = new Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
       args[_key4] = arguments[_key4];
     }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    const _assertClassBrand$cal4 = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args),
+      options = _assertClassBrand$cal4.options,
+      from = _assertClassBrand$cal4.from;
     client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'WARN', options, from, ...args);
   }
   error() {
     for (var _len5 = arguments.length, args = new Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
       args[_key5] = arguments[_key5];
     }
-    const {
-      options,
-      from
-    } = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args);
+    const _assertClassBrand$cal5 = client_log_assertClassBrand(client_Log_brand, this, client_extractArguments).call(this, args),
+      options = _assertClassBrand$cal5.options,
+      from = _assertClassBrand$cal5.from;
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     client_log_assertClassBrand(client_Log_brand, this, client_log_log).call(this, 'ERROR', options, from, ...args);
@@ -127968,10 +128238,8 @@ class client_RequestTiming {
     if (sectionInfo === undefined) {
       return undefined;
     }
-    const {
-      start,
-      end
-    } = sectionInfo;
+    const start = sectionInfo.start,
+      end = sectionInfo.end;
     if (start === undefined || end === undefined) {
       return undefined;
     }
@@ -128072,10 +128340,9 @@ class client_KVStorageProviderMemory extends client_KVStorageProviderBase {
     if (!storeArena[key]) {
       return undefined;
     }
-    const {
-      expiry,
-      value
-    } = storeArena[key];
+    const _storeArena$key = storeArena[key],
+      expiry = _storeArena$key.expiry,
+      value = _storeArena$key.value;
     if (expiry !== undefined) {
       if (expiry < Date.now()) {
         delete storeArena[key];
@@ -128160,6 +128427,12 @@ function client_stats_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new 
 function client_stats_classPrivateFieldGet(s, a) { return s.get(client_stats_assertClassBrand(s, a)); }
 function client_stats_classPrivateFieldSet(s, a, r) { return s.set(client_stats_assertClassBrand(s, a), r), r; }
 function client_stats_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function client_stats_slicedToArray(r, e) { return client_stats_arrayWithHoles(r) || client_stats_iterableToArrayLimit(r, e) || client_stats_unsupportedIterableToArray(r, e) || client_stats_nonIterableRest(); }
+function client_stats_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_stats_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_stats_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_stats_arrayLikeToArray(r, a) : void 0; } }
+function client_stats_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_stats_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_stats_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_stats_defineProperty(e, r, t) { return (r = client_stats_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
 function client_stats_toPropertyKey(t) { var i = client_stats_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
 function client_stats_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
@@ -128232,17 +128505,22 @@ class client_stats_StatsPending {
     this.localDBXOR[key] ^= changeValue;
   }
   merge(pending) {
-    const {
-      incrChanges,
-      xorChanges
-    } = pending.consume();
+    const _pending$consume = pending.consume(),
+      incrChanges = _pending$consume.incrChanges,
+      xorChanges = _pending$consume.xorChanges;
     // Merge incr changes
-    for (const [key, value] of Object.entries(incrChanges)) {
+    for (const _ref of Object.entries(incrChanges)) {
+      var _ref2 = client_stats_slicedToArray(_ref, 2);
+      const key = _ref2[0];
+      const value = _ref2[1];
       this.incrCompoundKey(key, value);
     }
 
     // Merge xor changes
-    for (const [key, value] of Object.entries(xorChanges)) {
+    for (const _ref3 of Object.entries(xorChanges)) {
+      var _ref4 = client_stats_slicedToArray(_ref3, 2);
+      const key = _ref4[0];
+      const value = _ref4[1];
       this.xor(key, value);
     }
   }
@@ -128280,7 +128558,9 @@ class client_Stats extends client_stats_StatsPending {
       duration = 0;
     }
     for (const name of this.durationBreakdownList()) {
-      const [min, max] = client_durationRanges[name];
+      const _durationRanges$name = client_stats_slicedToArray(client_durationRanges[name], 2),
+        min = _durationRanges$name[0],
+        max = _durationRanges$name[1];
       if (duration >= min && (max === undefined || duration <= max)) {
         return name;
       }
@@ -128380,20 +128660,25 @@ class client_Stats extends client_stats_StatsPending {
     return retval;
   }
   async sync() {
-    const {
-      incrChanges,
-      xorChanges
-    } = this.consume();
+    const _this$consume = this.consume(),
+      incrChanges = _this$consume.incrChanges,
+      xorChanges = _this$consume.xorChanges;
     await client_stats_classPrivateFieldGet(client_syncPromise, this);
     client_stats_classPrivateFieldSet(client_syncPromise, this, (async () => {
       const updatePromises = [];
-      for (const [key, value] of Object.entries(incrChanges)) {
+      for (const _ref5 of Object.entries(incrChanges)) {
+        var _ref6 = client_stats_slicedToArray(_ref5, 2);
+        const key = _ref6[0];
+        const value = _ref6[1];
         if (value === undefined) {
           continue;
         }
         updatePromises.push(client_stats_classPrivateFieldGet(client_kv, this).incr('stats', key, value));
       }
-      for (const [key, value] of Object.entries(xorChanges)) {
+      for (const _ref7 of Object.entries(xorChanges)) {
+        var _ref8 = client_stats_slicedToArray(_ref7, 2);
+        const key = _ref8[0];
+        const value = _ref8[1];
         if (value === undefined) {
           continue;
         }
@@ -128427,6 +128712,12 @@ function client_getDurationRange(duration) {
 /* provided dependency */ var client_lib_ledger_Buffer = __webpack_require__(8287)["Buffer"];
 var client_IdempotentKey, client_Ledger;
 function src_client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
+function client_ledger_slicedToArray(r, e) { return client_ledger_arrayWithHoles(r) || client_ledger_iterableToArrayLimit(r, e) || client_ledger_unsupportedIterableToArray(r, e) || client_ledger_nonIterableRest(); }
+function client_ledger_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_ledger_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_ledger_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_ledger_arrayLikeToArray(r, a) : void 0; } }
+function client_ledger_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_ledger_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_ledger_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_ledger_classPrivateMethodInitSpec(e, a) { client_ledger_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_ledger_classPrivateFieldInitSpec(e, t, a) { client_ledger_checkPrivateRedeclaration(e, t), t.set(e, a); }
 function client_ledger_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
@@ -128789,7 +129080,10 @@ class client_LedgerAtomicInterface {
         }
 
         // Verify that at least one required fee option has been satisfied for each vote
-        for (const [issuer, feeOrFees] of finalRequiredFees) {
+        for (const _ref of finalRequiredFees) {
+          var _ref2 = client_ledger_slicedToArray(_ref, 2);
+          const issuer = _ref2[0];
+          const feeOrFees = _ref2[1];
           // Handle both single fee and array of fees
           const fees = Array.isArray(feeOrFees) ? feeOrFees : [feeOrFees];
 
@@ -128864,11 +129158,13 @@ class client_LedgerAtomicInterface {
         throw new client_ledger_KeetaNetLedgerError('LEDGER_NO_PERM_WITHOUT_SELF_TEMP', 'Asked to give a permanent vote without a temporary vote from us');
       }
     }
-    const {
-      allLedgerHeads,
-      allLedgerIdempotentKeys
-    } = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlocksForVote).call(this, blocks);
-    for (const [blockHash, key] of allLedgerIdempotentKeys) {
+    const _await$_assertClassBr = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_validateBlocksForVote).call(this, blocks),
+      allLedgerHeads = _await$_assertClassBr.allLedgerHeads,
+      allLedgerIdempotentKeys = _await$_assertClassBr.allLedgerIdempotentKeys;
+    for (const _ref3 of allLedgerIdempotentKeys) {
+      var _ref4 = client_ledger_slicedToArray(_ref3, 2);
+      const blockHash = _ref4[0];
+      const key = _ref4[1];
       const foundBlockHash = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getIdempotentBlockHash(transaction, key, 'both', blockHash);
       if (foundBlockHash !== null) {
         throw new src_client_KeetaNetLedgerIdempotentKeyError('LEDGER_IDEMPOTENT_KEY_EXISTS', blockHash, foundBlockHash, key.account, key.userIdempotent);
@@ -128876,7 +129172,10 @@ class client_LedgerAtomicInterface {
     }
     const needToGetHeadFor = new client_lib_account.Set(allLedgerHeads.keys());
     const allHeads = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getHeadBlockHashes(transaction, needToGetHeadFor);
-    for (const [account, expectedBlock] of allLedgerHeads.entries()) {
+    for (const _ref5 of allLedgerHeads.entries()) {
+      var _ref6 = client_ledger_slicedToArray(_ref5, 2);
+      const account = _ref6[0];
+      const expectedBlock = _ref6[1];
       const accountHead = allHeads[account.publicKeyString.get()];
       if (accountHead === null) {
         if (!expectedBlock.$opening) {
@@ -129001,10 +129300,8 @@ class client_LedgerAtomicInterface {
       default:
         throw new Error(`internal error: invalid ledger write mode: ${client_ledger_classPrivateFieldGet(client_ledger, this).ledgerWriteMode}`);
     }
-    const {
-      votes,
-      blocks
-    } = votesAndBlocks;
+    const votes = votesAndBlocks.votes,
+      blocks = votesAndBlocks.blocks;
     if (votes.length < 1) {
       throw new Error('Must have at least 1 vote in the staple');
     }
@@ -129017,6 +129314,9 @@ class client_LedgerAtomicInterface {
       }
     }
     for (const vote of votes) {
+      if (vote.validityFrom.valueOf() < 0) {
+        throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_DATE', 'validityFrom is too far in the past');
+      }
       if (!vote.$permanent) {
         throw new Error('Can only insert permanent votes');
       }
@@ -129056,10 +129356,9 @@ class client_LedgerAtomicInterface {
   async getAllBalances(account) {
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
     const balances = await client_ledger_classPrivateFieldGet(client_ledger_storage, this).getAllBalances(transaction, account);
-    for (const {
-      token,
-      balance
-    } of balances) {
+    for (const _ref7 of balances) {
+      const token = _ref7.token;
+      const balance = _ref7.balance;
       if (balance < 0n) {
         throw new Error(`internal error: Account with negative balance: ${account.publicKeyString.get()}/${token.publicKeyString.get()}: ${balance}`);
       }
@@ -129276,10 +129575,8 @@ class client_LedgerAtomicInterface {
     let limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1000;
     let options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
     const transaction = client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_assertTransaction).call(this);
-    const {
-      bloomFilter,
-      timeout
-    } = options;
+    const bloomFilter = options.bloomFilter,
+      timeout = options.timeout;
     const retval = [];
     const startTime = Date.now();
     let startKey;
@@ -129461,10 +129758,8 @@ async function client_fetchSatisfiedCertificateACLs(account, requirement) {
     if (!aclWithCertificate) {
       continue;
     }
-    const {
-      certificate: aclCertificate,
-      acl
-    } = aclWithCertificate;
+    const aclCertificate = aclWithCertificate.certificate,
+      acl = aclWithCertificate.acl;
     const issuerCertificate = new src_client_Certificate(aclCertificate.certificate, {
       isTrustedRoot: true
     });
@@ -129560,9 +129855,7 @@ async function client_checkPermissionRequirements(effects) {
   const allAccountsChanges = Object.values(effects);
   const foundMultisigSignerLengths = [];
   for (const accountChanges of allAccountsChanges) {
-    const {
-      fields
-    } = accountChanges;
+    const fields = accountChanges.fields;
     if (accountChanges.type === 'ACCOUNT' && accountChanges.account.isMultisig()) {
       if (fields.minSignerSetLength !== undefined) {
         needToGetAccountInfoFor.add(accountChanges.account);
@@ -129580,10 +129873,8 @@ async function client_checkPermissionRequirements(effects) {
         requirementsByPrincipal[principalPubKey] = [];
       }
       requirementsByPrincipal[principalPubKey].push(singleRequirement);
-      const {
-        entity,
-        permissions
-      } = singleRequirement;
+      const entity = singleRequirement.entity,
+        permissions = singleRequirement.permissions;
       const entityKey = entity.publicKeyString.get();
       if (permissions === null) {
         continue;
@@ -129603,7 +129894,10 @@ async function client_checkPermissionRequirements(effects) {
     }
   }
   const foundAccountInfo = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_listAccountInfo).call(this, needToGetAccountInfoFor);
-  for (const [multisig, foundSingerLength] of foundMultisigSignerLengths) {
+  for (const _ref8 of foundMultisigSignerLengths) {
+    var _ref9 = client_ledger_slicedToArray(_ref8, 2);
+    const multisig = _ref9[0];
+    const foundSingerLength = _ref9[1];
     const multisigPubKey = multisig.publicKeyString.get();
     const foundInfo = foundAccountInfo[multisigPubKey];
     if (!('multisigQuorum' in foundInfo) || !(foundInfo !== null && foundInfo !== void 0 && foundInfo.multisigQuorum)) {
@@ -129709,14 +130003,12 @@ async function client_validateLedgerOutcome(blocks) {
    * Ensure all required permissions are met
    * See which accounts are now owners, and add those accounts to the set that we have
    */
-  const {
-    newOwners
-  } = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_checkPermissionRequirements).call(this, accountEffects);
+  const _await$_assertClassBr2 = await client_ledger_assertClassBrand(client_LedgerAtomicInterface_brand, this, client_checkPermissionRequirements).call(this, accountEffects),
+    newOwners = _await$_assertClassBr2.newOwners;
   for (const entityPubKey in newOwners) {
-    const {
-      entity,
-      owners
-    } = newOwners[entityPubKey];
+    const _newOwners$entityPubK = newOwners[entityPubKey],
+      entity = _newOwners$entityPubK.entity,
+      owners = _newOwners$entityPubK.owners;
     for (const newOwner of owners) {
       modifyOwners('ADD', entity, newOwner);
     }
@@ -129726,10 +130018,9 @@ async function client_validateLedgerOutcome(blocks) {
     if (accountChanges.type === 'CERTIFICATE') {
       continue;
     }
-    const {
-      account,
-      fields = {}
-    } = accountChanges;
+    const account = accountChanges.account,
+      _accountChanges$field = accountChanges.fields,
+      fields = _accountChanges$field === void 0 ? {} : _accountChanges$field;
 
     /**
      * Newly created identifiers automatically grant the creator ownership.
@@ -129759,10 +130050,12 @@ async function client_validateLedgerOutcome(blocks) {
   /**
    * Ensure there is exactly one owner when permissions were changed
    */
-  for (const [identifierPubKey, {
-    added,
-    removed
-  }] of Object.entries(ownersByIdentifier)) {
+  for (const _ref0 of Object.entries(ownersByIdentifier)) {
+    var _ref1 = client_ledger_slicedToArray(_ref0, 2);
+    const identifierPubKey = _ref1[0];
+    var _ref1$ = _ref1[1];
+    const added = _ref1$.added;
+    const removed = _ref1$.removed;
     let ownerLength = added.size;
 
     // If more than one owner was granted and not removed, we know it is invalid without checking
@@ -129782,20 +130075,18 @@ async function client_validateLedgerOutcome(blocks) {
     }
     throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_OWNER_COUNT', `Invalid number of owners for ${identifierPubKey} - Got ${ownerLength}/1`);
   }
-  const {
-    balances
-  } = await client_computeLedgerEffect({
-    checkRangeConstraints: true,
-    baseToken: client_ledger_classPrivateFieldGet(client_ledger, this).baseToken
-  }, accountEffects, client_ledger_classPrivateFieldGet(client_ledger_storage, this), client_ledger_classPrivateFieldGet(client_network, this), client_ledger_classPrivateFieldGet(client_transaction, this));
+  const _await$computeLedgerE = await client_computeLedgerEffect({
+      checkRangeConstraints: true,
+      baseToken: client_ledger_classPrivateFieldGet(client_ledger, this).baseToken
+    }, accountEffects, client_ledger_classPrivateFieldGet(client_ledger_storage, this), client_ledger_classPrivateFieldGet(client_network, this), client_ledger_classPrivateFieldGet(client_transaction, this)),
+    balances = _await$computeLedgerE.balances;
   for (const accountPubKey in balances) {
     const acctBalanceChanges = balances[accountPubKey];
     for (const tokenPubKey in acctBalanceChanges) {
-      const {
-        change,
-        fellNegative,
-        receiveValidated
-      } = acctBalanceChanges[tokenPubKey];
+      const _acctBalanceChanges$t = acctBalanceChanges[tokenPubKey],
+        change = _acctBalanceChanges$t.change,
+        fellNegative = _acctBalanceChanges$t.fellNegative,
+        receiveValidated = _acctBalanceChanges$t.receiveValidated;
       if (fellNegative) {
         throw new client_ledger_KeetaNetLedgerError('LEDGER_INVALID_BALANCE', `Resulting balance becomes negative at one+ point(s) during this transaction for account/token ${accountPubKey}/${tokenPubKey}: change ${change}`);
       }
@@ -129962,10 +130253,9 @@ class src_client_Ledger {
     client_ledger_classPrivateFieldSet(src_client_config, this, {
       ...config
     });
-    const {
-      baseToken,
-      networkAddress
-    } = client_lib_account.generateBaseAddresses(config.network);
+    const _Account$generateBase = client_lib_account.generateBaseAddresses(config.network),
+      baseToken = _Account$generateBase.baseToken,
+      networkAddress = _Account$generateBase.networkAddress;
     this.networkAddress = networkAddress;
     this.baseToken = baseToken;
     this.initialTrustedAccount = config.initialTrustedAccount;
@@ -130378,7 +130668,7 @@ client_lib_ledger_defineProperty(src_client_Ledger, "isInstance", client_checkab
 // EXTERNAL MODULE: ws (ignored)
 var client_ws_ignored_ = __webpack_require__(4708);
 ;// ./src/version.ts
-const client_version = '0.18.4+gbd3f30c7e7903e4990e5a283f15c23d0df18bbb4';
+const client_version = '0.18.7+gf9a01586fd45b1b2f5649176e291ae42384a5cfc';
 /* harmony default export */ const client_src_version = ((/* unused pure expression or super */ null && (client_version)));
 ;// ./src/lib/p2p.ts
 /* provided dependency */ var client_p2p_Buffer = __webpack_require__(8287)["Buffer"];
@@ -130393,6 +130683,12 @@ function client_p2p_checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new Ty
 function client_p2p_classPrivateFieldGet(s, a) { return s.get(client_p2p_assertClassBrand(s, a)); }
 function client_p2p_classPrivateFieldSet(s, a, r) { return s.set(client_p2p_assertClassBrand(s, a), r), r; }
 function client_p2p_assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+function client_p2p_slicedToArray(r, e) { return client_p2p_arrayWithHoles(r) || client_p2p_iterableToArrayLimit(r, e) || client_p2p_unsupportedIterableToArray(r, e) || client_p2p_nonIterableRest(); }
+function client_p2p_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_p2p_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_p2p_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_p2p_arrayLikeToArray(r, a) : void 0; } }
+function client_p2p_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_p2p_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_p2p_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 
 
 
@@ -130420,6 +130716,17 @@ const client_defaultP2PConfig = {
   kv: null,
   useHTTPRepublish: false
 };
+
+/**
+ * Upper bound on the size of a single P2P WebSocket frame, applied in both
+ * directions: the node's inbound "/p2p" server and every outbound connection
+ * this module dials. Without it the "ws" default of 100 MiB applies, which
+ * lets a peer that has not been authenticated send a very large compressed
+ * payload that expands during decompression and exhausts node memory. The
+ * bound is generous relative to a legitimate vote-staple message and may be
+ * lowered toward the protocol maximum.
+ */
+const client_P2P_WEBSOCKET_MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 
 /**
  * Shape of statistics
@@ -130473,7 +130780,9 @@ function client_validateP2PPeer(peer) {
           if (signatureWrapperJS.length !== 2) {
             return false;
           }
-          const [checkVersion, checkSignature] = signatureWrapperJS;
+          const _signatureWrapperJS = client_p2p_slicedToArray(signatureWrapperJS, 2),
+            checkVersion = _signatureWrapperJS[0],
+            checkSignature = _signatureWrapperJS[1];
           if (typeof checkVersion !== 'bigint' && typeof checkVersion !== 'number') {
             return false;
           }
@@ -130875,7 +131184,14 @@ class src_client_P2PWebSocket {
     }
     let wsAttempt;
     try {
-      wsAttempt = new client_ws_ignored_.WebSocket(peer.endpoints.p2p);
+      /*
+       * Bound the size of a frame the dialed peer may send us
+       * (see P2P_WEBSOCKET_MAX_PAYLOAD_BYTES); the peer is not
+       * trusted merely because we opened the connection.
+       */
+      wsAttempt = new client_ws_ignored_.WebSocket(peer.endpoints.p2p, {
+        maxPayload: client_P2P_WEBSOCKET_MAX_PAYLOAD_BYTES
+      });
     } catch (ignoredConnectError) {
       /* Ignore connection error */
     }
@@ -131191,7 +131507,9 @@ class src_client_P2PSwitch {
     const potentialKnownPeers = await this.config.kv.getAll('knownPeers');
     // Filter for only valid entries in case the format becomes invalidated in the future
     let knownPeers = Object.fromEntries(Object.entries(potentialKnownPeers).filter(_ref => {
-      let [_, value] = _ref;
+      let _ref2 = client_p2p_slicedToArray(_ref, 2),
+        _ = _ref2[0],
+        value = _ref2[1];
       const peer = client_P2PPeerFromJSO(value);
       return peer !== null;
     }));
@@ -132456,10 +132774,9 @@ class src_client_Node {
       this.log = src_client_log.Legacy();
     }
     this.log.debug('node', 'Starting up');
-    const {
-      networkAddress,
-      baseToken
-    } = client_lib_account.generateBaseAddresses(config.network);
+    const _Account$generateBase = client_lib_account.generateBaseAddresses(config.network),
+      networkAddress = _Account$generateBase.networkAddress,
+      baseToken = _Account$generateBase.baseToken;
     this.networkAddress = networkAddress;
     this.baseToken = baseToken;
 
@@ -132637,6 +132954,33 @@ class src_client_KeetaNetAPIError extends src_client_KeetaNetErrorBase {
 }
 client_KeetaNetAPIError = src_client_KeetaNetAPIError;
 client_api_defineProperty(src_client_KeetaNetAPIError, "isInstance", client_checkableGenerator(client_KeetaNetAPIError));
+;// ./src/lib/error/bloom.ts
+var client_KeetaNetBloomError;
+function client_bloom_defineProperty(e, r, t) { return (r = client_bloom_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function client_bloom_toPropertyKey(t) { var i = client_bloom_toPrimitive(t, "string"); return "symbol" == typeof i ? i : i + ""; }
+function client_bloom_toPrimitive(t, r) { if ("object" != typeof t || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != typeof i) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+
+
+const client_BloomErrorType = 'BLOOM';
+const client_BloomErrorCodes = ['INVALID_TRANSPORT'];
+const client_FullBloomErrorCodes = client_BloomErrorCodes.map(code => `${client_BloomErrorType}_${code}`);
+class src_client_KeetaNetBloomError extends src_client_KeetaNetErrorBase {
+  /*
+   * The offending transport is retained as an optional property for diagnostics
+   * but is intentionally kept out of the error message so untrusted, attacker
+   * supplied input is never echoed into logs/responses.
+   */
+
+  constructor(code, message, data) {
+    super(code, message, {
+      type: client_BloomErrorType,
+      codes: client_BloomErrorCodes
+    });
+    this.data = data;
+  }
+}
+client_KeetaNetBloomError = src_client_KeetaNetBloomError;
+client_bloom_defineProperty(src_client_KeetaNetBloomError, "isInstance", client_checkableGenerator(client_KeetaNetBloomError));
 ;// ./src/lib/error/client.ts
 var client_KeetaNetClientError;
 function client_client_defineProperty(e, r, t) { return (r = client_client_toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
@@ -132645,7 +132989,7 @@ function client_client_toPrimitive(t, r) { if ("object" != typeof t || !t) retur
 
 
 const client_ClientErrorType = 'CLIENT';
-const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SYNC_PUBLISH_FAILED', 'SWAP_INVALID_ACCOUNT_OPTION', 'SWAP_OPTIONS_INVALID', 'SWAP_MISSING_SEND', 'SWAP_MISSING_RECEIVE', 'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'SWAP_SEND_ACCOUNT_MISMATCH', 'SWAP_SEND_TOKEN_MISMATCH', 'SWAP_SEND_AMOUNT_TOO_LOW', 'SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH', 'SWAP_REQUEST_TOKEN_MISMATCH', 'SWAP_REQUEST_AMOUNT_MISMATCH'];
+const client_ClientErrorCodes = ['BUILDER_AMOUNT_IS_ZERO', 'BUILDER_CANNOT_READ_BEFORE_RENDER', 'BUILDER_REQUIRES_PRIVATE_KEY', 'BUILDER_USER_CLIENT_REQUIRED', 'PUBLISH_AID_NOT_AVAILABLE', 'NO_REPS_AVAILABLE', 'SIGNER_REQUIRES_PRIVATE_KEY', 'SWAP_INVALID_ACCOUNT_OPTION', 'SWAP_MISSING_RECEIVE', 'SWAP_MISSING_SEND', 'SWAP_OPTIONS_INVALID', 'SWAP_REQUEST_AMOUNT_MISMATCH', 'SWAP_REQUEST_TOKEN_MISMATCH', 'SWAP_SEND_ACCOUNT_MISMATCH', 'SWAP_SEND_AMOUNT_RECEIVE_EXACT_MISMATCH', 'SWAP_SEND_AMOUNT_TOO_LOW', 'SWAP_SEND_RECEIVE_ACCOUNT_MISMATCH', 'SWAP_SEND_TOKEN_MISMATCH', 'SYNC_PUBLISH_FAILED'];
 const client_FullClientErrorCodes = client_ClientErrorCodes.map(code => `${client_ClientErrorType}_${code}`);
 class src_client_KeetaNetClientError extends src_client_KeetaNetErrorBase {
   constructor(code, message) {
@@ -132691,8 +133035,9 @@ client_error_kv_defineProperty(src_client_KeetaNetKVError, "isInstance", client_
 
 
 
-const client_allErrorCodesWithoutPrefix = [...client_AccountErrorCodes, ...client_APIErrorCodes, ...client_BlockErrorCodes, ...client_CertificateErrorCodes, ...client_ClientErrorCodes, ...client_KVErrorCodes, ...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes, ...client_PermissionsErrorCodes, ...client_VoteErrorCodes];
-const client_allFullErrorCodes = [...client_FullAccountErrorCodes, ...client_FullAPIErrorCodes, ...client_FullBlockErrorCodes, ...client_FullCertificateErrorCodes, ...client_FullClientErrorCodes, ...client_FullKVErrorCodes, ...client_FullLedgerErrorCodes, ...client_FullPermissionsErrorCodes, ...client_FullVoteErrorCodes];
+
+const client_allErrorCodesWithoutPrefix = [...client_AccountErrorCodes, ...client_APIErrorCodes, ...client_BlockErrorCodes, ...client_BloomErrorCodes, ...client_CertificateErrorCodes, ...client_ClientErrorCodes, ...client_KVErrorCodes, ...client_LedgerBaseErrorCodes, ...client_LedgerVoteErrorCodes, ...client_PermissionsErrorCodes, ...client_VoteErrorCodes];
+const client_allFullErrorCodes = [...client_FullAccountErrorCodes, ...client_FullAPIErrorCodes, ...client_FullBlockErrorCodes, ...client_FullBloomErrorCodes, ...client_FullCertificateErrorCodes, ...client_FullClientErrorCodes, ...client_FullKVErrorCodes, ...client_FullLedgerErrorCodes, ...client_FullPermissionsErrorCodes, ...client_FullVoteErrorCodes];
 const client_errorCodeSet = new Set(client_allFullErrorCodes);
 async function client_ExpectErrorCode(code, test) {
   await expect(test).rejects.toThrow(expect.objectContaining({
@@ -132720,11 +133065,9 @@ class client_KeetaNetError extends src_client_KeetaNetErrorBase {
   }
   static fromJSON(json) {
     if (typeof json === 'object' && json !== null && 'type' in json && 'code' in json && 'message' in json) {
-      const {
-        type,
-        code,
-        message
-      } = json;
+      const type = json.type,
+        code = json.code,
+        message = json.message;
       if (typeof type !== 'string' || typeof code !== 'string' || typeof message !== 'string') {
         return new Error('Invalid JSON for KeetaNetError (bad type or code or message)');
       }
@@ -132806,10 +133149,21 @@ var client_api = __webpack_require__(5652);
 /* provided dependency */ var client_bloom_Buffer = __webpack_require__(8287)["Buffer"];
 
 
+
+/*
+ * Bounds for untrusted, API/peer-supplied bloom filters. The serialized filter
+ * arrives base64-encoded and zlib-compressed on an unauthenticated GET
+ * (bootstrap votes) and via the bootstrap client, so both the decompressed size
+ * and the declared filter dimensions must be bounded to avoid memory-exhaustion
+ * DoS from a small crafted input.
+ */
+const client_MAX_BLOOM_DECOMPRESSED_BYTES = 4 * 1024 * 1024;
+const client_MAX_BLOOM_SIZE = 1 << 26;
+const client_MAX_BLOOM_HASHES = 64;
 function client_assertBloomFilterTransport(data) {
   let valid = typeof data === 'object' && typeof data.contents === 'string';
   for (const numKeys of ['hashes', 'size', 'seed']) {
-    if (!valid || typeof data[numKeys] !== 'number') {
+    if (!valid || typeof data[numKeys] !== 'number' || !Number.isInteger(data[numKeys])) {
       valid = false;
       break;
     }
@@ -132817,10 +133171,16 @@ function client_assertBloomFilterTransport(data) {
   if (typeof data.contents !== 'string') {
     valid = false;
   }
+  if (valid && (data.size <= 0 || data.size > client_MAX_BLOOM_SIZE)) {
+    valid = false;
+  }
+  if (valid && (data.hashes <= 0 || data.hashes > client_MAX_BLOOM_HASHES)) {
+    valid = false;
+  }
   if (valid) {
     return data;
   }
-  throw new Error(`Invalid BloomFilterTransport, got ${JSON.stringify(data)}`);
+  throw new src_client_KeetaNetBloomError('BLOOM_INVALID_TRANSPORT', 'Invalid BloomFilterTransport', data);
 }
 
 function client_serializeBloomFilter(filter) {
@@ -132842,7 +133202,9 @@ function client_serializeBloomFilter(filter) {
 }
 function client_deserializeBloomFilter(input) {
   const compressed = client_bloom_Buffer.from(input, 'base64');
-  const decompressed = client_lib_default().inflateSync(compressed).toString();
+  const decompressed = client_lib_default().inflateSync(compressed, {
+    maxOutputLength: client_MAX_BLOOM_DECOMPRESSED_BYTES
+  }).toString();
   const filterPlain = client_assertBloomFilterTransport(JSON.parse(decompressed));
   const filterJSON = {
     type: 'BloomFilter',
@@ -132874,15 +133236,13 @@ function client_deserializeBloomFilter(input) {
 
 async function client_generateInitialVoteStaple(options) {
   var _options$baseNetworkI, _options$baseNetworkI2, _options$baseNetworkI3, _options$baseNetworkI4, _options$baseNetworkI5, _options$baseNetworkI6, _options$baseNetworkI7, _options$baseNetworkI8, _options$baseTokenInf, _options$baseTokenInf2, _options$baseTokenInf3, _options$baseTokenInf4, _options$baseTokenInf5, _options$baseTokenInf6;
-  const {
-    network,
-    initialTrustedAccount,
-    voteSerial = 0n
-  } = options;
-  const {
-    networkAddress,
-    baseToken
-  } = client_lib_account.generateBaseAddresses(network);
+  const network = options.network,
+    initialTrustedAccount = options.initialTrustedAccount,
+    _options$voteSerial = options.voteSerial,
+    voteSerial = _options$voteSerial === void 0 ? 0n : _options$voteSerial;
+  const _Account$generateBase = client_lib_account.generateBaseAddresses(network),
+    networkAddress = _Account$generateBase.networkAddress,
+    baseToken = _Account$generateBase.baseToken;
   const blocks = {};
   const prevByKey = {};
   const getPrevious = function (account) {
@@ -132944,9 +133304,7 @@ async function client_generateInitialVoteStaple(options) {
   }).seal();
   setPrevious(baseToken, blocks.baseToken);
   if (shouldAddSupply) {
-    const {
-      recipient
-    } = options.addSupply;
+    const recipient = options.addSupply.recipient;
     blocks.recipient = await new client_lib_block.Builder({
       network: network,
       account: recipient,
@@ -133030,7 +133388,7 @@ async function client_generateInitialVoteStaple(options) {
   Vote: client_lib_vote,
   Utils: {
     ASN1: client_utils_asn1_namespaceObject,
-    Bloom: client_bloom_namespaceObject,
+    Bloom: client_utils_bloom_namespaceObject,
     Buffer: client_utils_buffer_namespaceObject,
     Certificate: client_utils_certificate_namespaceObject,
     Conversion: client_conversion_namespaceObject,
@@ -133043,6 +133401,12 @@ async function client_generateInitialVoteStaple(options) {
 ;// ./src/client/builder.ts
 /* provided dependency */ var client_builder_Buffer = __webpack_require__(8287)["Buffer"];
 var client_PendingAccount, client_UserClientBuilder;
+function client_builder_slicedToArray(r, e) { return client_builder_arrayWithHoles(r) || client_builder_iterableToArrayLimit(r, e) || client_builder_unsupportedIterableToArray(r, e) || client_builder_nonIterableRest(); }
+function client_builder_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_builder_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_builder_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_builder_arrayLikeToArray(r, a) : void 0; } }
+function client_builder_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_builder_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_builder_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_builder_classPrivateMethodInitSpec(e, a) { client_builder_checkPrivateRedeclaration(e, a), a.add(e); }
 function client_builder_classPrivateGetter(s, r, a) { return a(client_builder_assertClassBrand(s, r)); }
 function client_builder_classPrivateFieldInitSpec(e, t, a) { client_builder_checkPrivateRedeclaration(e, t), t.set(e, a); }
@@ -133139,10 +133503,11 @@ class src_client_UserClientBuilder {
   static async FromPendingJSON(options, getPrivateKey, multiAllPending) {
     const allPending = multiAllPending.flatMap(pending => pending);
     const needToGetPrivateKeys = new src_client_Account.Set();
-    for (const {
-      nonRendered
-    } of multiAllPending) {
-      for (const [accounts] of nonRendered) {
+    for (const _ref of multiAllPending) {
+      const nonRendered = _ref.nonRendered;
+      for (const _ref2 of nonRendered) {
+        var _ref3 = client_builder_slicedToArray(_ref2, 1);
+        const accounts = _ref3[0];
         needToGetPrivateKeys.add(src_client_Account.fromPublicKeyString(accounts.signer));
       }
     }
@@ -133160,15 +133525,17 @@ class src_client_UserClientBuilder {
     await Promise.all(getPrivateKeyPromises);
     const receivedBlocks = [];
     const mappedPending = [];
-    for (const {
-      renderedBlocks,
-      nonRendered
-    } of allPending) {
+    for (const _ref4 of allPending) {
+      const renderedBlocks = _ref4.renderedBlocks;
+      const nonRendered = _ref4.nonRendered;
       for (const blockString of renderedBlocks) {
         receivedBlocks.push(new src_client_Block(client_builder_Buffer.from(blockString, 'base64')));
       }
-      for (const [accounts, operations] of nonRendered) {
+      for (const _ref5 of nonRendered) {
         var _gotPrivateKeys$signe;
+        var _ref6 = client_builder_slicedToArray(_ref5, 2);
+        const accounts = _ref6[0];
+        const operations = _ref6[1];
         const account = src_client_Account.toAccount(accounts.account);
         const signerPubKey = src_client_Account.fromPublicKeyString(accounts.signer).publicKeyAndTypeString;
         const signer = (_gotPrivateKeys$signe = gotPrivateKeys[signerPubKey]) !== null && _gotPrivateKeys$signe !== void 0 ? _gotPrivateKeys$signe : src_client_Account.toAccount(accounts.signer);
@@ -133183,9 +133550,12 @@ class src_client_UserClientBuilder {
             metadata: operations.info.metadata
           };
           if (operations.info.defaultPermission !== undefined) {
-            const [base, external] = operations.info.defaultPermission.map(function (intString) {
-              return BigInt(intString);
-            });
+            const _operations$info$defa = operations.info.defaultPermission.map(function (intString) {
+                return BigInt(intString);
+              }),
+              _operations$info$defa2 = client_builder_slicedToArray(_operations$info$defa, 2),
+              base = _operations$info$defa2[0],
+              external = _operations$info$defa2[1];
 
             // This is correct as we are constructing this from data that was only set if it was valid
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
@@ -133197,11 +133567,9 @@ class src_client_UserClientBuilder {
           pendingOperations.tokenSupply = client_parseHexBigIntString(operations.tokenSupply);
         }
         if (operations.createIdentifiers !== undefined) {
-          pendingOperations.createIdentifiers = operations.createIdentifiers.map(function (_ref) {
-            let {
-              type,
-              createArguments
-            } = _ref;
+          pendingOperations.createIdentifiers = operations.createIdentifiers.map(function (_ref7) {
+            let type = _ref7.type,
+              createArguments = _ref7.createArguments;
             let createArgumentsParsed;
             if (createArguments !== undefined) {
               if (createArguments.type === client_AccountKeyAlgorithm.MULTISIG) {
@@ -133228,13 +133596,11 @@ class src_client_UserClientBuilder {
           });
         }
         if (operations.send !== undefined) {
-          pendingOperations.send = operations.send.map(function (_ref2) {
-            let {
-              otherParty,
-              token,
-              amount,
-              external
-            } = _ref2;
+          pendingOperations.send = operations.send.map(function (_ref8) {
+            let otherParty = _ref8.otherParty,
+              token = _ref8.token,
+              amount = _ref8.amount,
+              external = _ref8.external;
             return {
               otherParty: src_client_Account.toAccount(otherParty),
               token: src_client_Account.toAccount(token),
@@ -133244,14 +133610,12 @@ class src_client_UserClientBuilder {
           });
         }
         if (operations.receive !== undefined) {
-          pendingOperations.receive = operations.receive.map(function (_ref3) {
-            let {
-              otherParty,
-              token,
-              amount,
-              exactReceive,
-              forward
-            } = _ref3;
+          pendingOperations.receive = operations.receive.map(function (_ref9) {
+            let otherParty = _ref9.otherParty,
+              token = _ref9.token,
+              amount = _ref9.amount,
+              exactReceive = _ref9.exactReceive,
+              forward = _ref9.forward;
             return {
               otherParty: src_client_Account.toAccount(otherParty),
               token: src_client_Account.toAccount(token),
@@ -133262,12 +133626,10 @@ class src_client_UserClientBuilder {
           });
         }
         if (operations.adminModifyBalance !== undefined) {
-          pendingOperations.adminModifyBalance = operations.adminModifyBalance.map(function (_ref4) {
-            let {
-              isSet,
-              amount,
-              token
-            } = _ref4;
+          pendingOperations.adminModifyBalance = operations.adminModifyBalance.map(function (_ref0) {
+            let isSet = _ref0.isSet,
+              amount = _ref0.amount,
+              token = _ref0.token;
             return {
               isSet,
               amount: client_parseHexBigIntString(amount),
@@ -133277,7 +133639,10 @@ class src_client_UserClientBuilder {
         }
         if (operations.permissionsChanges !== undefined) {
           pendingOperations.permissionsChanges = {};
-          for (const [certificateOrAccountKey, changes] of Object.entries(operations.permissionsChanges)) {
+          for (const _ref1 of Object.entries(operations.permissionsChanges)) {
+            var _ref10 = client_builder_slicedToArray(_ref1, 2);
+            const certificateOrAccountKey = _ref10[0];
+            const changes = _ref10[1];
             pendingOperations.permissionsChanges[certificateOrAccountKey] = {
               principal: (() => {
                 if (typeof changes.principal === 'string') {
@@ -133294,10 +133659,9 @@ class src_client_UserClientBuilder {
             };
             for (const targetPubKey in changes.targets) {
               const updateArray = [];
-              for (const {
-                method,
-                permissions
-              } of changes.targets[targetPubKey]) {
+              for (const _ref11 of changes.targets[targetPubKey]) {
+                const method = _ref11.method;
+                const permissions = _ref11.permissions;
                 updateArray.push({
                   method,
                   permissions: client_permissions_Permissions.FromAcceptedTypes(permissions)
@@ -133309,11 +133673,10 @@ class src_client_UserClientBuilder {
         }
         if (operations.modifyCertificates !== undefined) {
           pendingOperations.modifyCertificates = [];
-          for (const {
-            method,
-            certificate,
-            intermediateCertificates
-          } of operations.modifyCertificates) {
+          for (const _ref12 of operations.modifyCertificates) {
+            const method = _ref12.method;
+            const certificate = _ref12.certificate;
+            const intermediateCertificates = _ref12.intermediateCertificates;
             let intermediates = null;
             if (intermediateCertificates) {
               intermediates = new src_client_CertificateBundle(intermediateCertificates);
@@ -133342,7 +133705,10 @@ class src_client_UserClientBuilder {
     }
     const updatedPending = client_combineAllPendingWithAccountPending.call(src_client_UserClientBuilder, client_builder_classPrivateFieldGet(client_allPending, this), client_builder_classPrivateFieldGet(client_pendingOperations, this), client_builder_classPrivateFieldGet(client_pendingOptions, this));
     const toUsePending = [];
-    for (const [accountSigner, pendingOperations] of updatedPending !== null && updatedPending !== void 0 ? updatedPending : client_builder_classPrivateFieldGet(client_allPending, this)) {
+    for (const _ref13 of updatedPending !== null && updatedPending !== void 0 ? updatedPending : client_builder_classPrivateFieldGet(client_allPending, this)) {
+      var _ref14 = client_builder_slicedToArray(_ref13, 2);
+      const accountSigner = _ref14[0];
+      const pendingOperations = _ref14[1];
       let modifyCertificates;
       if (pendingOperations.modifyCertificates !== undefined) {
         modifyCertificates = pendingOperations.modifyCertificates.map(function (modifyRequest) {
@@ -133407,10 +133773,11 @@ class src_client_UserClientBuilder {
   async clone() {
     const accountsWithPrivateKeys = {};
     const collectedAccounts = [];
-    for (const [{
-      account,
-      signer
-    }] of client_builder_classPrivateFieldGet(client_allPending, this)) {
+    for (const _ref15 of client_builder_classPrivateFieldGet(client_allPending, this)) {
+      var _ref16 = client_builder_slicedToArray(_ref15, 1);
+      var _ref16$ = _ref16[0];
+      const account = _ref16$.account;
+      const signer = _ref16$.signer;
       collectedAccounts.push(account, signer);
     }
     collectedAccounts.push(client_builder_classPrivateFieldGet(client_defaultOptions, this).account, client_builder_classPrivateFieldGet(client_defaultOptions, this).signer);
@@ -133475,19 +133842,17 @@ class src_client_UserClientBuilder {
         previousByKey[pubKey] = existing.hash.toString();
       }
     }
-    const {
-      account,
-      signer
-    } = client_builder_classPrivateFieldGet(client_pendingOptions, this);
+    const _classPrivateFieldGet2 = client_builder_classPrivateFieldGet(client_pendingOptions, this),
+      account = _classPrivateFieldGet2.account,
+      signer = _classPrivateFieldGet2.signer;
     const accountPubKey = account.publicKeyString.get();
     let previous = previousByKey[accountPubKey];
     if (!previous) {
       var _await$renderOptions$;
       previous = (_await$renderOptions$ = await renderOptions.getPrevious(account)) !== null && _await$renderOptions$ !== void 0 ? _await$renderOptions$ : src_client_Block.NO_PREVIOUS;
     }
-    const {
-      baseToken
-    } = client_src_lib.Account.generateBaseAddresses(renderOptions.network);
+    const _KeetaNet$Account$gen = client_src_lib.Account.generateBaseAddresses(renderOptions.network),
+      baseToken = _KeetaNet$Account$gen.baseToken;
     const operations = [];
     for (const vote of staple.votes) {
       if (vote.fee !== undefined) {
@@ -133562,10 +133927,12 @@ class src_client_UserClientBuilder {
         previousByKey[pubKey] = existing.hash.toString();
       }
     }
-    for (const [{
-      account,
-      signer
-    }, pending] of client_builder_classPrivateFieldGet(client_allPending, this)) {
+    for (const _ref17 of client_builder_classPrivateFieldGet(client_allPending, this)) {
+      var _ref18 = client_builder_slicedToArray(_ref17, 2);
+      var _ref18$ = _ref18[0];
+      const account = _ref18$.account;
+      const signer = _ref18$.signer;
+      const pending = _ref18[1];
       const operations = [];
       const accountPubKey = account.publicKeyString.get();
       let previous = previousByKey[accountPubKey];
@@ -133573,12 +133940,11 @@ class src_client_UserClientBuilder {
         var _await$renderOptions$2;
         previous = (_await$renderOptions$2 = await renderOptions.getPrevious(account)) !== null && _await$renderOptions$2 !== void 0 ? _await$renderOptions$2 : src_client_Block.NO_PREVIOUS;
       }
-      for (const {
-        type,
-        toResolve,
-        createArguments
-      } of (_pending$createIdenti = pending.createIdentifiers) !== null && _pending$createIdenti !== void 0 ? _pending$createIdenti : []) {
+      for (const _ref19 of (_pending$createIdenti = pending.createIdentifiers) !== null && _pending$createIdenti !== void 0 ? _pending$createIdenti : []) {
         var _pending$createIdenti;
+        const type = _ref19.type;
+        const toResolve = _ref19.toResolve;
+        const createArguments = _ref19.createArguments;
         const createdAddress = account.generateIdentifier(type, previous, operations.length);
         if (src_client_PendingAccount.IsInstance(toResolve)) {
           toResolve.account = createdAddress;
@@ -133590,13 +133956,12 @@ class src_client_UserClientBuilder {
         });
       }
       const allSends = {};
-      for (const {
-        otherParty,
-        token,
-        amount,
-        external
-      } of (_pending$send = pending.send) !== null && _pending$send !== void 0 ? _pending$send : []) {
+      for (const _ref20 of (_pending$send = pending.send) !== null && _pending$send !== void 0 ? _pending$send : []) {
         var _pending$send;
+        const otherParty = _ref20.otherParty;
+        const token = _ref20.token;
+        const amount = _ref20.amount;
+        const external = _ref20.external;
         if (amount === 0n) {
           continue;
         }
@@ -133624,14 +133989,13 @@ class src_client_UserClientBuilder {
         }
       }
       const receiveOperations = [];
-      for (const {
-        otherParty,
-        token,
-        amount,
-        exactReceive,
-        forward
-      } of (_pending$receive = pending.receive) !== null && _pending$receive !== void 0 ? _pending$receive : []) {
+      for (const _ref21 of (_pending$receive = pending.receive) !== null && _pending$receive !== void 0 ? _pending$receive : []) {
         var _pending$receive;
+        const otherParty = _ref21.otherParty;
+        const token = _ref21.token;
+        const amount = _ref21.amount;
+        const exactReceive = _ref21.exactReceive;
+        const forward = _ref21.forward;
         if (amount === 0n) {
           continue;
         }
@@ -133684,22 +134048,20 @@ class src_client_UserClientBuilder {
         });
       }
       if (pending.tokenSupply) {
-        const {
-          method,
-          amount
-        } = client_getMethodAmountFromValue.call(src_client_UserClientBuilder, pending.tokenSupply);
+        const _getMethodAmountFromV = client_getMethodAmountFromValue.call(src_client_UserClientBuilder, pending.tokenSupply),
+          method = _getMethodAmountFromV.method,
+          amount = _getMethodAmountFromV.amount;
         operations.push({
           type: src_client_Block.OperationType.TOKEN_ADMIN_SUPPLY,
           method,
           amount
         });
       }
-      for (const {
-        method,
-        certificate,
-        intermediateCertificates
-      } of (_pending$modifyCertif = pending.modifyCertificates) !== null && _pending$modifyCertif !== void 0 ? _pending$modifyCertif : []) {
+      for (const _ref22 of (_pending$modifyCertif = pending.modifyCertificates) !== null && _pending$modifyCertif !== void 0 ? _pending$modifyCertif : []) {
         var _pending$modifyCertif;
+        const method = _ref22.method;
+        const certificate = _ref22.certificate;
+        const intermediateCertificates = _ref22.intermediateCertificates;
         let intermediates = undefined;
         if (method === src_client_Block.AdjustMethod.ADD) {
           intermediates = intermediateCertificates;
@@ -133712,12 +134074,11 @@ class src_client_UserClientBuilder {
         });
       }
       const modifyBalanceResolved = {};
-      for (const {
-        isSet,
-        token,
-        amount
-      } of (_pending$adminModifyB = pending.adminModifyBalance) !== null && _pending$adminModifyB !== void 0 ? _pending$adminModifyB : []) {
+      for (const _ref23 of (_pending$adminModifyB = pending.adminModifyBalance) !== null && _pending$adminModifyB !== void 0 ? _pending$adminModifyB : []) {
         var _pending$adminModifyB;
+        const isSet = _ref23.isSet;
+        const token = _ref23.token;
+        const amount = _ref23.amount;
         const tokenPubKey = src_client_PendingAccount.GetValue(token).publicKeyString.get();
         if (isSet) {
           modifyBalanceResolved[tokenPubKey] = {
@@ -133753,17 +134114,14 @@ class src_client_UserClientBuilder {
           amount: amount
         });
       }
-      for (const {
-        targets,
-        principal
-      } of Object.values((_pending$permissionsC = pending.permissionsChanges) !== null && _pending$permissionsC !== void 0 ? _pending$permissionsC : {})) {
+      for (const _ref24 of Object.values((_pending$permissionsC = pending.permissionsChanges) !== null && _pending$permissionsC !== void 0 ? _pending$permissionsC : {})) {
         var _pending$permissionsC;
+        const targets = _ref24.targets;
+        const principal = _ref24.principal;
         for (const targetPubKey in targets) {
           for (const change of targets[targetPubKey]) {
-            const {
-              method,
-              permissions
-            } = change;
+            const method = change.method,
+              permissions = change.permissions;
             let target;
             if (!account.comparePublicKey(targetPubKey)) {
               target = src_client_Account.fromPublicKeyString(targetPubKey);
@@ -133908,11 +134266,11 @@ class src_client_UserClientBuilder {
     });
   }
   setInfo(info) {
-    var _classPrivateFieldGet2;
+    var _classPrivateFieldGet3;
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     client_builder_assertClassBrand(client_UserClientBuilder_brand, this, client_useOptions).call(this, options);
     client_builder_classPrivateFieldGet(client_pendingOperations, this).info = {
-      ...((_classPrivateFieldGet2 = client_builder_classPrivateFieldGet(client_pendingOperations, this).info) !== null && _classPrivateFieldGet2 !== void 0 ? _classPrivateFieldGet2 : {}),
+      ...((_classPrivateFieldGet3 = client_builder_classPrivateFieldGet(client_pendingOperations, this).info) !== null && _classPrivateFieldGet3 !== void 0 ? _classPrivateFieldGet3 : {}),
       ...info
     };
   }
@@ -133980,10 +134338,10 @@ class src_client_UserClientBuilder {
 }
 client_UserClientBuilder = src_client_UserClientBuilder;
 function client_get_defaultAccountOptions(_this) {
-  var _classPrivateFieldGet3;
+  var _classPrivateFieldGet4;
   const signer = client_builder_classPrivateFieldGet(client_defaultOptions, _this).signer;
   return {
-    account: (_classPrivateFieldGet3 = client_builder_classPrivateFieldGet(client_defaultOptions, _this).account) !== null && _classPrivateFieldGet3 !== void 0 ? _classPrivateFieldGet3 : signer,
+    account: (_classPrivateFieldGet4 = client_builder_classPrivateFieldGet(client_defaultOptions, _this).account) !== null && _classPrivateFieldGet4 !== void 0 ? _classPrivateFieldGet4 : signer,
     signer: signer
   };
 }
@@ -134105,6 +134463,12 @@ if (typeof WebSocket !== 'undefined') {
 ;// ./src/client/index.ts
 /* provided dependency */ var client_client_Buffer = __webpack_require__(8287)["Buffer"];
 var client_Client, client_UserClient;
+function client_client_slicedToArray(r, e) { return client_client_arrayWithHoles(r) || client_client_iterableToArrayLimit(r, e) || client_client_unsupportedIterableToArray(r, e) || client_client_nonIterableRest(); }
+function client_client_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function client_client_unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return client_client_arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? client_client_arrayLikeToArray(r, a) : void 0; } }
+function client_client_arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function client_client_iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function client_client_arrayWithHoles(r) { if (Array.isArray(r)) return r; }
 function client_client_usingCtx2() { var r = "function" == typeof SuppressedError ? SuppressedError : function (r, e) { var n = Error(); return n.name = "SuppressedError", n.error = r, n.suppressed = e, n; }, e = {}, n = []; function using(r, e) { if (null != e) { if (Object(e) !== e) throw new TypeError("using declarations can only be used with objects, functions, null, or undefined."); if (r) var o = e[Symbol.asyncDispose || Symbol.for("Symbol.asyncDispose")]; if (void 0 === o && (o = e[Symbol.dispose || Symbol.for("Symbol.dispose")], r)) var t = o; if ("function" != typeof o) throw new TypeError("Object is not disposable."); t && (o = function () { try { t.call(e); } catch (r) { return Promise.reject(r); } }), n.push({ v: e, d: o, a: r }); } else r && n.push({ d: e, a: r }); return e; } return { e: e, u: using.bind(null, !1), a: using.bind(null, !0), d: function () { var o, t = this.e, s = 0; function next() { for (; o = n.pop();) try { if (!o.a && 1 === s) return s = 0, n.push(o), Promise.resolve().then(next); if (o.d) { var r = o.d.call(o.v); if (o.a) return s |= 2, Promise.resolve(r).then(next, err); } else s |= 1; } catch (r) { return err(r); } if (1 === s) return t !== e ? Promise.reject(t) : Promise.resolve(); if (t !== e) throw t; } function err(n) { return t = t !== e ? new r(n, t) : n, next(); } return next(); } }; }
 function client_client_classPrivateGetter(s, r, a) { return a(client_client_assertClassBrand(s, r)); }
 function client_client_classPrivateMethodInitSpec(e, a) { client_client_checkPrivateRedeclaration(e, a), a.add(e); }
@@ -134239,9 +134603,8 @@ class src_client_Client {
    * @expandType Config.Networks
    */
   static fromNetwork(network) {
-    const {
-      representatives
-    } = client_getDefaultConfig(network);
+    const _Config$getDefaultCon = client_getDefaultConfig(network),
+      representatives = _Config$getDefaultCon.representatives;
     return new src_client_Client(representatives);
   }
 
@@ -134512,11 +134875,8 @@ class src_client_Client {
     if (token.keyType !== client_src_lib.Account.AccountKeyAlgorithm.TOKEN) {
       throw new Error('Cannot get supply for non token account');
     }
-    const {
-      info: {
-        supply
-      }
-    } = await this.getAccountInfo(token);
+    const _await$this$getAccoun = await this.getAccountInfo(token),
+      supply = _await$this$getAccoun.info.supply;
     if (typeof supply !== 'bigint') {
       throw new Error('Error fetching supply');
     }
@@ -134921,11 +135281,10 @@ class src_client_Client {
    */
   async getChain(account) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const {
-      depth = Infinity,
-      startBlock,
-      endBlock
-    } = options;
+    const _options$depth = options.depth,
+      depth = _options$depth === void 0 ? Infinity : _options$depth,
+      startBlock = options.startBlock,
+      endBlock = options.endBlock;
     account = client_lib_account.toPublicKeyString(account);
     const query = {
       start: 'HEAD',
@@ -134993,11 +135352,11 @@ class src_client_Client {
    */
   async getHistory(account) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const {
-      depth = Infinity,
-      pageSize = 200,
-      startBlocksHash
-    } = options;
+    const _options$depth2 = options.depth,
+      depth = _options$depth2 === void 0 ? Infinity : _options$depth2,
+      _options$pageSize = options.pageSize,
+      pageSize = _options$pageSize === void 0 ? 200 : _options$pageSize,
+      startBlocksHash = options.startBlocksHash;
     account = client_lib_account.toPublicKeyString(account);
     let startVoteStapleID = undefined;
     if (startBlocksHash !== undefined) {
@@ -135337,6 +135696,8 @@ class src_client_Client {
   async recoverAccount(account) {
     let publish = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
     let options = arguments.length > 2 ? arguments[2] : undefined;
+    // Force refresh the reps to get the latest weights
+    const votableReps = await client_client_assertClassBrand(client_Client_brand, this, client_getVotableReps).call(this, undefined, true);
     const successorBlock = await this.getPendingBlock(account);
     if (!successorBlock) {
       return null;
@@ -135376,35 +135737,41 @@ class src_client_Client {
     let permVotes = [];
     let tempVotes = [];
 
-    /* Arrays of reps that generated permanent or temporary votes */
-    const permReps = [];
-    const tempReps = [];
-
-    /* Any reps that did not generate any vote */
+    /*
+     * New votes are requested only from votable representatives that
+     * returned none. A vote a low-weight representative already returned
+     * stays in permVotes or tempVotes, so its permanent vote can enter
+     * the staple.
+     */
+    const votableRepPubKeys = new Set(votableReps.map(function (rep) {
+      return rep.key.publicKeyString.get();
+    }));
     const missingReps = [];
     for (const repInfo of votesInfo) {
       const repVote = repInfo.vote;
       if (repVote === null) {
-        missingReps.push(repInfo.rep);
-      } else {
-        if (repVote.$permanent === true) {
-          permVotes.push(repVote);
-          permReps.push(repInfo.rep);
-        } else {
-          tempVotes.push(repVote);
-          tempReps.push(repInfo.rep);
+        const repPubKey = repInfo.rep.key.publicKeyString.get();
+        if (votableRepPubKeys.has(repPubKey)) {
+          missingReps.push(repInfo.rep);
         }
+      } else if (repVote.$permanent === true) {
+        permVotes.push(repVote);
+      } else {
+        tempVotes.push(repVote);
       }
     }
 
     /*
      * Go fetch all the blocks being voted on, since the successor
      * is just the "next" block but the vote could have been for
-     * many blocks
+     * many blocks.
      */
     let foundVote = permVotes[0];
     if (foundVote === undefined) {
       foundVote = tempVotes[0];
+    }
+    if (foundVote === undefined) {
+      throw new Error(`FATAL: Unable to recover ${account.publicKeyString.get()} because no representative returned a vote for the pending block`);
     }
     const blockHashes = foundVote.blocks;
     const votedOnBlocksOrNull = await Promise.all(blockHashes.map(async blockHash => {
@@ -135436,31 +135803,45 @@ class src_client_Client {
     });
 
     /*
-     * If additional permanent votes are needed, go get them
+     * Permanent votes still needed are the votable representatives whose
+     * public key is not already an issuer. A low-weight vote does not
+     * satisfy that set and does not remove a representative from it.
      */
-    if (permVotes.length !== client_client_classPrivateFieldGet(client_reps, this).length) {
-      let newTempVotes = [];
-      if (tempVotes.length !== client_client_classPrivateFieldGet(client_reps, this).length) {
+    const permVoteIssuers = new Set(permVotes.map(function (vote) {
+      return vote.issuer.publicKeyString.get();
+    }));
+    const missingPermReps = votableReps.filter(function (rep) {
+      return !permVoteIssuers.has(rep.key.publicKeyString.get());
+    });
+    if (missingPermReps.length > 0) {
+      if (missingReps.length > 0) {
         try {
           /**
            * If we are trying to recover an old block that has some permanent votes, send those votes in the request
            * Otherwise the rep will reject the old block and won't issue a vote
            */
           const otherVotes = permVotes.length > 0 ? permVotes : undefined;
-          newTempVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, votedOnBlocks, otherVotes, missingReps, options === null || options === void 0 ? void 0 : options.quotes);
+          const newTempVotes = await client_client_assertClassBrand(client_Client_brand, this, client_requestVotes).call(this, votedOnBlocks, otherVotes, missingReps, options === null || options === void 0 ? void 0 : options.quotes);
+          tempVotes = [...tempVotes, ...newTempVotes];
         } catch {
           /* Ignore */
         }
-        tempVotes = [...tempVotes, ...newTempVotes];
       }
-      const missingPermReps = client_client_classPrivateFieldGet(client_reps, this).filter(rep => !permReps.includes(rep));
 
-      // If we need a fee block and don't have any permanent votes, we need to generate a fee block
-      if (client_client_assertClassBrand(client_Client_brand, this, client_votesRequireFees).call(this, tempVotes) && permVotes.length === 0) {
+      /*
+       * Fee requirements come from votable temporary votes. A low-weight
+       * temporary vote is not in the staple. Any permanent vote already
+       * fixes the block set, so a fee block can only be added when none
+       * exists yet.
+       */
+      const votableTempVotes = tempVotes.filter(function (vote) {
+        return votableRepPubKeys.has(vote.issuer.publicKeyString.get());
+      });
+      if (client_client_assertClassBrand(client_Client_brand, this, client_votesRequireFees).call(this, votableTempVotes) && permVotes.length === 0) {
         if ((options === null || options === void 0 ? void 0 : options.generateFeeBlock) === undefined) {
           throw new Error('Votes require fees but generateFeeBlock was not defined');
         }
-        const staple = src_client_VoteStaple.fromVotesAndBlocks(tempVotes, votedOnBlocks);
+        const staple = src_client_VoteStaple.fromVotesAndBlocks(votableTempVotes, votedOnBlocks);
         const feeBlock = await options.generateFeeBlock(staple, options);
         votedOnBlocks.push(feeBlock);
       }
@@ -135784,6 +136165,40 @@ async function src_client_api(rep, api) {
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return await client_client_assertClassBrand(client_Client_brand, this, client_apiRaw).call(this, rep, path, method, options);
 }
+/**
+ * Representatives with enough cached weight to be asked for votes.
+ *
+ * If our view of the network still has no voting weight (e.g. we
+ * cached weights before initializeNetwork), refresh reps before
+ * requesting votes so we do not skip every representative.
+ *
+ * Pass `force` to refresh even when some weight is already cached.
+ * Recovery needs this after delegation changes (e.g. initializeNetwork
+ * then distribute) so later reps are not treated as un-votable.
+ *
+ * XXX:TODO: This should get pulled from the network configuration,
+ *           but the client doesn't know about the network configuration.
+ */
+async function client_getVotableReps() {
+  let reps = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : client_client_classPrivateFieldGet(client_reps, this);
+  let force = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+  await client_client_classPrivateFieldGet(client_updateRepsPromise, this);
+  const totalWeight = client_client_classPrivateFieldGet(client_reps, this).reduce(function (sum, rep) {
+    var _rep$weight;
+    return sum + ((_rep$weight = rep.weight) !== null && _rep$weight !== void 0 ? _rep$weight : 0n);
+  }, 0n);
+  if (force || totalWeight === 0n) {
+    const refreshPromise = this.updateReps();
+    client_client_classPrivateFieldSet(client_updateRepsPromise, this, refreshPromise.catch(function () {
+      // Ignore any errors for the shared promise
+    }));
+    await refreshPromise;
+  }
+  const repMinWeight = /* Client.Config.getDefaultConfig(XXX).representativeMinWeight ?? */1n;
+  return reps.filter(function (rep) {
+    return rep.weight !== undefined && rep.weight >= repMinWeight;
+  });
+}
 async function client_requestVoteOrQuote(api, request) {
   let reps = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : client_client_classPrivateFieldGet(client_reps, this);
   let quotes = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
@@ -135793,8 +136208,14 @@ async function client_requestVoteOrQuote(api, request) {
   for (const quote of quotes) {
     quoteMap.set(quote.issuer.publicKeyAndTypeString, quote);
   }
+
+  // Get the representatives with enough cached weight to be asked for votes
+  const votableReps = await client_client_assertClassBrand(client_Client_brand, this, client_getVotableReps).call(this, reps);
+  if (votableReps.length === 0) {
+    throw new src_client_KeetaNetClientError('CLIENT_NO_REPS_AVAILABLE', 'Unable to find any available representatives to request votes from');
+  }
   const votePromises = [];
-  for (const rep of reps) {
+  for (const rep of votableReps) {
     const quote = quoteMap.get(rep.key.publicKeyAndTypeString);
     if (quote !== undefined) {
       request.quote = client_client_Buffer.from(quote.toBytes()).toString('base64');
@@ -135806,8 +136227,8 @@ async function client_requestVoteOrQuote(api, request) {
         });
         return apiResult;
       } catch (voteError) {
-        var _rep$weight;
-        const weight = (_rep$weight = rep.weight) !== null && _rep$weight !== void 0 ? _rep$weight : 0n;
+        var _rep$weight2;
+        const weight = (_rep$weight2 = rep.weight) !== null && _rep$weight2 !== void 0 ? _rep$weight2 : 0n;
         if (recentVotingErrorWeight === undefined || weight > recentVotingErrorWeight) {
           recentVotingError = voteError;
           recentVotingErrorWeight = weight;
@@ -135970,9 +136391,8 @@ function client_getBuilderRenderOptions(network) {
   return {
     network,
     getPrevious: async acct => {
-      const {
-        currentHeadBlock
-      } = await this.getAccountInfo(acct);
+      const _await$this$getAccoun2 = await this.getAccountInfo(acct),
+        currentHeadBlock = _await$this$getAccoun2.currentHeadBlock;
       return currentHeadBlock;
     }
   };
@@ -136009,7 +136429,10 @@ function client_formatAllBalances(balances) {
   });
 }
 function client_parseResponsePermissions(permissions) {
-  const [base, external] = permissions.map(val => BigInt(val));
+  const _permissions$map = permissions.map(val => BigInt(val)),
+    _permissions$map2 = client_client_slicedToArray(_permissions$map, 2),
+    base = _permissions$map2[0],
+    external = _permissions$map2[1];
   return new client_src_lib.Permissions(base, external);
 }
 function client_formatAccountInfo(raw, account) {
@@ -136282,10 +136705,8 @@ class src_client_UserClient {
     if (userClient === undefined) {
       throw new Error('UserClient Should have been defined for swap');
     }
-    const {
-      from,
-      to
-    } = request;
+    const from = request.from,
+      to = request.to;
     if ((options === null || options === void 0 ? void 0 : options.account) !== undefined && !request.from.account.comparePublicKey(options.account)) {
       throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'account should be provided in the request instead of options');
     }
@@ -136343,15 +136764,11 @@ class src_client_UserClient {
       throw new src_client_KeetaNetClientError('CLIENT_SWAP_INVALID_ACCOUNT_OPTION', 'Unable to determine account for swap');
     }
     const sendOperation = request.block.operations.find(_ref => {
-      let {
-        type
-      } = _ref;
+      let type = _ref.type;
       return client_lib_block.OperationType.SEND === type;
     });
     const receiveOperation = request.block.operations.find(_ref2 => {
-      let {
-        type
-      } = _ref2;
+      let type = _ref2.type;
       return client_lib_block.OperationType.RECEIVE === type;
     });
     if (!sendOperation || sendOperation.type !== client_lib_block.OperationType.SEND) {
@@ -136509,10 +136926,9 @@ class src_client_UserClient {
       }
     }
     client_client_classPrivateFieldSet(client_client, this, config.client);
-    const {
-      networkAddress,
-      baseToken
-    } = client_src_lib.Account.generateBaseAddresses(config.network);
+    const _KeetaNet$Account$gen = client_src_lib.Account.generateBaseAddresses(config.network),
+      networkAddress = _KeetaNet$Account$gen.networkAddress,
+      baseToken = _KeetaNet$Account$gen.baseToken;
     this.networkAddress = networkAddress;
     this.baseToken = baseToken;
     client_client_classPrivateFieldSet(client_client_config, this, {
@@ -136546,31 +136962,30 @@ class src_client_UserClient {
    */
   async initializeNetwork(initOpts) {
     let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-    const {
-      delegateTo = this.client.representatives[0].key,
-      addSupplyAmount,
-      voteSerial = 0n,
-      baseTokenInfo,
-      baseNetworkInfo
-    } = initOpts;
+    const _initOpts$delegateTo = initOpts.delegateTo,
+      delegateTo = _initOpts$delegateTo === void 0 ? this.client.representatives[0].key : _initOpts$delegateTo,
+      addSupplyAmount = initOpts.addSupplyAmount,
+      _initOpts$voteSerial = initOpts.voteSerial,
+      voteSerial = _initOpts$voteSerial === void 0 ? 0n : _initOpts$voteSerial,
+      baseTokenInfo = initOpts.baseTokenInfo,
+      baseNetworkInfo = initOpts.baseNetworkInfo;
     if (this.signer === null) {
       throw new Error('May not initialize chain with a read-only UserClient (signer is null)');
     }
-    const {
-      voteStaple
-    } = await client_generateInitialVoteStaple({
-      network: this.network,
-      initialTrustedAccount: this.signer,
-      voteSerial: voteSerial,
-      addSupply: {
-        delegate: true,
-        delegateTo: delegateTo,
-        recipient: client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options).assertAccount(),
-        amount: addSupplyAmount
-      },
-      baseTokenInfo,
-      baseNetworkInfo
-    });
+    const _await$generateInitia = await client_generateInitialVoteStaple({
+        network: this.network,
+        initialTrustedAccount: this.signer,
+        voteSerial: voteSerial,
+        addSupply: {
+          delegate: true,
+          delegateTo: delegateTo,
+          recipient: client_client_assertClassBrand(client_UserClient_brand, this, client_getAccount).call(this, options).assertAccount(),
+          amount: addSupplyAmount
+        },
+        baseTokenInfo,
+        baseNetworkInfo
+      }),
+      voteStaple = _await$generateInitia.voteStaple;
     return await this.client.transmitStaple(voteStaple);
   }
 
@@ -136937,9 +137352,8 @@ class src_client_UserClient {
    */
   async head() {
     let options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-    const {
-      currentHeadBlock
-    } = await this.state(options);
+    const _await$this$state = await this.state(options),
+      currentHeadBlock = _await$this$state.currentHeadBlock;
     if (currentHeadBlock === null) {
       return currentHeadBlock;
     }
@@ -137322,11 +137736,10 @@ function client_getAccount() {
   return retval;
 }
 function client_get_publishAidURL(_this) {
-  const {
-    usePublishAid,
-    publishAidURL,
-    networkAlias
-  } = client_client_classPrivateFieldGet(client_client_config, _this);
+  const _classPrivateFieldGet5 = client_client_classPrivateFieldGet(client_client_config, _this),
+    usePublishAid = _classPrivateFieldGet5.usePublishAid,
+    publishAidURL = _classPrivateFieldGet5.publishAidURL,
+    networkAlias = _classPrivateFieldGet5.networkAlias;
   if (!usePublishAid) {
     throw new Error('Cannot get publishAidUrl when usePublishAid is not set to true');
   }
@@ -137491,9 +137904,8 @@ async function client_blockGenerator(seed, index, transactionCount) {
   let network = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 1413829460n;
   const acct = client_src_lib.Account.fromSeed(seed, index);
   const operations = [];
-  const {
-    baseToken
-  } = client_lib_account.generateBaseAddresses(network);
+  const _Account$generateBase = client_lib_account.generateBaseAddresses(network),
+    baseToken = _Account$generateBase.baseToken;
   for (let opCount = 0; opCount < transactionCount; opCount++) {
     operations.push({
       type: client_src_lib.Block.OperationType.SEND,

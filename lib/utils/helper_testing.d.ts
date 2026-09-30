@@ -43,6 +43,17 @@ export declare function run(command: string, stdin: Buffer): {
     output?: string;
     ok: boolean;
 };
+/**
+ * Extract the `.code` property from an unknown thrown value, if present. Useful
+ * in tests that assert on Node system error codes (e.g. `ERR_BUFFER_TOO_LARGE`)
+ * where the thrown value is a plain system error rather than a typed error class.
+ */
+export declare function errorCodeOf(error: unknown): unknown;
+/**
+ * Run a synchronous function and return the `.code` of whatever it throws, or
+ * `undefined` if it does not throw.
+ */
+export declare function caughtErrorCode(fn: () => unknown): unknown;
 declare let testMethod: (..._ignore_args: any[]) => any;
 declare function getJestPuppeteerSetupFile(skipDefaultOutput?: boolean): string;
 export { testMethod, getJestPuppeteerSetupFile };

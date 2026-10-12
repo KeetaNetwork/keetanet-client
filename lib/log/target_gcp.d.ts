@@ -1,4 +1,4 @@
-import type { LogTarget, LogTargetLevel, LogEntry } from './common';
+import type { LogTarget, LogTargetLevel, LogEntry, LogEntryFilled } from './common';
 import { Logging as GoogleCloudLogging } from '@google-cloud/logging';
 import LogTargetConsole from './target_console';
 type LogTargetGCPConfig = {
@@ -29,6 +29,6 @@ declare class LogTargetGCP implements LogTarget {
      * is working, and if not, to fall back to another logging method.
      */
     test(canRun: () => Promise<void>, elseRun: (error: unknown) => Promise<void>): Promise<void>;
-    emitLogs(input: LogEntry[]): Promise<void>;
+    emitLogs(input: (LogEntry | LogEntryFilled)[]): Promise<void>;
 }
 export default LogTargetGCP;

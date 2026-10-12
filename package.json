@@ -1,7 +1,7 @@
 {
 	"name": "@keetanetwork/keetanet-client",
 	"repository": "https://github.com/keetanetwork/node.git",
-	"version": "0.18.7",
+	"version": "0.18.8",
 	"description": "KeetaNet Client TypeScript Reference Implementation",
 	"files": [
 		"**/*.js",
@@ -17,7 +17,7 @@
 		"asn1js": "2.4.0",
 		"bloom-filters": "3.0.2",
 		"ws": "8.21.3",
-		"@types/node": "20.17.6",
+		"@types/node": "24.19.0",
 		"@types/asn1js": "2.0.2"
 	},
 	"dependencies": {

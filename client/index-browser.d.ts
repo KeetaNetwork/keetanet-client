@@ -1440,6 +1440,7 @@ export declare const lib: {
     Node: typeof import("../lib/node").Node;
     P2P: typeof import("../lib/p2p").P2PSwitch;
     Permissions: typeof import("../lib/permissions").Permissions;
+    Timing: typeof import("../lib/node/timing");
     Stats: typeof import("../lib/stats").Stats;
     Vote: typeof import("../lib/vote").Vote;
     Utils: {

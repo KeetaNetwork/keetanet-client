@@ -6,7 +6,13 @@ type LogCurrentRequest = {
 export type LogEntry = {
     options: {
         userVisible?: boolean;
-        currentRequestInfo?: LogCurrentRequest;
+        currentRequestInfo?: LogCurrentRequest | null;
+        detailedFrom?: {
+            file: string;
+            class?: string;
+            method: string;
+            instanceID?: string;
+        } | null;
     };
     level: LogLevel;
     from: string;
@@ -14,7 +20,9 @@ export type LogEntry = {
     trace?: string;
 };
 export type LogEntryFilled = Omit<LogEntry, 'options'> & {
-    options: Required<LogEntry['options']>;
+    options: Required<LogEntry['options']> & {
+        fromString: string;
+    };
 };
 export interface LogTarget {
     readonly logLevel: LogTargetLevel;
@@ -22,7 +30,7 @@ export interface LogTarget {
     readonly context?: {
         [key: string]: string;
     };
-    emitLogs(logs: LogEntry[]): Promise<void>;
+    emitLogs(logs: (LogEntry | LogEntryFilled)[]): Promise<void>;
 }
 export interface Logger {
     /**
@@ -46,5 +54,5 @@ export interface Logger {
 }
 export declare function canLogForLevel(level: LogLevel, currentLevel: LogLevel): boolean;
 export declare function canLogForTargetLevel(level: LogLevel, targetLevel: LogTargetLevel): boolean;
-export declare function filterLog(target: Pick<LogTarget, 'filter' | 'logLevel'>, message: LogEntry): LogEntryFilled | null;
+export declare function filterLog(target: Pick<LogTarget, 'filter' | 'logLevel'>, message: LogEntry | LogEntryFilled): LogEntryFilled | null;
 export {};

@@ -8,6 +8,7 @@ import { Permissions } from './permissions';
 import Vote from './vote';
 import Log from './log';
 import { KeetaNetError as Error } from './error';
+import * as Timing from './node/timing';
 import * as ASN1 from './utils/asn1';
 import * as Bloom from './utils/bloom';
 import * as Buffer from './utils/buffer';
@@ -30,6 +31,7 @@ declare const _default: {
     Node: typeof Node;
     P2P: typeof P2P;
     Permissions: typeof Permissions;
+    Timing: typeof Timing;
     Stats: typeof Stats;
     Vote: typeof Vote;
     Utils: {

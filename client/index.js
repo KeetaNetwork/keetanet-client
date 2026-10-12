@@ -8294,6 +8294,1002 @@ exports.sharedKey = sharedKey;
 
 /***/ }),
 
+/***/ 1044:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/// <reference lib="dom" />
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpConnection.js.map
+
+/***/ }),
+
+/***/ 6323:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpLlmApplication.js.map
+
+/***/ }),
+
+/***/ 3489:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpLlmController.js.map
+
+/***/ }),
+
+/***/ 4069:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpLlmFunction.js.map
+
+/***/ }),
+
+/***/ 1709:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpMigrateApplication.js.map
+
+/***/ }),
+
+/***/ 194:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpMigrateRoute.js.map
+
+/***/ }),
+
+/***/ 2363:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IHttpResponse.js.map
+
+/***/ }),
+
+/***/ 1751:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(1044), exports);
+__exportStar(__webpack_require__(3489), exports);
+__exportStar(__webpack_require__(6323), exports);
+__exportStar(__webpack_require__(4069), exports);
+__exportStar(__webpack_require__(1709), exports);
+__exportStar(__webpack_require__(194), exports);
+__exportStar(__webpack_require__(2363), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 2602:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.tags = void 0;
+__exportStar(__webpack_require__(1751), exports);
+__exportStar(__webpack_require__(332), exports);
+__exportStar(__webpack_require__(7453), exports);
+__exportStar(__webpack_require__(6757), exports);
+__exportStar(__webpack_require__(9156), exports);
+__exportStar(__webpack_require__(1778), exports);
+__exportStar(__webpack_require__(8824), exports);
+exports.tags = __importStar(__webpack_require__(6818));
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 7004:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsDocTagInfo.js.map
+
+/***/ }),
+
+/***/ 4532:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IMetadataComponents.js.map
+
+/***/ }),
+
+/***/ 9056:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IMetadataSchema.js.map
+
+/***/ }),
+
+/***/ 39:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IMetadataSchemaCollection.js.map
+
+/***/ }),
+
+/***/ 4925:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IMetadataSchemaUnit.js.map
+
+/***/ }),
+
+/***/ 8178:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IMetadataTypeTag.js.map
+
+/***/ }),
+
+/***/ 1778:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(7004), exports);
+__exportStar(__webpack_require__(4532), exports);
+__exportStar(__webpack_require__(9056), exports);
+__exportStar(__webpack_require__(39), exports);
+__exportStar(__webpack_require__(4925), exports);
+__exportStar(__webpack_require__(8178), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 5077:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=OpenApi.js.map
+
+/***/ }),
+
+/***/ 310:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=OpenApiV3.js.map
+
+/***/ }),
+
+/***/ 9558:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=OpenApiV3_1.js.map
+
+/***/ }),
+
+/***/ 6675:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=OpenApiV3_2.js.map
+
+/***/ }),
+
+/***/ 813:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=SwaggerV2.js.map
+
+/***/ }),
+
+/***/ 7453:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(5077), exports);
+__exportStar(__webpack_require__(310), exports);
+__exportStar(__webpack_require__(9558), exports);
+__exportStar(__webpack_require__(6675), exports);
+__exportStar(__webpack_require__(813), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 9864:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ProtobufWire.js.map
+
+/***/ }),
+
+/***/ 8824:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9864), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 2275:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonParseResult.js.map
+
+/***/ }),
+
+/***/ 2878:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonSchemaApplication.js.map
+
+/***/ }),
+
+/***/ 6492:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonSchemaAttribute.js.map
+
+/***/ }),
+
+/***/ 2050:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonSchemaCollection.js.map
+
+/***/ }),
+
+/***/ 9216:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonSchemaTransformError.js.map
+
+/***/ }),
+
+/***/ 8764:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IJsonSchemaUnit.js.map
+
+/***/ }),
+
+/***/ 756:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ILlmApplication.js.map
+
+/***/ }),
+
+/***/ 7224:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ILlmController.js.map
+
+/***/ }),
+
+/***/ 2900:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ILlmFunction.js.map
+
+/***/ }),
+
+/***/ 487:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ILlmSchema.js.map
+
+/***/ }),
+
+/***/ 9630:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ILlmStructuredOutput.js.map
+
+/***/ }),
+
+/***/ 9690:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IResult.js.map
+
+/***/ }),
+
+/***/ 8144:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IValidation.js.map
+
+/***/ }),
+
+/***/ 332:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9690), exports);
+__exportStar(__webpack_require__(8144), exports);
+__exportStar(__webpack_require__(9216), exports);
+__exportStar(__webpack_require__(2878), exports);
+__exportStar(__webpack_require__(2050), exports);
+__exportStar(__webpack_require__(8764), exports);
+__exportStar(__webpack_require__(6492), exports);
+__exportStar(__webpack_require__(7224), exports);
+__exportStar(__webpack_require__(756), exports);
+__exportStar(__webpack_require__(2900), exports);
+__exportStar(__webpack_require__(487), exports);
+__exportStar(__webpack_require__(9630), exports);
+__exportStar(__webpack_require__(2275), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 2255:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Constant.js.map
+
+/***/ }),
+
+/***/ 4359:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ContentMediaType.js.map
+
+/***/ }),
+
+/***/ 291:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Default.js.map
+
+/***/ }),
+
+/***/ 816:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Example.js.map
+
+/***/ }),
+
+/***/ 1807:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Examples.js.map
+
+/***/ }),
+
+/***/ 1438:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ExclusiveMaximum.js.map
+
+/***/ }),
+
+/***/ 3640:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ExclusiveMinimum.js.map
+
+/***/ }),
+
+/***/ 3523:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Format.js.map
+
+/***/ }),
+
+/***/ 7390:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=JsonSchemaPlugin.js.map
+
+/***/ }),
+
+/***/ 9038:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MaxItems.js.map
+
+/***/ }),
+
+/***/ 5696:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MaxLength.js.map
+
+/***/ }),
+
+/***/ 9472:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Maximum.js.map
+
+/***/ }),
+
+/***/ 244:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MinItems.js.map
+
+/***/ }),
+
+/***/ 6934:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MinLength.js.map
+
+/***/ }),
+
+/***/ 7990:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Minimum.js.map
+
+/***/ }),
+
+/***/ 117:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MultipleOf.js.map
+
+/***/ }),
+
+/***/ 7560:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Pattern.js.map
+
+/***/ }),
+
+/***/ 9834:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Sequence.js.map
+
+/***/ }),
+
+/***/ 4323:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=TagBase.js.map
+
+/***/ }),
+
+/***/ 5456:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Type.js.map
+
+/***/ }),
+
+/***/ 1979:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=UniqueItems.js.map
+
+/***/ }),
+
+/***/ 6818:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(2255), exports);
+__exportStar(__webpack_require__(4359), exports);
+__exportStar(__webpack_require__(291), exports);
+__exportStar(__webpack_require__(816), exports);
+__exportStar(__webpack_require__(1807), exports);
+__exportStar(__webpack_require__(1438), exports);
+__exportStar(__webpack_require__(3640), exports);
+__exportStar(__webpack_require__(3523), exports);
+__exportStar(__webpack_require__(7390), exports);
+__exportStar(__webpack_require__(9472), exports);
+__exportStar(__webpack_require__(9038), exports);
+__exportStar(__webpack_require__(5696), exports);
+__exportStar(__webpack_require__(7990), exports);
+__exportStar(__webpack_require__(244), exports);
+__exportStar(__webpack_require__(6934), exports);
+__exportStar(__webpack_require__(117), exports);
+__exportStar(__webpack_require__(7560), exports);
+__exportStar(__webpack_require__(9834), exports);
+__exportStar(__webpack_require__(4323), exports);
+__exportStar(__webpack_require__(5456), exports);
+__exportStar(__webpack_require__(1979), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 9496:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=AssertionGuard.js.map
+
+/***/ }),
+
+/***/ 7212:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Atomic.js.map
+
+/***/ }),
+
+/***/ 2791:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=CamelCase.js.map
+
+/***/ }),
+
+/***/ 3200:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ClassProperties.js.map
+
+/***/ }),
+
+/***/ 5462:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=DeepPartial.js.map
+
+/***/ }),
+
+/***/ 472:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=OmitNever.js.map
+
+/***/ }),
+
+/***/ 7497:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=PascalCase.js.map
+
+/***/ }),
+
+/***/ 8208:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Primitive.js.map
+
+/***/ }),
+
+/***/ 5907:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ProtobufAtomic.js.map
+
+/***/ }),
+
+/***/ 2009:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Resolved.js.map
+
+/***/ }),
+
+/***/ 869:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=SnakeCase.js.map
+
+/***/ }),
+
+/***/ 2083:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=SpecialFields.js.map
+
+/***/ }),
+
+/***/ 7778:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ValidationPipe.js.map
+
+/***/ }),
+
+/***/ 6757:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9496), exports);
+__exportStar(__webpack_require__(2791), exports);
+__exportStar(__webpack_require__(7497), exports);
+__exportStar(__webpack_require__(8208), exports);
+__exportStar(__webpack_require__(2009), exports);
+__exportStar(__webpack_require__(869), exports);
+__exportStar(__webpack_require__(7212), exports);
+__exportStar(__webpack_require__(3200), exports);
+__exportStar(__webpack_require__(5462), exports);
+__exportStar(__webpack_require__(472), exports);
+__exportStar(__webpack_require__(5907), exports);
+__exportStar(__webpack_require__(2083), exports);
+__exportStar(__webpack_require__(7778), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 9171:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IRandomGenerator.js.map
+
+/***/ }),
+
+/***/ 3220:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=IReadableURLSearchParams.js.map
+
+/***/ }),
+
+/***/ 9156:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9171), exports);
+__exportStar(__webpack_require__(3220), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
 /***/ 3836:
 /***/ (function(module) {
 
@@ -58219,6 +59215,7 @@ const account_1 = __importStar(__webpack_require__(9415));
 const block_1 = __importStar(__webpack_require__(6158));
 const helper_1 = __webpack_require__(3208);
 const conversion_1 = __webpack_require__(2360);
+const common_1 = __webpack_require__(8244);
 const hash_1 = __webpack_require__(7908);
 const Config = __importStar(__webpack_require__(1491));
 const helper_2 = __webpack_require__(3208);
@@ -58229,7 +59226,7 @@ const builder_1 = __webpack_require__(4057);
 const isomorphic_ws_1 = __importDefault(__webpack_require__(2465));
 const uuid = __importStar(__webpack_require__(5827));
 const error_1 = __webpack_require__(5390);
-const common_1 = __webpack_require__(5663);
+const common_2 = __webpack_require__(5663);
 const operations_1 = __webpack_require__(2778);
 const effects_1 = __webpack_require__(7346);
 const client_1 = __importDefault(__webpack_require__(3642));
@@ -58743,7 +59740,7 @@ class Client {
         if (result.block === null || result.height === null) {
             return (null);
         }
-        const block = new lib_1.default.Block(result.block);
+        const block = new lib_1.default.Block(result.block.$binary);
         return ({
             block,
             height: BigInt(result.height)
@@ -58790,7 +59787,7 @@ class Client {
         if (info.block === null) {
             return (null);
         }
-        const block = new lib_1.default.Block(info.block);
+        const block = new lib_1.default.Block(info.block.$binary);
         return (block);
     }
     /**
@@ -58887,9 +59884,7 @@ class Client {
                 queryParams: query
             });
             for (const blockInfo of chain.blocks) {
-                const blockJSON = blockInfo.block;
-                const blockBytes = Buffer.from(blockJSON['$binary'], 'base64');
-                const block = new block_1.default(blockBytes);
+                const block = new block_1.default(blockInfo.block.$binary);
                 retval.push(block);
                 if (retval.length >= depth) {
                     break;
@@ -58970,12 +59965,7 @@ class Client {
                 break;
             }
             for (const historyEntry of history.history) {
-                const voteStapleInfo = historyEntry.voteStaple;
-                if (voteStapleInfo['$binary'] === undefined) {
-                    throw (new Error('Vote Staple is missing binary data'));
-                }
-                const voteStapleBinary = Buffer.from(voteStapleInfo['$binary'], 'base64');
-                const voteStaple = new lib_1.default.Vote.Staple(voteStapleBinary);
+                const voteStaple = new lib_1.default.Vote.Staple(historyEntry.voteStaple.$binary);
                 retval.push({
                     voteStaple: voteStaple
                 });
@@ -59177,7 +60167,7 @@ class Client {
         });
         const retval = [];
         for (const voteStr of votesInfo.voteStaples) {
-            const voteStaple = new lib_1.default.Vote.Staple(voteStr);
+            const voteStaple = new lib_1.default.Vote.Staple(voteStr.$binary);
             retval.push(voteStaple);
         }
         return (retval);
@@ -59219,10 +60209,12 @@ class Client {
             if (result.status === 'fulfilled') {
                 const block = result.value.block;
                 if (block !== null) {
-                    pendingBlocks[block.$hash]++;
+                    const pendingBlock = new block_1.default(block.$binary);
+                    const pendingBlockHash = pendingBlock.hash.toString();
+                    pendingBlocks[pendingBlockHash]++;
                     // Return the first block or the block that is repeated on the most reps
-                    if (!successorBlock || pendingBlocks[block.$hash] > pendingBlocks[successorBlock.hash.toString()]) {
-                        successorBlock = new block_1.default(block);
+                    if (!successorBlock || pendingBlocks[pendingBlockHash] > pendingBlocks[successorBlock.hash.toString()]) {
+                        successorBlock = pendingBlock;
                     }
                 }
             }
@@ -59258,7 +60250,7 @@ class Client {
             }
         });
         if (successor.successorBlock) {
-            return (new block_1.default(successor.successorBlock));
+            return (new block_1.default(successor.successorBlock.$binary));
         }
         return (null);
     }
@@ -59521,7 +60513,7 @@ class Client {
         account = account_1.default.toAccount(account);
         const accountPubKey = account.publicKeyString.get();
         const query = {
-            side: (0, common_1.assertLedgerStorage)(side)
+            side: (0, common_2.assertLedgerStorage)(side)
         };
         let idempotentBase64;
         if (typeof idempotent === 'string') {
@@ -59540,7 +60532,7 @@ class Client {
         if (result.block === null) {
             return (null);
         }
-        return (new block_1.default(result.block));
+        return (new block_1.default(result.block.$binary));
     }
     async getVoteQuotes(blocks) {
         return (await __classPrivateFieldGet(this, _Client_instances, "m", _Client_requestQuotes).call(this, blocks));
@@ -59619,7 +60611,8 @@ async function _Client_apiRaw(rep, api, method, options = {}) {
                 method: method,
                 headers: {
                     'content-type': 'application/json',
-                    'user-agent': `KeetaNet/v${version_1.version} (JS)`
+                    'user-agent': `KeetaNet/v${version_1.version} (JS)`,
+                    'accept': common_1.API_BINARY_MEDIA_TYPE
                 },
                 body: requestBody
             });
@@ -59805,14 +60798,12 @@ async function _Client_getVotableReps(reps = __classPrivateFieldGet(this, _Clien
         }
         if ('vote' in voteObjectWrapper) {
             const voteObject = voteObjectWrapper['vote'];
-            const voteBin = Buffer.from(voteObject['$binary'], 'base64');
-            const vote = new lib_1.default.Vote(voteBin);
+            const vote = new lib_1.default.Vote(voteObject.$binary);
             retval.push(vote);
         }
         else if ('quote' in voteObjectWrapper) {
             const voteObject = voteObjectWrapper['quote'];
-            const quoteBin = Buffer.from(voteObject['$binary'], 'base64');
-            const quote = new lib_1.default.Vote.Quote(quoteBin);
+            const quote = new lib_1.default.Vote.Quote(voteObject.$binary);
             retval.push(quote);
         }
         else {
@@ -59886,7 +60877,7 @@ async function _Client_getVotableReps(reps = __classPrivateFieldGet(this, _Clien
     return (votes);
 }, _Client_getVotes = async function _Client_getVotes(blockhash, side = 'main', rep = 'ANY') {
     const query = {
-        side: (0, common_1.assertLedgerStorage)(side)
+        side: (0, common_2.assertLedgerStorage)(side)
     };
     if (blockhash === null || blockhash === undefined) {
         throw (new Error('"blockhash" must be a string or BlockHash'));
@@ -59920,8 +60911,7 @@ async function _Client_getVotableReps(reps = __classPrivateFieldGet(this, _Clien
      * Construct a Vote object from every vote
      */
     const votes = votesJSON.map(function (voteJSON) {
-        const voteBinary = Buffer.from(voteJSON['$binary'], 'base64');
-        const vote = new lib_1.default.Vote(voteBinary);
+        const vote = new lib_1.default.Vote(voteJSON.$binary);
         return (vote);
     });
     /**
@@ -66279,6 +67269,7 @@ const client_1 = __webpack_require__(3642);
 const kv_1 = __webpack_require__(9272);
 const ledger_1 = __webpack_require__(452);
 const permissions_1 = __webpack_require__(2105);
+const timing_1 = __webpack_require__(1303);
 const vote_1 = __webpack_require__(3689);
 const helper_1 = __webpack_require__(3208);
 const allErrorCodesWithoutPrefix = [
@@ -66292,6 +67283,7 @@ const allErrorCodesWithoutPrefix = [
     ...ledger_1.LedgerBaseErrorCodes,
     ...ledger_1.LedgerVoteErrorCodes,
     ...permissions_1.PermissionsErrorCodes,
+    ...timing_1.TimingErrorCodes,
     ...vote_1.VoteErrorCodes
 ];
 const allFullErrorCodes = [
@@ -66304,13 +67296,30 @@ const allFullErrorCodes = [
     ...kv_1.FullKVErrorCodes,
     ...ledger_1.FullLedgerErrorCodes,
     ...permissions_1.FullPermissionsErrorCodes,
+    ...timing_1.FullTimingErrorCodes,
     ...vote_1.FullVoteErrorCodes
 ];
 const errorCodeSet = new Set(allFullErrorCodes);
 async function ExpectErrorCode(code, test) {
-    await expect(test).rejects.toThrow(expect.objectContaining({
-        code: code
-    }));
+    let thrown;
+    try {
+        await test();
+    }
+    catch (error) {
+        thrown = error;
+    }
+    if (thrown === undefined) {
+        throw (new Error(`Expected an error with code ${JSON.stringify(code)}, but nothing was thrown`));
+    }
+    if (typeof thrown !== 'object' || thrown === null) {
+        throw (thrown);
+    }
+    if (!('code' in thrown)) {
+        throw (thrown);
+    }
+    if (thrown.code !== code) {
+        throw (thrown);
+    }
 }
 class KeetaNetError extends base_1.KeetaNetErrorBase {
     static isInstance(error) {
@@ -66624,6 +67633,31 @@ exports["default"] = KeetaNetPermissionsError;
 
 /***/ }),
 
+/***/ 1303:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FullTimingErrorCodes = exports.TimingErrorCodes = void 0;
+const base_1 = __webpack_require__(1096);
+const helper_1 = __webpack_require__(3208);
+const TimingErrorType = 'TIMING';
+exports.TimingErrorCodes = [
+    'INVALID_NAME'
+];
+exports.FullTimingErrorCodes = exports.TimingErrorCodes.map(code => `${TimingErrorType}_${code}`);
+class KeetaNetTimingError extends base_1.KeetaNetErrorBase {
+    constructor(code, message) {
+        super(code, message, { type: TimingErrorType, codes: exports.TimingErrorCodes });
+    }
+}
+KeetaNetTimingError.isInstance = (0, helper_1.checkableGenerator)(KeetaNetTimingError);
+exports["default"] = KeetaNetTimingError;
+
+
+/***/ }),
+
 /***/ 3689:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -66776,6 +67810,7 @@ const permissions_1 = __webpack_require__(5860);
 const vote_1 = __importDefault(__webpack_require__(1130));
 const log_1 = __importDefault(__webpack_require__(9));
 const error_1 = __webpack_require__(5390);
+const Timing = __importStar(__webpack_require__(2895));
 const ASN1 = __importStar(__webpack_require__(6045));
 const Bloom = __importStar(__webpack_require__(7313));
 const Buffer = __importStar(__webpack_require__(3310));
@@ -66798,6 +67833,7 @@ exports["default"] = {
     Node: node_1.default,
     P2P: p2p_1.default,
     Permissions: permissions_1.Permissions,
+    Timing,
     Stats: stats_1.default,
     Vote: vote_1.default,
     Utils: {
@@ -69394,19 +70430,19 @@ class LedgerAtomicInterface {
                 throw (new Error('Can only insert permanent votes'));
             }
         }
-        const weightTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add/getWeight');
+        const weightTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add.getWeight');
         const votesSufficient = await __classPrivateFieldGet(this, _LedgerAtomicInterface_instances, "m", _LedgerAtomicInterface_validateVotingWeight).call(this, votesAndBlocks.votes);
         if (votesSufficient !== true) {
             throw (new ledger_1.KeetaNetLedgerError('LEDGER_INSUFFICIENT_VOTING_WEIGHT', 'Votes attached do not represent enough voting power'));
         }
         weightTiming?.end();
-        const changesTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add/computeEffectOfBlocks');
+        const changesTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add.computeEffectOfBlocks');
         const changes = (0, effects_1.computeEffectOfBlocks)(votesAndBlocks.blocks, __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f"));
         changesTiming?.end();
-        const adjustTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add/adjust');
+        const adjustTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add.adjust');
         const voteStaples = await __classPrivateFieldGet(this, _LedgerAtomicInterface_storage, "f").adjust(transaction, votesAndBlocks, changes);
         adjustTiming?.end();
-        const postambleTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add/postamble');
+        const postambleTiming = __classPrivateFieldGet(this, _LedgerAtomicInterface_ledger, "f").node?.timing.startTime('db-add.postamble');
         /**
          * Add all the block hashes to the node checksum
          */
@@ -70336,12 +71372,12 @@ class Ledger {
                     }
                     // If running code was successful, commit, otherwise abort and throw error
                     if (threw === false) {
-                        await timing_1.RequestTiming.runTimer(`${identifier}/commit`, this.node?.timing, async () => {
+                        await timing_1.RequestTiming.runTimer(`${identifier}.commit`, this.node?.timing, async () => {
                             await transaction.commit();
                         });
                     }
                     else {
-                        await timing_1.RequestTiming.runTimer(`${identifier}/abort`, this.node?.timing, async () => {
+                        await timing_1.RequestTiming.runTimer(`${identifier}.abort`, this.node?.timing, async () => {
                             await transaction.abort();
                         });
                         throw (runError);
@@ -70635,21 +71671,55 @@ function canLogForTargetLevel(level, targetLevel) {
     }
     return (canLogForLevel(level, targetLevel));
 }
+function computeFromString(message) {
+    let from = message.from;
+    if (message.options.detailedFrom) {
+        const fileParts = message.options.detailedFrom.file.split('/');
+        let file = fileParts.at(-1) ?? message.options.detailedFrom.file;
+        if (file.match(/^index\./)) {
+            file = fileParts.at(-2) ?? file;
+        }
+        from = [
+            file,
+            message.options.detailedFrom.class,
+            message.options.detailedFrom.method,
+            message.options.detailedFrom.instanceID
+        ].filter(Boolean).join('::');
+    }
+    return (from);
+}
 function filterLog(target, message) {
     if (!canLogForTargetLevel(message.level, target.logLevel)) {
         return (null);
     }
-    if (target.filter && !target.filter.test(message.from)) {
-        return (null);
+    let fromString;
+    if ('fromString' in message.options) {
+        fromString = message.options.fromString;
+    }
+    else if ('from' in message) {
+        fromString = computeFromString(message);
+    }
+    else {
+        const __assert_never_check = message;
+        throw (new Error('Invalid log message: missing from field'));
+    }
+    if (target.filter) {
+        if (!target.filter.test(fromString)) {
+            return (null);
+        }
+        if ('from' in message) {
+            if (!target.filter.test(message.from)) {
+                return (null);
+            }
+        }
     }
     return ({
         ...message,
         options: {
             userVisible: message.options.userVisible ?? true,
-            currentRequestInfo: {
-                id: message.options.currentRequestInfo?.id ?? '<NO_REQUEST_ID>',
-                ...message.options.currentRequestInfo
-            },
+            currentRequestInfo: message.options.currentRequestInfo ?? null,
+            detailedFrom: message.options.detailedFrom ?? null,
+            fromString: fromString,
             ...message.options
         }
     });
@@ -70689,28 +71759,58 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.assertLogTargetLevel = exports.assertLogOptionsParam = void 0;
 const __typia_transform__assertGuard = __importStar(__webpack_require__(7422));
-const typia_1 = __webpack_require__(1608);
-exports.assertLogOptionsParam = (() => { const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo)); const _io1 = input => "string" === typeof input.id; const _ao0 = (input, _path, _exceptionable = true) => (undefined === input.userVisible || "boolean" === typeof input.userVisible || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+const typia_1 = __webpack_require__(7604);
+exports.assertLogOptionsParam = (() => { const _io0 = input => (undefined === input.userVisible || "boolean" === typeof input.userVisible) && (null === input.currentRequestInfo || undefined === input.currentRequestInfo || "object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo && _io1(input.currentRequestInfo)) && (null === input.detailedFrom || undefined === input.detailedFrom || "object" === typeof input.detailedFrom && null !== input.detailedFrom && _io2(input.detailedFrom)); const _io1 = input => "string" === typeof input.id; const _io2 = input => "string" === typeof input.file && (undefined === input["class"] || "string" === typeof input["class"]) && "string" === typeof input.method && (undefined === input.instanceID || "string" === typeof input.instanceID); const _ao0 = (input, _path, _exceptionable = true) => (undefined === input.userVisible || "boolean" === typeof input.userVisible || __typia_transform__assertGuard._assertGuard(_exceptionable, {
     method: "createAssert",
     path: _path + ".userVisible",
     expected: "(boolean | undefined)",
     value: input.userVisible
-}, _errorFactory)) && (undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+}, _errorFactory)) && (null === input.currentRequestInfo || undefined === input.currentRequestInfo || ("object" === typeof input.currentRequestInfo && null !== input.currentRequestInfo || __typia_transform__assertGuard._assertGuard(_exceptionable, {
     method: "createAssert",
     path: _path + ".currentRequestInfo",
-    expected: "(LogCurrentRequest | undefined)",
+    expected: "(LogCurrentRequest | null | undefined)",
     value: input.currentRequestInfo
 }, _errorFactory)) && _ao1(input.currentRequestInfo, _path + ".currentRequestInfo",  true && _exceptionable) || __typia_transform__assertGuard._assertGuard(_exceptionable, {
     method: "createAssert",
     path: _path + ".currentRequestInfo",
-    expected: "(LogCurrentRequest | undefined)",
+    expected: "(LogCurrentRequest | null | undefined)",
     value: input.currentRequestInfo
+}, _errorFactory)) && (null === input.detailedFrom || undefined === input.detailedFrom || ("object" === typeof input.detailedFrom && null !== input.detailedFrom || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".detailedFrom",
+    expected: "(__type.o1 | null | undefined)",
+    value: input.detailedFrom
+}, _errorFactory)) && _ao2(input.detailedFrom, _path + ".detailedFrom",  true && _exceptionable) || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".detailedFrom",
+    expected: "(__type.o1 | null | undefined)",
+    value: input.detailedFrom
 }, _errorFactory)); const _ao1 = (input, _path, _exceptionable = true) => "string" === typeof input.id || __typia_transform__assertGuard._assertGuard(_exceptionable, {
     method: "createAssert",
     path: _path + ".id",
     expected: "string",
     value: input.id
-}, _errorFactory); const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input); let _errorFactory; return (input, errorFactory) => {
+}, _errorFactory); const _ao2 = (input, _path, _exceptionable = true) => ("string" === typeof input.file || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".file",
+    expected: "string",
+    value: input.file
+}, _errorFactory)) && (undefined === input["class"] || "string" === typeof input["class"] || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + "[\"class\"]",
+    expected: "(string | undefined)",
+    value: input["class"]
+}, _errorFactory)) && ("string" === typeof input.method || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".method",
+    expected: "string",
+    value: input.method
+}, _errorFactory)) && (undefined === input.instanceID || "string" === typeof input.instanceID || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "createAssert",
+    path: _path + ".instanceID",
+    expected: "(string | undefined)",
+    value: input.instanceID
+}, _errorFactory)); const __is = input => "object" === typeof input && null !== input && false === Array.isArray(input) && _io0(input); let _errorFactory; return (input, errorFactory) => {
     if (false === __is(input)) {
         _errorFactory = errorFactory;
         ((input, _path, _exceptionable = true) => ("object" === typeof input && null !== input && false === Array.isArray(input) || __typia_transform__assertGuard._assertGuard(true, {
@@ -71226,17 +72326,45 @@ class LogTargetConsole {
                 default:
                     (0, never_1.assertNever)(log.level);
             }
-            const requestID = log.options.currentRequestInfo.id;
-            const contextPrefix = this.context ? Object.entries(this.context).map(([k, v]) => `${k}=${v}`).join(' ') + ' ' : '';
-            __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from}:`, ...log.args);
+            const requestID = log.options.currentRequestInfo?.id;
+            const from = log.options.fromString;
+            let contextPrefix = '';
+            if (this.context !== undefined) {
+                contextPrefix = Object.entries(this.context).map(function ([contextKey, contextValue]) {
+                    return (`${contextKey}=${contextValue}`);
+                }).join(' ') + ' ';
+            }
+            let messagePrefix = `${contextPrefix}${log.level} ${from}:`;
+            if (requestID !== undefined) {
+                messagePrefix = `[${requestID}] ${messagePrefix}`;
+            }
+            __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](messagePrefix, ...log.args);
             if (log.trace !== undefined) {
-                __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`[${requestID}] ${contextPrefix}${log.level} ${log.from} TRACE:`, log.trace);
+                __classPrivateFieldGet(this, _LogTargetConsole_console, "f")[method](`${messagePrefix} TRACE:`, log.trace);
             }
         }
     }
 }
 _LogTargetConsole_console = new WeakMap();
 exports["default"] = LogTargetConsole;
+
+
+/***/ }),
+
+/***/ 8244:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.API_BINARY_MEDIA_TYPE = void 0;
+/**
+ * Media type for HTTP responses that serialize values with `binaryOnly`, so
+ * objects that implement `toBytes` become `{ $binary }` instead of JSON.
+ *
+ * @internal
+ */
+exports.API_BINARY_MEDIA_TYPE = 'application/vnd.keeta.binary+json';
 
 
 /***/ }),
@@ -71507,7 +72635,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _RequestTiming_timing, _RequestTiming_counter;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RequestTiming = void 0;
+const timing_1 = __importDefault(__webpack_require__(1303));
 const log_1 = __importDefault(__webpack_require__(9));
+/**
+ * RFC 9110 token characters for a Server-Timing metric name.
+ */
+const HTTP_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 /**
  * Support the old way of doing timing where the callers could call
  * startTime/endTime with the same string to terminate a timing section
@@ -71536,6 +72669,9 @@ class RequestTiming {
      * @returns A handle which can be used to end the timing section
      */
     startTime(section) {
+        if (!HTTP_TOKEN.test(section)) {
+            throw (new timing_1.default('TIMING_INVALID_NAME', `Timing section name is not an RFC 9110 token: ${section}`));
+        }
         const id = Symbol(section);
         const data = {
             id: section,
@@ -71662,6 +72798,18 @@ class RequestTiming {
             retval[newSection] = sectionTimingData;
         }
         return (retval);
+    }
+    /**
+     * Builds a Server-Timing header value from finished sections.
+     * Returns an empty string when no finished section remains.
+     */
+    toServerTimingHeader() {
+        const timings = this.getAllTiming();
+        const headerEntries = [];
+        for (const sectionName in timings) {
+            headerEntries.push(`${sectionName};dur=${timings[sectionName].duration}`);
+        }
+        return (headerEntries.join(', '));
     }
     counter() {
         var _a, _b;
@@ -78447,7 +79595,11 @@ function convertSingleValue(value, opts = {}) {
     }
     else if (value instanceof Object) {
         let hasValue = false;
-        if (value.toJSON !== undefined && typeof value.toJSON === 'function') {
+        if (opts.binaryOnly === true && typeof value.toBytes === 'function') {
+            hasValue = true;
+            out = { $binary: Buffer.from(value.toBytes()).toString('base64') };
+        }
+        else if (value.toJSON !== undefined && typeof value.toJSON === 'function') {
             hasValue = true;
             out = convertSingleValue(value.toJSON(opts), opts);
         }
@@ -81632,7 +82784,7 @@ exports.Testing = { findRDN, blockHashesFromVote, feeFromVote, hashDataSchema, f
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = '0.18.7+gf9a01586fd45b1b2f5649176e291ae42384a5cfc';
+exports.version = '0.18.8+gddf8b91a3ac293cc8597bd7a825c17cd46203470';
 exports["default"] = exports.version;
 
 
@@ -81677,12 +82829,34 @@ module.exports = function typedarrayToBuffer (arr) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.TypeGuardError = void 0;
+/**
+ * Error thrown when type assertion fails.
+ *
+ * Thrown by {@link assert}, {@link assertGuard}, and other assert-family
+ * functions when input doesn't match expected type `T`. Contains detailed
+ * information about the first assertion failure:
+ *
+ * - `method`: Which typia function threw (e.g., `"typia.assert"`)
+ * - `path`: Property path where error occurred (e.g., `"input.user.age"`)
+ * - `expected`: Expected type string (e.g., `"number & ExclusiveMinimum<19>"`)
+ * - `value`: Actual value that failed validation
+ *
+ * @template T Expected type (for type safety)
+ */
 class TypeGuardError extends Error {
+    /**
+     * Creates a new TypeGuardError instance.
+     *
+     * @param props Error properties
+     */
     constructor(props) {
+        var _a;
         // MESSAGE CONSTRUCTION
+        // Use custom message if provided, otherwise generate default format
         super(props.message ||
             `Error on ${props.method}(): invalid type${props.path ? ` on ${props.path}` : ""}, expect to be ${props.expected}`);
         // INHERITANCE POLYFILL
+        // Set up prototype for compatibility across different JavaScript environments
         const proto = new.target.prototype;
         if (Object.setPrototypeOf)
             Object.setPrototypeOf(this, proto);
@@ -81693,10 +82867,308 @@ class TypeGuardError extends Error {
         this.path = props.path;
         this.expected = props.expected;
         this.value = props.value;
+        if (props.description || props.value === undefined)
+            this.description =
+                (_a = props.description) !== null && _a !== void 0 ? _a : [
+                    "The value at this path is `undefined`.",
+                    "",
+                    `Please fill the \`${props.expected}\` typed value next time.`,
+                ].join("\n");
     }
 }
 exports.TypeGuardError = TypeGuardError;
 //# sourceMappingURL=TypeGuardError.js.map
+
+/***/ }),
+
+/***/ 1255:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.assertFunction = assertFunction;
+exports.assertParameters = assertParameters;
+exports.assertReturn = assertReturn;
+exports.assertEqualsFunction = assertEqualsFunction;
+exports.assertEqualsParameters = assertEqualsParameters;
+exports.assertEqualsReturn = assertEqualsReturn;
+exports.isFunction = isFunction;
+exports.isParameters = isParameters;
+exports.isReturn = isReturn;
+exports.equalsFunction = equalsFunction;
+exports.equalsParameters = equalsParameters;
+exports.equalsReturn = equalsReturn;
+exports.validateFunction = validateFunction;
+exports.validateParameters = validateParameters;
+exports.validateReturn = validateReturn;
+exports.validateEqualsFunction = validateEqualsFunction;
+exports.validateEqualsParameters = validateEqualsParameters;
+exports.validateEqualsReturn = validateEqualsReturn;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function assertFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertFunction");
+}
+/** @internal */
+function assertParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertParameters");
+}
+/** @internal */
+function assertReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertReturn");
+}
+/** @internal */
+function assertEqualsFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertEqualsFunction");
+}
+/** @internal */
+function assertEqualsParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertEqualsParameters");
+}
+/** @internal */
+function assertEqualsReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.assertEqualsReturn");
+}
+/** @internal */
+function isFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.isFunction");
+}
+/** @internal */
+function isParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.isParameters");
+}
+/** @internal */
+function isReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.isReturn");
+}
+/** @internal */
+function equalsFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.equalsFunction");
+}
+/** @internal */
+function equalsParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.equalsParameters");
+}
+/** @internal */
+function equalsReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.equalsReturn");
+}
+/** @internal */
+function validateFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateFunction");
+}
+/** @internal */
+function validateParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateParameters");
+}
+/** @internal */
+function validateReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateReturn");
+}
+/** @internal */
+function validateEqualsFunction() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateEqualsFunction");
+}
+/** @internal */
+function validateEqualsParameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateEqualsParameters");
+}
+/** @internal */
+function validateEqualsReturn() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("functional.validateEqualsReturn");
+}
+//# sourceMappingURL=functional.js.map
+
+/***/ }),
+
+/***/ 3130:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.formData = formData;
+exports.assertFormData = assertFormData;
+exports.isFormData = isFormData;
+exports.validateFormData = validateFormData;
+exports.query = query;
+exports.assertQuery = assertQuery;
+exports.isQuery = isQuery;
+exports.validateQuery = validateQuery;
+exports.headers = headers;
+exports.assertHeaders = assertHeaders;
+exports.isHeaders = isHeaders;
+exports.validateHeaders = validateHeaders;
+exports.parameter = parameter;
+exports.createFormData = createFormData;
+exports.createAssertFormData = createAssertFormData;
+exports.createIsFormData = createIsFormData;
+exports.createValidateFormData = createValidateFormData;
+exports.createQuery = createQuery;
+exports.createAssertQuery = createAssertQuery;
+exports.createIsQuery = createIsQuery;
+exports.createValidateQuery = createValidateQuery;
+exports.createHeaders = createHeaders;
+exports.createAssertHeaders = createAssertHeaders;
+exports.createIsHeaders = createIsHeaders;
+exports.createValidateHeaders = createValidateHeaders;
+exports.createParameter = createParameter;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function formData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.formData");
+}
+/** @internal */
+function assertFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.assertFormData");
+}
+/** @internal */
+function isFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.isFormData");
+}
+/** @internal */
+function validateFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.validateFormData");
+}
+/** @internal */
+function query() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.query");
+}
+/** @internal */
+function assertQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.assertQuery");
+}
+/** @internal */
+function isQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.isQuery");
+}
+/** @internal */
+function validateQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.validateQuery");
+}
+/** @internal */
+function headers() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.headers");
+}
+/** @internal */
+function assertHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.assertHeaders");
+}
+/** @internal */
+function isHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.isHeaders");
+}
+/** @internal */
+function validateHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.validateHeaders");
+}
+/** @internal */
+function parameter() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.parameter");
+}
+/** @internal */
+function createFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createFormData");
+}
+/** @internal */
+function createAssertFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createAssertFormData");
+}
+/** @internal */
+function createIsFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createIsFormData");
+}
+/** @internal */
+function createValidateFormData() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createValidateFormData");
+}
+/** @internal */
+function createQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createQuery");
+}
+/** @internal */
+function createAssertQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createAssertQuery");
+}
+/** @internal */
+function createIsQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createIsQuery");
+}
+/** @internal */
+function createValidateQuery() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createValidateQuery");
+}
+/** @internal */
+function createHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createHeaders");
+}
+/** @internal */
+function createAssertHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createAssertHeaders");
+}
+/** @internal */
+function createIsHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createIsHeaders");
+}
+/** @internal */
+function createValidateHeaders() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createValidateHeaders");
+}
+/** @internal */
+function createParameter() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("http.createParameter");
+}
+//# sourceMappingURL=http.js.map
+
+/***/ }),
+
+/***/ 7604:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const typia = __importStar(__webpack_require__(3858));
+exports["default"] = typia;
+__exportStar(__webpack_require__(3858), exports);
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -81719,6 +83191,694 @@ const _assertGuard = (exceptionable, props, factory) => {
 };
 exports._assertGuard = _assertGuard;
 //# sourceMappingURL=_assertGuard.js.map
+
+/***/ }),
+
+/***/ 8380:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.schema = schema;
+exports.schemas = schemas;
+exports.application = application;
+exports.assertParse = assertParse;
+exports.isParse = isParse;
+exports.validateParse = validateParse;
+exports.stringify = stringify;
+exports.assertStringify = assertStringify;
+exports.isStringify = isStringify;
+exports.validateStringify = validateStringify;
+exports.createIsParse = createIsParse;
+exports.createAssertParse = createAssertParse;
+exports.createValidateParse = createValidateParse;
+exports.createStringify = createStringify;
+exports.createAssertStringify = createAssertStringify;
+exports.createIsStringify = createIsStringify;
+exports.createValidateStringify = createValidateStringify;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function schema() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.schema");
+}
+/** @internal */
+function schemas() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.schemas");
+}
+/** @internal */
+function application() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.application");
+}
+/** @internal */
+function assertParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.assertParse");
+}
+/** @internal */
+function isParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.isParse");
+}
+/** @internal */
+function validateParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.validateParse");
+}
+/** @internal */
+function stringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.stringify");
+}
+/** @internal */
+function assertStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.assertStringify");
+}
+/** @internal */
+function isStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.isStringify");
+}
+/** @internal */
+function validateStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.validateStringify");
+}
+/** @internal */
+function createIsParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createIsParse");
+}
+/** @internal */
+function createAssertParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createAssertParse");
+}
+/** @internal */
+function createValidateParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createValidateParse");
+}
+/** @internal */
+function createStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createStringify");
+}
+/** @internal */
+function createAssertStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createAssertStringify");
+}
+/** @internal */
+function createIsStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createIsStringify");
+}
+/** @internal */
+function createValidateStringify() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("json.createValidateStringify");
+}
+//# sourceMappingURL=json.js.map
+
+/***/ }),
+
+/***/ 8747:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.controller = controller;
+exports.application = application;
+exports.structuredOutput = structuredOutput;
+exports.parameters = parameters;
+exports.schema = schema;
+exports.parse = parse;
+exports.coerce = coerce;
+exports.createParse = createParse;
+exports.createCoerce = createCoerce;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function controller(..._args) {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.controller");
+}
+/** @internal */
+function application() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.application");
+}
+/** @internal */
+function structuredOutput() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.structuredOutput");
+}
+/** @internal */
+function parameters() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.parameters");
+}
+/** @internal */
+function schema() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.schema");
+}
+/** @internal */
+function parse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.parse");
+}
+/** @internal */
+function coerce() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.coerce");
+}
+/** @internal */
+function createParse() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.createParse");
+}
+/** @internal */
+function createCoerce() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("llm.createCoerce");
+}
+//# sourceMappingURL=llm.js.map
+
+/***/ }),
+
+/***/ 1302:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.literals = literals;
+exports.clone = clone;
+exports.assertClone = assertClone;
+exports.isClone = isClone;
+exports.validateClone = validateClone;
+exports.prune = prune;
+exports.assertPrune = assertPrune;
+exports.isPrune = isPrune;
+exports.validatePrune = validatePrune;
+exports.createClone = createClone;
+exports.createAssertClone = createAssertClone;
+exports.createIsClone = createIsClone;
+exports.createValidateClone = createValidateClone;
+exports.createPrune = createPrune;
+exports.createAssertPrune = createAssertPrune;
+exports.createIsPrune = createIsPrune;
+exports.createValidatePrune = createValidatePrune;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function literals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.literals");
+}
+/** @internal */
+function clone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.clone");
+}
+/** @internal */
+function assertClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.assertClone");
+}
+/** @internal */
+function isClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.isClone");
+}
+/** @internal */
+function validateClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.validateClone");
+}
+/** @internal */
+function prune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.prune");
+}
+/** @internal */
+function assertPrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.assertPrune");
+}
+/** @internal */
+function isPrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.isPrune");
+}
+/** @internal */
+function validatePrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.validatePrune");
+}
+/** @internal */
+function createClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createClone");
+}
+/** @internal */
+function createAssertClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createAssertClone");
+}
+/** @internal */
+function createIsClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createIsClone");
+}
+/** @internal */
+function createValidateClone() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createValidateClone");
+}
+/** @internal */
+function createPrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createPrune");
+}
+/** @internal */
+function createAssertPrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createAssertPrune");
+}
+/** @internal */
+function createIsPrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createIsPrune");
+}
+/** @internal */
+function createValidatePrune() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("misc.createValidatePrune");
+}
+//# sourceMappingURL=misc.js.map
+
+/***/ }),
+
+/***/ 3858:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.reflect = exports.protobuf = exports.notations = exports.misc = exports.json = exports.llm = exports.http = exports.functional = void 0;
+exports.assert = assert;
+exports.assertGuard = assertGuard;
+exports.is = is;
+exports.validate = validate;
+exports.assertEquals = assertEquals;
+exports.assertGuardEquals = assertGuardEquals;
+exports.equals = equals;
+exports.validateEquals = validateEquals;
+exports.random = random;
+exports.createAssert = createAssert;
+exports.createAssertGuard = createAssertGuard;
+exports.createIs = createIs;
+exports.createValidate = createValidate;
+exports.createAssertEquals = createAssertEquals;
+exports.createAssertGuardEquals = createAssertGuardEquals;
+exports.createEquals = createEquals;
+exports.createValidateEquals = createValidateEquals;
+exports.createRandom = createRandom;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+exports.functional = __importStar(__webpack_require__(1255));
+exports.http = __importStar(__webpack_require__(3130));
+exports.llm = __importStar(__webpack_require__(8747));
+exports.json = __importStar(__webpack_require__(8380));
+exports.misc = __importStar(__webpack_require__(1302));
+exports.notations = __importStar(__webpack_require__(3883));
+exports.protobuf = __importStar(__webpack_require__(3269));
+exports.reflect = __importStar(__webpack_require__(1345));
+__exportStar(__webpack_require__(8659), exports);
+__exportStar(__webpack_require__(9977), exports);
+/** @internal */
+function assert() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("assert");
+}
+/** @internal */
+function assertGuard() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("assertGuard");
+}
+/** @internal */
+function is() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("is");
+}
+/** @internal */
+function validate() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("validate");
+}
+/** @internal */
+function assertEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("assertEquals");
+}
+/** @internal */
+function assertGuardEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("assertGuardEquals");
+}
+/** @internal */
+function equals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("equals");
+}
+/** @internal */
+function validateEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("validateEquals");
+}
+/** @internal */
+function random() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("random");
+}
+/** @internal */
+function createAssert() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createAssert");
+}
+/** @internal */
+function createAssertGuard() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createAssertGuard");
+}
+/** @internal */
+function createIs() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createIs");
+}
+/** @internal */
+function createValidate() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createValidate");
+}
+/** @internal */
+function createAssertEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createAssertEquals");
+}
+/** @internal */
+function createAssertGuardEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createAssertGuardEquals");
+}
+/** @internal */
+function createEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createEquals");
+}
+/** @internal */
+function createValidateEquals() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createValidateEquals");
+}
+/** @internal */
+function createRandom() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("createRandom");
+}
+//# sourceMappingURL=module.js.map
+
+/***/ }),
+
+/***/ 3883:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.camel = camel;
+exports.assertCamel = assertCamel;
+exports.isCamel = isCamel;
+exports.validateCamel = validateCamel;
+exports.pascal = pascal;
+exports.assertPascal = assertPascal;
+exports.isPascal = isPascal;
+exports.validatePascal = validatePascal;
+exports.snake = snake;
+exports.assertSnake = assertSnake;
+exports.isSnake = isSnake;
+exports.validateSnake = validateSnake;
+exports.createCamel = createCamel;
+exports.createAssertCamel = createAssertCamel;
+exports.createIsCamel = createIsCamel;
+exports.createValidateCamel = createValidateCamel;
+exports.createPascal = createPascal;
+exports.createAssertPascal = createAssertPascal;
+exports.createIsPascal = createIsPascal;
+exports.createValidatePascal = createValidatePascal;
+exports.createSnake = createSnake;
+exports.createAssertSnake = createAssertSnake;
+exports.createIsSnake = createIsSnake;
+exports.createValidateSnake = createValidateSnake;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function camel() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.camel");
+}
+/** @internal */
+function assertCamel() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.assertCamel");
+}
+/** @internal */
+function isCamel() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.isCamel");
+}
+/** @internal */
+function validateCamel() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.validateCamel");
+}
+/** @internal */
+function pascal() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.pascal");
+}
+/** @internal */
+function assertPascal() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.assertPascal");
+}
+/** @internal */
+function isPascal() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.isPascal");
+}
+/** @internal */
+function validatePascal() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.validatePascal");
+}
+/** @internal */
+function snake() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.snake");
+}
+/** @internal */
+function assertSnake() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.assertSnake");
+}
+/** @internal */
+function isSnake() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.isSnake");
+}
+/** @internal */
+function validateSnake() {
+    return (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.validateSnake");
+}
+/** @internal */
+function createCamel() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createCamel");
+}
+/** @internal */
+function createAssertCamel() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createAssertCamel");
+}
+/** @internal */
+function createIsCamel() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createIsCamel");
+}
+/** @internal */
+function createValidateCamel() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createValidateCamel");
+}
+/** @internal */
+function createPascal() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createPascal");
+}
+/** @internal */
+function createAssertPascal() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createAssertPascal");
+}
+/** @internal */
+function createIsPascal() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createIsPascal");
+}
+/** @internal */
+function createValidatePascal() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createValidatePascal");
+}
+/** @internal */
+function createSnake() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createSnake");
+}
+/** @internal */
+function createAssertSnake() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createAssertSnake");
+}
+/** @internal */
+function createIsSnake() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createIsSnake");
+}
+/** @internal */
+function createValidateSnake() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("notations.createValidateSnake");
+}
+//# sourceMappingURL=notations.js.map
+
+/***/ }),
+
+/***/ 3269:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.message = message;
+exports.decode = decode;
+exports.assertDecode = assertDecode;
+exports.isDecode = isDecode;
+exports.validateDecode = validateDecode;
+exports.encode = encode;
+exports.assertEncode = assertEncode;
+exports.isEncode = isEncode;
+exports.validateEncode = validateEncode;
+exports.createDecode = createDecode;
+exports.createIsDecode = createIsDecode;
+exports.createAssertDecode = createAssertDecode;
+exports.createValidateDecode = createValidateDecode;
+exports.createEncode = createEncode;
+exports.createIsEncode = createIsEncode;
+exports.createAssertEncode = createAssertEncode;
+exports.createValidateEncode = createValidateEncode;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function message() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.message");
+}
+/** @internal */
+function decode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.decode");
+}
+/** @internal */
+function assertDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.assertDecode");
+}
+/** @internal */
+function isDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.isDecode");
+}
+/** @internal */
+function validateDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.validateDecode");
+}
+/** @internal */
+function encode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.encode");
+}
+/** @internal */
+function assertEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.assertEncode");
+}
+/** @internal */
+function isEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.isEncode");
+}
+/** @internal */
+function validateEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.validateEncode");
+}
+/** @internal */
+function createDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createDecode");
+}
+/** @internal */
+function createIsDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createIsDecode");
+}
+/** @internal */
+function createAssertDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createAssertDecode");
+}
+/** @internal */
+function createValidateDecode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createValidateDecode");
+}
+/** @internal */
+function createEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createEncode");
+}
+/** @internal */
+function createIsEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createIsEncode");
+}
+/** @internal */
+function createAssertEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createAssertEncode");
+}
+/** @internal */
+function createValidateEncode() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("protobuf.createValidateEncode");
+}
+//# sourceMappingURL=protobuf.js.map
+
+/***/ }),
+
+/***/ 9977:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.tags = void 0;
+var interface_1 = __webpack_require__(2602);
+// namespaces
+Object.defineProperty(exports, "tags", ({ enumerable: true, get: function () { return interface_1.tags; } }));
+//# sourceMappingURL=re-exports.js.map
+
+/***/ }),
+
+/***/ 1345:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.schemas = schemas;
+exports.schema = schema;
+exports.name = name;
+const NoTransformConfigurationError_1 = __webpack_require__(4448);
+/** @internal */
+function schemas() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("reflect.schemas");
+}
+/** @internal */
+function schema() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("reflect.schema");
+}
+/** @internal */
+function name() {
+    (0, NoTransformConfigurationError_1.NoTransformConfigurationError)("reflect.name");
+}
+//# sourceMappingURL=reflect.js.map
+
+/***/ }),
+
+/***/ 4448:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NoTransformConfigurationError = NoTransformConfigurationError;
+/** @internal */
+function NoTransformConfigurationError(name) {
+    throw new Error([
+        `Error on typia.${name}(): no transform has been configured.`,
+        "",
+        "Read and follow https://typia.io/docs/setup please.",
+        "",
+        [
+            "If you've already completed the setup, it means there's",
+            "a bug in your code. Run `tsc` command so that check what",
+            "is wrong with your code.",
+        ].join(" "),
+    ].join("\n"));
+}
+//# sourceMappingURL=NoTransformConfigurationError.js.map
 
 /***/ }),
 
@@ -95264,1280 +97424,6 @@ function version(uuid) {
     return parseInt(uuid.slice(14, 15), 16);
 }
 exports["default"] = version;
-
-
-/***/ }),
-
-/***/ 1608:
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-// ESM COMPAT FLAG
-__webpack_require__.r(__webpack_exports__);
-
-// EXPORTS
-__webpack_require__.d(__webpack_exports__, {
-  TypeGuardError: () => (/* reexport */ TypeGuardError),
-  assert: () => (/* reexport */ assert),
-  assertEquals: () => (/* reexport */ assertEquals),
-  assertGuard: () => (/* reexport */ assertGuard),
-  assertGuardEquals: () => (/* reexport */ assertGuardEquals),
-  createAssert: () => (/* reexport */ createAssert),
-  createAssertEquals: () => (/* reexport */ createAssertEquals),
-  createAssertGuard: () => (/* reexport */ createAssertGuard),
-  createAssertGuardEquals: () => (/* reexport */ createAssertGuardEquals),
-  createEquals: () => (/* reexport */ createEquals),
-  createIs: () => (/* reexport */ createIs),
-  createRandom: () => (/* reexport */ createRandom),
-  createValidate: () => (/* reexport */ createValidate),
-  createValidateEquals: () => (/* reexport */ createValidateEquals),
-  "default": () => (/* reexport */ module_namespaceObject),
-  equals: () => (/* reexport */ equals),
-  functional: () => (/* reexport */ functional_namespaceObject),
-  http: () => (/* reexport */ http_namespaceObject),
-  is: () => (/* reexport */ is),
-  json: () => (/* reexport */ json_namespaceObject),
-  llm: () => (/* reexport */ llm_namespaceObject),
-  misc: () => (/* reexport */ misc_namespaceObject),
-  notations: () => (/* reexport */ notations_namespaceObject),
-  protobuf: () => (/* reexport */ protobuf_namespaceObject),
-  random: () => (/* reexport */ random),
-  reflect: () => (/* reexport */ reflect_namespaceObject),
-  tags: () => (/* reexport */ tags_namespaceObject),
-  validate: () => (/* reexport */ validate),
-  validateEquals: () => (/* reexport */ validateEquals)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/functional.mjs
-var functional_namespaceObject = {};
-__webpack_require__.r(functional_namespaceObject);
-__webpack_require__.d(functional_namespaceObject, {
-  assertEqualsFunction: () => (assertEqualsFunction),
-  assertEqualsParameters: () => (assertEqualsParameters),
-  assertEqualsReturn: () => (assertEqualsReturn),
-  assertFunction: () => (assertFunction),
-  assertParameters: () => (assertParameters),
-  assertReturn: () => (assertReturn),
-  equalsFunction: () => (equalsFunction),
-  equalsParameters: () => (equalsParameters),
-  equalsReturn: () => (equalsReturn),
-  isFunction: () => (isFunction),
-  isParameters: () => (isParameters),
-  isReturn: () => (isReturn),
-  validateEqualsFunction: () => (validateEqualsFunction),
-  validateEqualsParameters: () => (validateEqualsParameters),
-  validateEqualsReturn: () => (validateEqualsReturn),
-  validateFunction: () => (validateFunction),
-  validateParameters: () => (validateParameters),
-  validateReturn: () => (validateReturn)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/http.mjs
-var http_namespaceObject = {};
-__webpack_require__.r(http_namespaceObject);
-__webpack_require__.d(http_namespaceObject, {
-  assertFormData: () => (assertFormData),
-  assertHeaders: () => (assertHeaders),
-  assertQuery: () => (assertQuery),
-  createAssertFormData: () => (createAssertFormData),
-  createAssertHeaders: () => (createAssertHeaders),
-  createAssertQuery: () => (createAssertQuery),
-  createFormData: () => (createFormData),
-  createHeaders: () => (createHeaders),
-  createIsFormData: () => (createIsFormData),
-  createIsHeaders: () => (createIsHeaders),
-  createIsQuery: () => (createIsQuery),
-  createParameter: () => (createParameter),
-  createQuery: () => (createQuery),
-  createValidateFormData: () => (createValidateFormData),
-  createValidateHeaders: () => (createValidateHeaders),
-  createValidateQuery: () => (createValidateQuery),
-  formData: () => (formData),
-  headers: () => (headers),
-  isFormData: () => (isFormData),
-  isHeaders: () => (isHeaders),
-  isQuery: () => (isQuery),
-  parameter: () => (parameter),
-  query: () => (query),
-  validateFormData: () => (validateFormData),
-  validateHeaders: () => (validateHeaders),
-  validateQuery: () => (validateQuery)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/llm.mjs
-var llm_namespaceObject = {};
-__webpack_require__.r(llm_namespaceObject);
-__webpack_require__.d(llm_namespaceObject, {
-  application: () => (application),
-  controller: () => (controller),
-  parameters: () => (parameters),
-  schema: () => (schema)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/json.mjs
-var json_namespaceObject = {};
-__webpack_require__.r(json_namespaceObject);
-__webpack_require__.d(json_namespaceObject, {
-  assertParse: () => (assertParse),
-  assertStringify: () => (assertStringify),
-  createAssertParse: () => (createAssertParse),
-  createAssertStringify: () => (createAssertStringify),
-  createIsParse: () => (createIsParse),
-  createIsStringify: () => (createIsStringify),
-  createStringify: () => (createStringify),
-  createValidateParse: () => (createValidateParse),
-  createValidateStringify: () => (createValidateStringify),
-  isParse: () => (isParse),
-  isStringify: () => (isStringify),
-  schema: () => (json_schema),
-  schemas: () => (schemas),
-  stringify: () => (stringify),
-  validateParse: () => (validateParse),
-  validateStringify: () => (validateStringify)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/misc.mjs
-var misc_namespaceObject = {};
-__webpack_require__.r(misc_namespaceObject);
-__webpack_require__.d(misc_namespaceObject, {
-  assertClone: () => (assertClone),
-  assertPrune: () => (assertPrune),
-  clone: () => (clone),
-  createAssertClone: () => (createAssertClone),
-  createAssertPrune: () => (createAssertPrune),
-  createClone: () => (createClone),
-  createIsClone: () => (createIsClone),
-  createIsPrune: () => (createIsPrune),
-  createPrune: () => (createPrune),
-  createValidateClone: () => (createValidateClone),
-  createValidatePrune: () => (createValidatePrune),
-  isClone: () => (isClone),
-  isPrune: () => (isPrune),
-  literals: () => (literals),
-  prune: () => (prune),
-  validateClone: () => (validateClone),
-  validatePrune: () => (validatePrune)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/notations.mjs
-var notations_namespaceObject = {};
-__webpack_require__.r(notations_namespaceObject);
-__webpack_require__.d(notations_namespaceObject, {
-  assertCamel: () => (assertCamel),
-  assertPascal: () => (assertPascal),
-  assertSnake: () => (assertSnake),
-  camel: () => (camel),
-  createAssertCamel: () => (createAssertCamel),
-  createAssertPascal: () => (createAssertPascal),
-  createAssertSnake: () => (createAssertSnake),
-  createCamel: () => (createCamel),
-  createIsCamel: () => (createIsCamel),
-  createIsPascal: () => (createIsPascal),
-  createIsSnake: () => (createIsSnake),
-  createPascal: () => (createPascal),
-  createSnake: () => (createSnake),
-  createValidateCamel: () => (createValidateCamel),
-  createValidatePascal: () => (createValidatePascal),
-  createValidateSnake: () => (createValidateSnake),
-  isCamel: () => (isCamel),
-  isPascal: () => (isPascal),
-  isSnake: () => (isSnake),
-  pascal: () => (pascal),
-  snake: () => (snake),
-  validateCamel: () => (validateCamel),
-  validatePascal: () => (validatePascal),
-  validateSnake: () => (validateSnake)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/protobuf.mjs
-var protobuf_namespaceObject = {};
-__webpack_require__.r(protobuf_namespaceObject);
-__webpack_require__.d(protobuf_namespaceObject, {
-  assertDecode: () => (assertDecode),
-  assertEncode: () => (assertEncode),
-  createAssertDecode: () => (createAssertDecode),
-  createAssertEncode: () => (createAssertEncode),
-  createDecode: () => (createDecode),
-  createEncode: () => (createEncode),
-  createIsDecode: () => (createIsDecode),
-  createIsEncode: () => (createIsEncode),
-  createValidateDecode: () => (createValidateDecode),
-  createValidateEncode: () => (createValidateEncode),
-  decode: () => (decode),
-  encode: () => (encode),
-  isDecode: () => (isDecode),
-  isEncode: () => (isEncode),
-  message: () => (message),
-  validateDecode: () => (validateDecode),
-  validateEncode: () => (validateEncode)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/reflect.mjs
-var reflect_namespaceObject = {};
-__webpack_require__.r(reflect_namespaceObject);
-__webpack_require__.d(reflect_namespaceObject, {
-  metadata: () => (metadata),
-  name: () => (reflect_name)
-});
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/tags/index.mjs
-var tags_namespaceObject = {};
-__webpack_require__.r(tags_namespaceObject);
-
-// NAMESPACE OBJECT: ./node_modules/typia/lib/module.mjs
-var module_namespaceObject = {};
-__webpack_require__.r(module_namespaceObject);
-__webpack_require__.d(module_namespaceObject, {
-  TypeGuardError: () => (TypeGuardError),
-  assert: () => (assert),
-  assertEquals: () => (assertEquals),
-  assertGuard: () => (assertGuard),
-  assertGuardEquals: () => (assertGuardEquals),
-  createAssert: () => (createAssert),
-  createAssertEquals: () => (createAssertEquals),
-  createAssertGuard: () => (createAssertGuard),
-  createAssertGuardEquals: () => (createAssertGuardEquals),
-  createEquals: () => (createEquals),
-  createIs: () => (createIs),
-  createRandom: () => (createRandom),
-  createValidate: () => (createValidate),
-  createValidateEquals: () => (createValidateEquals),
-  equals: () => (equals),
-  functional: () => (functional_namespaceObject),
-  http: () => (http_namespaceObject),
-  is: () => (is),
-  json: () => (json_namespaceObject),
-  llm: () => (llm_namespaceObject),
-  misc: () => (misc_namespaceObject),
-  notations: () => (notations_namespaceObject),
-  protobuf: () => (protobuf_namespaceObject),
-  random: () => (random),
-  reflect: () => (reflect_namespaceObject),
-  tags: () => (tags_namespaceObject),
-  validate: () => (validate),
-  validateEquals: () => (validateEquals)
-});
-
-;// ./node_modules/typia/lib/transformers/NoTransformConfigurationError.mjs
-/**
- * @internal
- */
-function NoTransformConfigurationError(name) {
-    throw new Error([
-        `Error on typia.${name}(): no transform has been configured.`,
-        "",
-        "Read and follow https://typia.io/docs/setup please.",
-        "",
-        [
-            "If you've already completed the setup, it means there's",
-            "a bug in your code. Run `tsc` command so that check what",
-            "is wrong with your code.",
-        ].join(" "),
-    ].join("\n"));
-}
-
-
-//# sourceMappingURL=NoTransformConfigurationError.mjs.map
-
-;// ./node_modules/typia/lib/functional.mjs
-
-
-/**
- * @internal
- */
-function assertFunction() {
-    NoTransformConfigurationError("functional.assertFunction");
-}
-/**
- * @internal
- */
-function assertParameters() {
-    NoTransformConfigurationError("functional.assertParameters");
-}
-/**
- * @internal
- */
-function assertReturn() {
-    NoTransformConfigurationError("functional.assertReturn");
-}
-/**
- * @internal
- */
-function assertEqualsFunction() {
-    NoTransformConfigurationError("functional.assertEqualsFunction");
-}
-/**
- * @internal
- */
-function assertEqualsParameters() {
-    NoTransformConfigurationError("functional.assertEqualsParameters");
-}
-/**
- * @internal
- */
-function assertEqualsReturn() {
-    NoTransformConfigurationError("functional.assertEqualsReturn");
-}
-/**
- * @internal
- */
-function isFunction() {
-    NoTransformConfigurationError("functional.isFunction");
-}
-/**
- * @internal
- */
-function isParameters() {
-    NoTransformConfigurationError("functional.isParameters");
-}
-/**
- * @internal
- */
-function isReturn() {
-    NoTransformConfigurationError("functional.isReturn");
-}
-/**
- * @internal
- */
-function equalsFunction() {
-    NoTransformConfigurationError("functional.equalsFunction");
-}
-/**
- * @internal
- */
-function equalsParameters() {
-    NoTransformConfigurationError("functional.equalsParameters");
-}
-/**
- * @internal
- */
-function equalsReturn() {
-    NoTransformConfigurationError("functional.equalsReturn");
-}
-/**
- * @internal
- */
-function validateFunction() {
-    NoTransformConfigurationError("functional.validateFunction");
-}
-/**
- * @internal
- */
-function validateParameters() {
-    NoTransformConfigurationError("functional.validateReturn");
-}
-/**
- * @internal
- */
-function validateReturn() {
-    NoTransformConfigurationError("functional.validateReturn");
-}
-/**
- * @internal
- */
-function validateEqualsFunction() {
-    NoTransformConfigurationError("functional.validateEqualsFunction");
-}
-/**
- * @internal
- */
-function validateEqualsParameters() {
-    NoTransformConfigurationError("functional.validateEqualsParameters");
-}
-/**
- * @internal
- */
-function validateEqualsReturn() {
-    NoTransformConfigurationError("functional.validateEqualsReturn");
-}
-
-
-//# sourceMappingURL=functional.mjs.map
-
-;// ./node_modules/typia/lib/http.mjs
-
-
-/**
- * @internal
- */
-function formData() {
-    NoTransformConfigurationError("http.formData");
-}
-/**
- * @internal
- */
-function assertFormData() {
-    NoTransformConfigurationError("http.assertFormData");
-}
-/**
- * @internal
- */
-function isFormData() {
-    NoTransformConfigurationError("http.isFormData");
-}
-/**
- * @internal
- */
-function validateFormData() {
-    NoTransformConfigurationError("http.validateFormData");
-}
-/**
- * @internal
- */
-function query() {
-    NoTransformConfigurationError("http.query");
-}
-/**
- * @internal
- */
-function assertQuery() {
-    NoTransformConfigurationError("http.assertQuery");
-}
-/**
- * @internal
- */
-function isQuery() {
-    NoTransformConfigurationError("http.isQuery");
-}
-/**
- * @internal
- */
-function validateQuery() {
-    NoTransformConfigurationError("http.validateQuery");
-}
-/**
- * @internal
- */
-function headers() {
-    NoTransformConfigurationError("http.headers");
-}
-/**
- * @internal
- */
-function assertHeaders() {
-    NoTransformConfigurationError("http.assertHeaders");
-}
-/**
- * @internal
- */
-function isHeaders() {
-    NoTransformConfigurationError("http.isHeaders");
-}
-/**
- * @internal
- */
-function validateHeaders() {
-    NoTransformConfigurationError("http.validateHeaders");
-}
-/**
- * @internal
- */
-function parameter() {
-    NoTransformConfigurationError("http.parameter");
-}
-/**
- * @internal
- */
-function createFormData() {
-    NoTransformConfigurationError("http.createFormData");
-}
-/**
- * @internal
- */
-function createAssertFormData() {
-    NoTransformConfigurationError("http.createAssertFormData");
-}
-/**
- * @internal
- */
-function createIsFormData() {
-    NoTransformConfigurationError("http.createIsFormData");
-}
-/**
- * @internal
- */
-function createValidateFormData() {
-    NoTransformConfigurationError("http.createValidateFormData");
-}
-/**
- * @internal
- */
-function createQuery() {
-    NoTransformConfigurationError("http.createQuery");
-}
-/**
- * @internal
- */
-function createAssertQuery() {
-    NoTransformConfigurationError("http.createAssertQuery");
-}
-/**
- * @internal
- */
-function createIsQuery() {
-    NoTransformConfigurationError("http.createIsQuery");
-}
-/**
- * @internal
- */
-function createValidateQuery() {
-    NoTransformConfigurationError("http.createValidateQuery");
-}
-/**
- * @internal
- */
-function createHeaders() {
-    NoTransformConfigurationError("http.createHeaders");
-}
-/**
- * @internal
- */
-function createAssertHeaders() {
-    NoTransformConfigurationError("http.createAssertHeaders");
-}
-/**
- * @internal
- */
-function createIsHeaders() {
-    NoTransformConfigurationError("http.createIsHeaders");
-}
-/**
- * @internal
- */
-function createValidateHeaders() {
-    NoTransformConfigurationError("http.createValidateHeaders");
-}
-/**
- * @internal
- */
-function createParameter() {
-    NoTransformConfigurationError("http.createParameter");
-}
-
-
-//# sourceMappingURL=http.mjs.map
-
-;// ./node_modules/typia/lib/llm.mjs
-
-
-/**
- * @internal
- */
-function controller(..._args) {
-    NoTransformConfigurationError("llm.controller");
-}
-/**
- * @internal
- */
-function application() {
-    NoTransformConfigurationError("llm.application");
-}
-/**
- * @internal
- */
-function parameters() {
-    NoTransformConfigurationError("llm.parameters");
-}
-/**
- * @internal
- */
-function schema() {
-    NoTransformConfigurationError("llm.schema");
-}
-
-
-//# sourceMappingURL=llm.mjs.map
-
-;// ./node_modules/typia/lib/json.mjs
-
-
-/**
- * @internal
- */
-function schemas() {
-    NoTransformConfigurationError("json.schemas");
-}
-/**
- * @internal
- */
-function json_schema() {
-    NoTransformConfigurationError("json.schema");
-}
-/**
- * @internal
- */
-function assertParse() {
-    NoTransformConfigurationError("json.assertParse");
-}
-/**
- * @internal
- */
-function isParse() {
-    NoTransformConfigurationError("json.isParse");
-}
-/**
- * @internal
- */
-function validateParse() {
-    NoTransformConfigurationError("json.validateParse");
-}
-/**
- * @internal
- */
-function stringify() {
-    NoTransformConfigurationError("json.stringify");
-}
-/**
- * @internal
- */
-function assertStringify() {
-    NoTransformConfigurationError("json.assertStringify");
-}
-/**
- * @internal
- */
-function isStringify() {
-    NoTransformConfigurationError("json.isStringify");
-}
-/**
- * @internal
- */
-function validateStringify() {
-    NoTransformConfigurationError("json.validateStringify");
-}
-/**
- * @internal
- */
-function createIsParse() {
-    NoTransformConfigurationError("json.createIsParse");
-}
-/**
- * @internal
- */
-function createAssertParse() {
-    NoTransformConfigurationError("json.createAssertParse");
-}
-/**
- * @internal
- */
-function createValidateParse() {
-    NoTransformConfigurationError("json.createValidateParse");
-}
-/**
- * @internal
- */
-function createStringify() {
-    NoTransformConfigurationError("json.createStringify");
-}
-/**
- * @internal
- */
-function createAssertStringify() {
-    NoTransformConfigurationError("json.createAssertStringify");
-}
-/**
- * @internal
- */
-function createIsStringify() {
-    NoTransformConfigurationError("json.createIsStringify");
-}
-/**
- * @internal
- */
-function createValidateStringify() {
-    NoTransformConfigurationError("json.createValidateStringify");
-}
-
-
-//# sourceMappingURL=json.mjs.map
-
-;// ./node_modules/typia/lib/misc.mjs
-
-
-/* ===========================================================
-    MISCELLANEOUS
-      - LITERALS
-      - CLONE
-      - PRUNE
-      - FACTORY FUNCTIONS
-==============================================================
-    LITERALS
------------------------------------------------------------ */
-/**
- * @internal
- */
-function literals() {
-    NoTransformConfigurationError("misc.literals");
-}
-/**
- * @internal
- */
-function clone() {
-    NoTransformConfigurationError("misc.clone");
-}
-/**
- * @internal
- */
-function assertClone() {
-    NoTransformConfigurationError("misc.assertClone");
-}
-/**
- * @internal
- */
-function isClone() {
-    NoTransformConfigurationError("misc.isClone");
-}
-/**
- * @internal
- */
-function validateClone() {
-    NoTransformConfigurationError("misc.validateClone");
-}
-/**
- * @internal
- */
-function prune() {
-    NoTransformConfigurationError("misc.prune");
-}
-/**
- * @internal
- */
-function assertPrune() {
-    NoTransformConfigurationError("misc.assertPrune");
-}
-/**
- * @internal
- */
-function isPrune() {
-    NoTransformConfigurationError("misc.isPrune");
-}
-/**
- * @internal
- */
-function validatePrune() {
-    NoTransformConfigurationError("misc.validatePrune");
-}
-/**
- * @internal
- */
-function createClone() {
-    NoTransformConfigurationError("misc.createClone");
-}
-/**
- * @internal
- */
-function createAssertClone() {
-    NoTransformConfigurationError("misc.createAssertClone");
-}
-/**
- * @internal
- */
-function createIsClone() {
-    NoTransformConfigurationError("misc.createIsClone");
-}
-/**
- * @internal
- */
-function createValidateClone() {
-    NoTransformConfigurationError("misc.createValidateClone");
-}
-/**
- * @internal
- */
-function createPrune() {
-    NoTransformConfigurationError("misc.createPrune");
-}
-/**
- * @internal
- */
-function createAssertPrune() {
-    NoTransformConfigurationError("misc.createAssertPrune");
-}
-/**
- * @internal
- */
-function createIsPrune() {
-    NoTransformConfigurationError("misc.createIsPrune");
-}
-/**
- * @internal
- */
-function createValidatePrune() {
-    NoTransformConfigurationError("misc.createValidatePrune");
-}
-
-
-//# sourceMappingURL=misc.mjs.map
-
-;// ./node_modules/typia/lib/notations.mjs
-
-
-/**
- * @internal
- */
-function camel() {
-    return NoTransformConfigurationError("notations.camel");
-}
-/**
- * @internal
- */
-function assertCamel() {
-    return NoTransformConfigurationError("notations.assertCamel");
-}
-/**
- * @internal
- */
-function isCamel() {
-    return NoTransformConfigurationError("notations.isCamel");
-}
-/**
- * @internal
- */
-function validateCamel() {
-    return NoTransformConfigurationError("notations.validateCamel");
-}
-/**
- * @internal
- */
-function pascal() {
-    return NoTransformConfigurationError("notations.pascal");
-}
-/**
- * @internal
- */
-function assertPascal() {
-    return NoTransformConfigurationError("notations.assertPascal");
-}
-/**
- * @internal
- */
-function isPascal() {
-    return NoTransformConfigurationError("notations.isPascal");
-}
-/**
- * @internal
- */
-function validatePascal() {
-    return NoTransformConfigurationError("notations.validatePascal");
-}
-/**
- * @internal
- */
-function snake() {
-    return NoTransformConfigurationError("notations.snake");
-}
-/**
- * @internal
- */
-function assertSnake() {
-    return NoTransformConfigurationError("notations.assertSnake");
-}
-/**
- * @internal
- */
-function isSnake() {
-    return NoTransformConfigurationError("notations.isSnake");
-}
-/**
- * @internal
- */
-function validateSnake() {
-    return NoTransformConfigurationError("notations.validateSnake");
-}
-/**
- * @internal
- */
-function createCamel() {
-    NoTransformConfigurationError("notations.createCamel");
-}
-/**
- * @internal
- */
-function createAssertCamel() {
-    NoTransformConfigurationError("notations.createAssertCamel");
-}
-/**
- * @internal
- */
-function createIsCamel() {
-    NoTransformConfigurationError("notations.createIsCamel");
-}
-/**
- * @internal
- */
-function createValidateCamel() {
-    NoTransformConfigurationError("notations.createValidateCamel");
-}
-/**
- * @internal
- */
-function createPascal() {
-    NoTransformConfigurationError("notations.createPascal");
-}
-/**
- * @internal
- */
-function createAssertPascal() {
-    NoTransformConfigurationError("notations.createAssertPascal");
-}
-/**
- * @internal
- */
-function createIsPascal() {
-    NoTransformConfigurationError("notations.createIsPascal");
-}
-/**
- * @internal
- */
-function createValidatePascal() {
-    NoTransformConfigurationError("notations.createValidatePascal");
-}
-/**
- * @internal
- */
-function createSnake() {
-    NoTransformConfigurationError("notations.createSnake");
-}
-/**
- * @internal
- */
-function createAssertSnake() {
-    NoTransformConfigurationError("notations.createAssertSnake");
-}
-/**
- * @internal
- */
-function createIsSnake() {
-    NoTransformConfigurationError("notations.createIsSnake");
-}
-/**
- * @internal
- */
-function createValidateSnake() {
-    NoTransformConfigurationError("notations.createValidateSnake");
-}
-
-
-//# sourceMappingURL=notations.mjs.map
-
-;// ./node_modules/typia/lib/protobuf.mjs
-
-
-/**
- * @internal
- */
-function message() {
-    NoTransformConfigurationError("protobuf.message");
-}
-/**
- * @internal
- */
-function decode() {
-    NoTransformConfigurationError("protobuf.decode");
-}
-/**
- * @internal
- */
-function assertDecode() {
-    NoTransformConfigurationError("protobuf.assertDecode");
-}
-/**
- * @internal
- */
-function isDecode() {
-    NoTransformConfigurationError("protobuf.isDecode");
-}
-/**
- * @internal
- */
-function validateDecode() {
-    NoTransformConfigurationError("protobuf.validateDecode");
-}
-/**
- * @internal
- */
-function encode() {
-    NoTransformConfigurationError("protobuf.encode");
-}
-/**
- * @internal
- */
-function assertEncode() {
-    NoTransformConfigurationError("protobuf.assertEncode");
-}
-/**
- * @internal
- */
-function isEncode() {
-    NoTransformConfigurationError("protobuf.isEncode");
-}
-/**
- * @internal
- */
-function validateEncode() {
-    NoTransformConfigurationError("protobuf.validateEncode");
-}
-/**
- * @internal
- */
-function createDecode() {
-    NoTransformConfigurationError("protobuf.createDecode");
-}
-/**
- * @internal
- */
-function createIsDecode() {
-    NoTransformConfigurationError("protobuf.createIsDecode");
-}
-/**
- * @internal
- */
-function createAssertDecode() {
-    NoTransformConfigurationError("protobuf.createAssertDecode");
-}
-/**
- * @internal
- */
-function createValidateDecode() {
-    NoTransformConfigurationError("protobuf.createValidateDecode");
-}
-/**
- * @internal
- */
-function createEncode() {
-    NoTransformConfigurationError("protobuf.createEncode");
-}
-/**
- * @internal
- */
-function createIsEncode() {
-    NoTransformConfigurationError("protobuf.createIsEncode");
-}
-/**
- * @internal
- */
-function createAssertEncode() {
-    NoTransformConfigurationError("protobuf.createAssertEncode");
-}
-/**
- * @internal
- */
-function createValidateEncode() {
-    NoTransformConfigurationError("protobuf.createValidateEncode");
-}
-
-
-//# sourceMappingURL=protobuf.mjs.map
-
-;// ./node_modules/typia/lib/reflect.mjs
-
-
-/**
- * @internal
- */
-function metadata() {
-    NoTransformConfigurationError("reflect.metadata");
-}
-function reflect_name() {
-    NoTransformConfigurationError("reflect.name");
-}
-
-
-//# sourceMappingURL=reflect.mjs.map
-
-;// ./node_modules/typia/lib/tags/index.mjs
-
-//# sourceMappingURL=index.mjs.map
-
-;// ./node_modules/typia/lib/TypeGuardError.mjs
-class TypeGuardError extends Error {
-    method;
-    path;
-    expected;
-    value;
-    fake_expected_typed_value_;
-    constructor(props) {
-        // MESSAGE CONSTRUCTION
-        super(props.message ||
-            `Error on ${props.method}(): invalid type${props.path ? ` on ${props.path}` : ""}, expect to be ${props.expected}`);
-        // INHERITANCE POLYFILL
-        const proto = new.target.prototype;
-        if (Object.setPrototypeOf)
-            Object.setPrototypeOf(this, proto);
-        else
-            this.__proto__ = proto;
-        // ASSIGN MEMBERS
-        this.method = props.method;
-        this.path = props.path;
-        this.expected = props.expected;
-        this.value = props.value;
-    }
-}
-
-
-//# sourceMappingURL=TypeGuardError.mjs.map
-
-;// ./node_modules/typia/lib/module.mjs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * @internal
- */
-function assert() {
-    NoTransformConfigurationError("assert");
-}
-/**
- * @internal
- */
-function assertGuard() {
-    NoTransformConfigurationError("assertGuard");
-}
-/**
- * @internal
- */
-function is() {
-    NoTransformConfigurationError("is");
-}
-/**
- * @internal
- */
-function validate() {
-    NoTransformConfigurationError("validate");
-}
-/**
- * @internal
- */
-function assertEquals() {
-    NoTransformConfigurationError("assertEquals");
-}
-/**
- * @internal
- */
-function assertGuardEquals() {
-    NoTransformConfigurationError("assertGuardEquals");
-}
-/**
- * @internal
- */
-function equals() {
-    NoTransformConfigurationError("equals");
-}
-/**
- * @internal
- */
-function validateEquals() {
-    NoTransformConfigurationError("validateEquals");
-}
-/**
- * @internal
- */
-function random() {
-    NoTransformConfigurationError("random");
-}
-/**
- * @internal
- */
-function createAssert() {
-    NoTransformConfigurationError("createAssert");
-}
-/**
- * @internal
- */
-function createAssertGuard() {
-    NoTransformConfigurationError("createAssertGuard");
-}
-/**
- * @internal
- */
-function createIs() {
-    NoTransformConfigurationError("createIs");
-}
-/**
- * @internal
- */
-function createValidate() {
-    NoTransformConfigurationError("createValidate");
-}
-/**
- * @internal
- */
-function createAssertEquals() {
-    NoTransformConfigurationError("createAssertEquals");
-}
-/**
- * @internal
- */
-function createAssertGuardEquals() {
-    NoTransformConfigurationError("createAssertGuardEquals");
-}
-/**
- * @internal
- */
-function createEquals() {
-    NoTransformConfigurationError("createEquals");
-}
-/**
- * @internal
- */
-function createValidateEquals() {
-    NoTransformConfigurationError("createValidateEquals");
-}
-/**
- * @internal
- */
-function createRandom() {
-    NoTransformConfigurationError("createRandom");
-}
-
-
-//# sourceMappingURL=module.mjs.map
-
-;// ./node_modules/typia/lib/index.mjs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//# sourceMappingURL=index.mjs.map
 
 
 /***/ }),

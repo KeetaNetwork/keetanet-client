@@ -1,4 +1,4 @@
-import type { LogEntry, LogTargetLevel, LogTarget } from './common';
+import type { LogEntry, LogEntryFilled, LogTargetLevel, LogTarget } from './common';
 type LogTargetConsoleConfig = {
     logLevel?: LogTargetLevel;
     filter?: RegExp;
@@ -15,6 +15,6 @@ declare class LogTargetConsole implements LogTarget {
         [key: string]: string;
     };
     constructor(config?: LogTargetConsoleConfig);
-    emitLogs(logs: LogEntry[]): Promise<void>;
+    emitLogs(logs: (LogEntry | LogEntryFilled)[]): Promise<void>;
 }
 export default LogTargetConsole;

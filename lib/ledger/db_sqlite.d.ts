@@ -8,14 +8,34 @@ import type { Ledger, LedgerConfig, LedgerStorageAPI, LedgerSelector, PaginatedV
 import { IdempotentKey, LedgerStorageTransactionBase } from '../ledger';
 import type { ACLRow, GetAllBalancesResponse, LedgerStatistics, CertificateWithIntermediates, AccountInfoForType } from './types';
 import { LedgerStorageBase } from './common';
-import * as sqlite from 'sqlite';
+import type { SQLInputValue } from 'node:sqlite';
 import type { ComputedEffectOfBlocks } from './effects';
 import type { CertificateHash } from '../utils/certificate';
+type SQLiteNamedParams = {
+    [key: string]: SQLInputValue;
+};
+type SQLiteQueryParams = SQLiteNamedParams | SQLInputValue[];
+/**
+ * Thin async-shaped wrapper around Node's synchronous node:sqlite DatabaseSync,
+ * matching the subset of the former `sqlite`/`sqlite3` API used by this driver.
+ *
+ * Each call yields to the event loop before running sync SQLite work so that
+ * long bursts of queries (e.g. table init) do not starve HTTP/P2P handlers.
+ */
+declare class SQLiteDatabase {
+    #private;
+    constructor(filename: string);
+    exec(sql: string): Promise<void>;
+    run(sql: string, params?: SQLiteQueryParams): Promise<void>;
+    get<T = any>(sql: string, params?: SQLiteQueryParams): Promise<T | undefined>;
+    all<T = any[]>(sql: string, params?: SQLiteQueryParams): Promise<T>;
+    close(): Promise<void>;
+}
 declare class DBSqliteTransaction extends LedgerStorageTransactionBase {
-    sql: Awaited<ReturnType<typeof sqlite['open']>>;
+    sql: SQLiteDatabase;
     release: null | ((value: null | number) => void);
     lock: null | Promise<null | number>;
-    constructor(baseTransaction: LedgerStorageTransactionBaseOptions, db: Awaited<ReturnType<typeof sqlite['open']>>);
+    constructor(baseTransaction: LedgerStorageTransactionBaseOptions, db: SQLiteDatabase);
 }
 export interface DBSqliteConfig {
     filename: string;

@@ -1,4 +1,4 @@
-import type { LogTarget, LogTargetLevel, LogEntry } from './common';
+import type { LogTarget, LogTargetLevel, LogEntry, LogEntryFilled } from './common';
 import type { NonIdentifierAccount } from '../account';
 import LogTargetConsole from './target_console';
 type LogTargetHTTPSConfig = {
@@ -23,6 +23,6 @@ declare class LogTargetHTTPS implements LogTarget {
         [key: string]: string;
     };
     constructor(config: LogTargetHTTPSConfig);
-    emitLogs(input: LogEntry[]): Promise<void>;
+    emitLogs(input: (LogEntry | LogEntryFilled)[]): Promise<void>;
 }
 export default LogTargetHTTPS;

@@ -54,6 +54,4 @@ export declare function errorCodeOf(error: unknown): unknown;
  * `undefined` if it does not throw.
  */
 export declare function caughtErrorCode(fn: () => unknown): unknown;
-declare let testMethod: (..._ignore_args: any[]) => any;
-declare function getJestPuppeteerSetupFile(skipDefaultOutput?: boolean): string;
-export { testMethod, getJestPuppeteerSetupFile };
+export {};
